@@ -1,0 +1,79 @@
+/*******************************************************************
+ * Reconcile.gs — กระทบยอด การเงิน vs บัญชี (รายเดือน)
+ * ----------------------------------------------------------------
+ * เทียบยอดรับ/จ่ายของฝ่ายการเงิน (Receipts_Finance / Expenses_Finance)
+ * กับฝ่ายบัญชี (Receipts_Account / Expenses_Account) แยกตามเดือน (ต.ค.–ก.ย.)
+ * และรายการเงิน แล้วให้บันทึกเหตุผลของผลต่างไว้ที่ Reconcile_Log
+ * (id ของแต่ละแถวคือ fy-fund-month-side เพื่อ upsert เหตุผลซ้ำที่เดิมได้)
+ *******************************************************************/
+const RC_SIDE_LABEL = { receipt: 'เงินเข้า', expense: 'รายจ่าย' };
+ 
+/** ข้อมูลหน้ากระทบยอด: ทุกเดือนของปีงบ × ทุกรายการเงิน × 2 ด้าน (รับ/จ่าย) */
+function getReconcileData(fy) {
+  const u = requirePage_('reconcile');
+  fy = Number(fy);
+  const funds = getFunds_();
+  const months = fyMonths_(fy);
+  const finR = readObjects_('Receipts_Finance').filter(r => Number(r.fy) === fy);
+  const finE = readExpenses_().filter(r => Number(r.fy) === fy);
+  const accR = readObjects_('Receipts_Account').filter(r => Number(r.fy) === fy);
+  const accE = readObjects_('Expenses_Account').filter(r => Number(r.fy) === fy);
+  const log = {};
+  readObjects_('Reconcile_Log').filter(r => Number(r.fy) === fy).forEach(r => { log[r.fund + '|' + r.month + '|' + r.side] = r; });
+ 
+  const ym = row => String(row.date || '').slice(0, 7);
+  const sumBy = (rows, code, m) => round2_(rows.filter(r => r.fund === code && ym(r) === m.ym).reduce((x, r) => x + num_(r.amount), 0));
+ 
+  const rows = [];
+  months.forEach(m => {
+    funds.forEach(f => {
+      ['receipt', 'expense'].forEach(side => {
+        const finance = sumBy(side === 'receipt' ? finR : finE, f.code, m);
+        const account = sumBy(side === 'receipt' ? accR : accE, f.code, m);
+        if (finance === 0 && account === 0) return;               // ไม่มีข้อมูลเดือนนี้ ข้าม
+        const diff = round2_(finance - account);
+        const status = same_(finance, account) ? 'match' : 'diff';
+        const rec = log[f.code + '|' + m.month + '|' + side];
+        rows.push({
+          fy: fy, month: m.month, ym: m.ym, monthLabel: m.label, side: side,
+          fund: f.code, fundName: f.name, fundShort: f.short, color: f.color,
+          finance: finance, account: account, diff: diff, status: status,
+          reason: rec ? String(rec.reason || '') : '', by: rec ? String(rec.by || '') : '', at: rec ? rec.at : ''
+        });
+      });
+    });
+  });
+ 
+  return {
+    fy: fy, months: months, funds: funds, rows: rows,
+    matchCount: rows.filter(r => r.status === 'match').length,
+    diffCount: rows.filter(r => r.status === 'diff').length,
+    diffNoReason: rows.filter(r => r.status === 'diff' && !r.reason).length,
+    canEdit: WRITE_ROLES.reconcile.indexOf(u.role) >= 0
+  };
+}
+ 
+/** บันทึก/แก้ไขเหตุผลของผลต่าง 1 แถว (upsert ด้วย id = fy-fund-month-side) */
+function saveReconcileReason(fy, fund, month, side, reason) {
+  const u = requireWrite_('reconcile');
+  fy = Number(fy); month = Number(month);
+  if (!fy || !month) throw new Error('ข้อมูลไม่ถูกต้อง');
+  if (!RC_SIDE_LABEL[side]) throw new Error('ประเภทไม่ถูกต้อง');
+  if (!getFunds_().some(f => f.code === fund)) throw new Error('รายการเงินไม่ถูกต้อง');
+  const id = fy + '-' + fund + '-' + month + '-' + side;
+  const data = getReconcileData(fy);
+  const row = data.rows.find(r => r.fund === fund && r.month === month && r.side === side);
+  const rec = {
+    fy: fy, fund: fund, month: month, side: side,
+    finance: row ? row.finance : 0, account: row ? row.account : 0, diff: row ? row.diff : 0,
+    reason: String(reason || '').trim(), by: u.email, at: new Date()
+  };
+  return withLock_(() => {
+    if (!updateObject_('Reconcile_Log', id, rec)) {
+      rec.id = id;
+      appendObject_('Reconcile_Log', rec);
+    }
+    audit_('update', 'Reconcile_Log', id, rec);
+    return true;
+  });
+}
