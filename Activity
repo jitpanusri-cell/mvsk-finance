@@ -1,0 +1,196 @@
+/*******************************************************************
+ * Activity.gs — งบกิจกรรม/โครงการ
+ * ----------------------------------------------------------------
+ * 1) ตั้งกิจกรรม/โครงการ และกำหนดว่าใช้เงินรายการไหน เท่าไร (ชีต Activities)
+ *    กิจกรรมเดียวใช้หลายรายการเงินได้ เช่น จัดการเรียนการสอน 20,000 + กิจกรรมพัฒนาผู้เรียน 5,000
+ * 2) "ตัดงบ" = บันทึกรายจ่ายผูกกับกิจกรรม (ชีต Expenses_Finance คอลัมน์ activityId)
+ *    รายจ่ายนี้นับรวมในแดชบอร์ดทันที
+ *******************************************************************/
+ 
+/**
+ * ข้อมูลทั้งหมดของหน้า งบกิจกรรม/โครงการ
+ * @param {number} fy ปีงบประมาณ
+ */
+function getActivityData(fy) {
+  requirePage_('activity');
+  fy = Number(fy);
+  const funds = getFunds_();
+  const s = getSettingsMap_();
+  const acts = readObjects_('Activities').filter(a => Number(a.fy) === fy);
+  const exps = readExpenses_().filter(e => Number(e.fy) === fy);
+  const recs = readObjects_('Receipts_Finance').filter(r => Number(r.fy) === fy);
+  const cuts = exps.filter(e => e.activityId);
+ 
+  // ---- กิจกรรม: งบที่ตั้ง / ใช้ไป / คงเหลือ แยกรายการเงิน ----
+  const list = acts.map(a => {
+    const lines = funds.map(f => {
+      const budget = num_(a[f.code]);
+      const spent = cuts.filter(c => c.activityId === a.id && c.fund === f.code).reduce((x, c) => x + num_(c.amount), 0);
+      return { fund: f.code, budget: round2_(budget), spent: round2_(spent), remain: round2_(budget - spent) };
+    }).filter(l => l.budget || l.spent);
+    const budget = lines.reduce((x, l) => x + l.budget, 0), spent = lines.reduce((x, l) => x + l.spent, 0);
+    return {
+      id: a.id, code: String(a.code || ''), name: String(a.name || ''), dept: String(a.dept || ''), owner: String(a.owner || ''),
+      status: a.status || 'active', note: String(a.note || ''), lines: lines,
+      budget: round2_(budget), spent: round2_(spent), remain: round2_(budget - spent),
+      pct: budget > 0 ? round2_(spent / budget * 100) : 0, cutCount: cuts.filter(c => c.activityId === a.id).length
+    };
+  }).sort((a, b) => String(a.code).localeCompare(String(b.code), 'th', { numeric: true }) || a.name.localeCompare(b.name, 'th'));
+ 
+  // ---- สรุปตามรายการเงิน: เงินที่มี → ตั้งให้กิจกรรม → ใช้ไป → ยังไม่ได้ตั้งให้กิจกรรม ----
+  const byFund = funds.map(f => {
+    const opening = num_(s['open_' + fy + '_' + f.code]);
+    const received = recs.filter(r => r.fund === f.code).reduce((x, r) => x + num_(r.amount), 0);
+    const available = opening + received;
+    const committed = acts.filter(a => a.status !== 'cancelled').reduce((x, a) => x + num_(a[f.code]), 0);
+    const spentLinked = cuts.filter(c => c.fund === f.code).reduce((x, c) => x + num_(c.amount), 0);
+    const spentOther = exps.filter(e => !e.activityId && e.fund === f.code).reduce((x, e) => x + num_(e.amount), 0);
+    const free = available - committed - spentOther;
+    return {
+      code: f.code, name: f.name, short: f.short, color: f.color,
+      available: round2_(available), committed: round2_(committed), spentLinked: round2_(spentLinked),
+      spentOther: round2_(spentOther), free: round2_(free),
+      balance: round2_(available - spentLinked - spentOther),
+      activities: list.filter(a => a.lines.some(l => l.fund === f.code)).map(a => {
+        const l = a.lines.find(x => x.fund === f.code);
+        return { id: a.id, code: a.code, name: a.name, dept: a.dept, budget: l.budget, spent: l.spent, remain: l.remain };
+      })
+    };
+  });
+ 
+  const depts = Array.from(new Set(list.map(a => a.dept).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'th'));
+  return {
+    fy: fy, funds: funds, activities: list, byFund: byFund, depts: depts,
+    cuts: cuts.map(c => ({
+      id: c.id, activityId: c.activityId, date: c.date, fund: c.fund, amount: round2_(num_(c.amount)),
+      description: String(c.description || ''), voucherNo: String(c.voucherNo || ''), payee: String(c.payee || ''),
+      note: String(c.note || '')
+    })).sort((a, b) => String(b.date).localeCompare(String(a.date))),
+    canEdit: WRITE_ROLES.finance.indexOf(currentUser_().role) >= 0
+  };
+}
+ 
+/**
+ * เพิ่ม/แก้ไขกิจกรรม
+ * obj: {id?, fy, code, name, dept, owner, TEACH, ACT, EQUIP, UNIFORM, BOOK, status, note}
+ */
+function saveActivity(obj) {
+  const u = requireWrite_('finance');
+  const name = String(obj.name || '').trim();
+  if (!name) throw new Error('กรุณาระบุชื่อกิจกรรม/โครงการ');
+  const fy = num_(obj.fy);
+  if (!fy) throw new Error('กรุณาระบุปีงบประมาณ');
+  const rec = {
+    fy: fy, code: String(obj.code || '').trim(), name: name, dept: String(obj.dept || '').trim(),
+    owner: String(obj.owner || '').trim(), status: obj.status || 'active', note: String(obj.note || ''), updatedAt: new Date()
+  };
+  let budget = 0;
+  FUND_CODES.forEach(c => {
+    const v = round2_(num_(obj[c]));
+    if (v < 0) throw new Error('งบประมาณต้องไม่ติดลบ');
+    rec[c] = v; budget += v;
+  });
+  if (budget <= 0) throw new Error('กรุณาใส่งบประมาณอย่างน้อย 1 รายการเงิน');
+  rec.budget = round2_(budget);
+ 
+  return withLock_(() => {
+    if (obj.id) {
+      // ห้ามลดงบต่ำกว่าที่ใช้ไปแล้ว
+      const cuts = readObjects_('Expenses_Finance').filter(e => e.activityId === obj.id);
+      FUND_CODES.forEach(c => {
+        const used = cuts.filter(e => e.fund === c).reduce((x, e) => x + num_(e.amount), 0);
+        if (used > rec[c] + 0.004) throw new Error(fundName_(c) + ' ใช้ไปแล้ว ' + money_(used) + ' บาท ตั้งงบต่ำกว่านี้ไม่ได้');
+      });
+      if (!updateObject_('Activities', obj.id, rec)) throw new Error('ไม่พบกิจกรรมที่จะแก้ไข');
+      audit_('update', 'Activities', obj.id, rec);
+      return Object.assign({ id: obj.id }, rec);
+    }
+    rec.id = newId_('AC');
+    rec.createdBy = u.email;
+    rec.createdAt = new Date();
+    appendObject_('Activities', rec);
+    audit_('create', 'Activities', rec.id, rec);
+    return rec;
+  });
+}
+ 
+/** ลบกิจกรรม (ต้องยังไม่มีการตัดงบ) */
+function deleteActivity(id) {
+  requireWrite_('finance');
+  return withLock_(() => {
+    const n = readObjects_('Expenses_Finance').filter(e => e.activityId === id).length;
+    if (n) throw new Error('กิจกรรมนี้มีการตัดงบแล้ว ' + n + ' รายการ ต้องลบรายการตัดงบก่อน');
+    const removed = deleteWhere_('Activities', o => String(o.id) === String(id));
+    if (!removed) throw new Error('ไม่พบกิจกรรม');
+    audit_('delete', 'Activities', id, '');
+    return true;
+  });
+}
+ 
+/**
+ * ตัดงบกิจกรรม = บันทึกรายจ่ายผูกกับกิจกรรม
+ * obj: {activityId, fund, date:'yyyy-MM-dd', amount, description, voucherNo, chequeNo, payee, note}
+ */
+function saveActivityExpense(obj) {
+  const u = requireWrite_('finance');
+  const act = readObjects_('Activities').find(a => a.id === obj.activityId);
+  if (!act) throw new Error('ไม่พบกิจกรรม');
+  if (act.status === 'cancelled') throw new Error('กิจกรรมนี้ถูกยกเลิกแล้ว');
+  const fund = String(obj.fund || '');
+  if (FUND_CODES.indexOf(fund) < 0) throw new Error('กรุณาเลือกรายการเงิน');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(obj.date || ''))) throw new Error('กรุณาระบุวันที่');
+  const amount = round2_(num_(obj.amount));
+  if (!(amount > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
+  if (!String(obj.description || '').trim()) throw new Error('กรุณาระบุรายการที่จ่าย');
+  const fy = fyOf_(obj.date);
+  if (fy !== Number(act.fy)) throw new Error('วันที่อยู่ในปีงบ ' + fy + ' แต่กิจกรรมเป็นของปีงบ ' + act.fy);
+ 
+  return withLock_(() => {
+    const budget = num_(act[fund]);
+    if (!budget) throw new Error('กิจกรรมนี้ไม่ได้ตั้งงบจาก' + fundName_(fund));
+    const used = readObjects_('Expenses_Finance')
+      .filter(e => e.activityId === act.id && e.fund === fund && e.id !== obj.id)
+      .reduce((x, e) => x + num_(e.amount), 0);
+    if (used + amount > budget + 0.004)
+      throw new Error('เกินงบกิจกรรม: ' + fundName_(fund) + ' คงเหลือ ' + money_(budget - used) + ' บาท');
+    const rec = {
+      date: obj.date, fy: fy, term: termOfDate_(obj.date), fund: fund, activityId: act.id,
+      voucherNo: String(obj.voucherNo || ''), chequeNo: String(obj.chequeNo || ''),
+      project: (act.code ? act.code + ' ' : '') + act.name, payee: String(obj.payee || ''),
+      description: String(obj.description).trim(), amount: amount, note: String(obj.note || '')
+    };
+    if (obj.id) {
+      const cur = readObjects_('Expenses_Finance').find(e => e.id === obj.id);
+      if (!cur || !cur.activityId) throw new Error('ไม่พบรายการตัดงบที่จะแก้ไข');
+      updateObject_('Expenses_Finance', obj.id, rec);
+      audit_('update', 'Expenses_Finance', obj.id, rec);
+      return Object.assign({ id: obj.id }, rec);
+    }
+    rec.id = newId_('EF');
+    rec.source = 'activity';
+    rec.createdBy = u.email;
+    rec.createdAt = new Date();
+    appendObject_('Expenses_Finance', rec);
+    audit_('create', 'Expenses_Finance', rec.id, rec);
+    return rec;
+  });
+}
+ 
+/** ลบรายการตัดงบ (เฉพาะรายการที่ผูกกับกิจกรรม) */
+function deleteActivityExpense(id) {
+  requireWrite_('finance');
+  return withLock_(() => {
+    const removed = deleteWhere_('Expenses_Finance', o => String(o.id) === String(id) && String(o.activityId || '') !== '');
+    if (!removed) throw new Error('ไม่พบรายการตัดงบ');
+    audit_('delete', 'Expenses_Finance', id, '');
+    return true;
+  });
+}
+ 
+/** ภาคเรียนของวันที่: เม.ย.–ก.ย. = ภาค 1, ต.ค.–มี.ค. = ภาค 2 */
+function termOfDate_(iso) {
+  const p = String(iso).split('-').map(Number), be = p[0] + 543;
+  if (p[1] >= 4 && p[1] <= 9) return '1/' + be;
+  return p[1] >= 10 ? '2/' + be : '2/' + (be - 1);
+}
+ 
