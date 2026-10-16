@@ -1,0 +1,175 @@
+/*******************************************************************
+ * Finance.gs — บันทึกเงินเข้าบัญชีจริง (เมนู 3) + บันทึกรายจ่าย (เมนู 4)
+ * ----------------------------------------------------------------
+ * เงินเข้า (Receipts_Finance): อ้างอิงหนังสือจัดสรรได้ (allocId) — ตารางเทียบยอดคาดว่าจะได้ (ตามหนังสือ)
+ *   กับยอดที่บันทึกเงินเข้าจริงต่องวด แจ้งเตือนถ้าไม่ตรง (ok / under / over)
+ * รายจ่าย (Expenses_Finance): เฉพาะรายจ่ายทั่วไปที่ไม่ผูกกิจกรรม (activityId ว่าง) และไม่ใช่รายการ
+ *   ปิดยอดนักเรียน (source = studentpay) — สองประเภทนั้นจัดการจากเมนู "งบกิจกรรม/โครงการ" และ
+ *   "ติดตามรับเงินนักเรียน" อยู่แล้ว เพื่อไม่ให้มีจุดแก้ไขซ้ำซ้อนกัน
+ *******************************************************************/
+ 
+/* ---------- เงินเข้าบัญชีจริง ---------- */
+function getReceiptData(fy) {
+  const u = requirePage_('receipt');
+  fy = Number(fy);
+  const funds = getFunds_();
+  const allocs = listAllocations(fy);
+  const rec = readObjects_('Receipts_Finance').filter(r => Number(r.fy) === fy);
+  const byAlloc = {};
+  rec.forEach(r => { if (r.allocId) (byAlloc[r.allocId] = byAlloc[r.allocId] || []).push(r); });
+ 
+  const rounds = allocs.map(a => {
+    const list = byAlloc[a.id] || [];
+    const received = round2_(list.reduce((x, r) => x + num_(r.amount), 0));
+    const total = round2_(num_(a.total));
+    return {
+      id: a.id, label: 'ภาค ' + termLabel_(a.term) + ' ครั้งที่ ' + num_(a.round), term: a.term, round: num_(a.round),
+      docNo: String(a.docNo || ''), total: total, received: received, diff: round2_(total - received),
+      status: same_(total, received) ? 'ok' : (received < total ? 'under' : 'over')
+    };
+  });
+ 
+  const list = rec.map(r => {
+    const a = allocs.find(x => x.id === r.allocId);
+    return {
+      id: String(r.id), date: r.date || '', term: String(r.term || ''), allocId: r.allocId || '',
+      allocLabel: a ? ('ครั้งที่ ' + num_(a.round) + ' (' + termLabel_(a.term) + ')') : '',
+      fund: String(r.fund), amount: round2_(num_(r.amount)), refNo: String(r.refNo || ''), note: String(r.note || ''),
+      source: String(r.source || '')
+    };
+  }).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+ 
+  return {
+    fy: fy, funds: funds, terms: termsOfFy_(fy), rounds: rounds,
+    receipts: list, totalReceived: round2_(list.reduce((x, r) => x + r.amount, 0)),
+    diffCount: rounds.filter(r => r.status !== 'ok').length,
+    canEdit: WRITE_ROLES.finance.indexOf(u.role) >= 0, today: todayIso_()
+  };
+}
+ 
+/** เพิ่ม/แก้ไขรายการเงินเข้า obj:{id?, date, fy, term, allocId?, fund, amount, refNo, note} */
+function saveReceipt(obj) {
+  const u = requireWrite_('finance');
+  obj = obj || {};
+  const fy = Number(obj.fy);
+  if (!fy) throw new Error('ไม่ระบุปีงบประมาณ');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(obj.date || ''))) throw new Error('กรุณาระบุวันที่');
+  if (!getFunds_().some(f => f.code === obj.fund)) throw new Error('รายการเงินไม่ถูกต้อง');
+  const amount = round2_(num_(obj.amount));
+  if (!(amount > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
+ 
+  let term = String(obj.term || '').trim();
+  const allocId = String(obj.allocId || '').trim();
+  if (allocId) {
+    const a = readObjects_('Allocations').find(x => String(x.id) === allocId && Number(x.fy) === fy);
+    if (!a) throw new Error('ไม่พบหนังสือจัดสรรที่อ้างอิง');
+    term = a.term;
+  } else if (!/^[12]\/\d{4}$/.test(term)) {
+    throw new Error('กรุณาเลือกภาคเรียน หรืออ้างอิงหนังสือจัดสรร');
+  }
+  const rec = { date: obj.date, fy: fy, term: term, allocId: allocId, fund: obj.fund, amount: amount,
+    refNo: String(obj.refNo || '').trim(), note: String(obj.note || '').trim() };
+ 
+  return withLock_(() => {
+    if (obj.id) {
+      if (!updateObject_('Receipts_Finance', obj.id, rec)) throw new Error('ไม่พบรายการ');
+      audit_('update', 'Receipts_Finance', obj.id, rec);
+      return obj.id;
+    }
+    rec.id = newId_('RF'); rec.source = 'manual'; rec.createdBy = u.email; rec.createdAt = new Date();
+    appendObject_('Receipts_Finance', rec);
+    audit_('create', 'Receipts_Finance', rec.id, rec);
+    return rec.id;
+  });
+}
+ 
+function deleteReceipt(id) {
+  requireWrite_('finance');
+  return withLock_(() => {
+    const cur = readObjects_('Receipts_Finance').find(r => String(r.id) === String(id));
+    if (!cur) throw new Error('ไม่พบรายการ');
+    deleteWhere_('Receipts_Finance', o => String(o.id) === String(id));
+    audit_('delete', 'Receipts_Finance', id, cur);
+    return true;
+  });
+}
+ 
+/* ---------- บันทึกรายจ่าย (ทั่วไป ไม่ผูกกิจกรรม/ไม่ใช่ปิดยอดนักเรียน) ---------- */
+function getExpenseData(fy) {
+  const u = requirePage_('expense');
+  fy = Number(fy);
+  const funds = getFunds_();
+  const rep = getAllocationReport(fy);   // fundRows: opening/allocated/spent/balance รวมทุกแหล่ง (ใช้เตือนยอดเกิน)
+  const exp = readExpenses_().filter(e => Number(e.fy) === fy && !e.activityId && e.source !== 'studentpay');
+  const list = exp.map(e => ({
+    id: String(e.id), date: e.date || '', term: String(e.term || ''), fund: String(e.fund),
+    voucherNo: String(e.voucherNo || ''), chequeNo: String(e.chequeNo || ''), project: String(e.project || ''),
+    payee: String(e.payee || ''), description: String(e.description || ''), amount: round2_(num_(e.amount)),
+    note: String(e.note || ''), source: String(e.source || '')
+  })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+ 
+  return {
+    fy: fy, funds: funds, terms: termsOfFy_(fy), fundRows: rep.fundRows,
+    expenses: list, totalSpent: round2_(list.reduce((x, e) => x + e.amount, 0)),
+    canEdit: WRITE_ROLES.finance.indexOf(u.role) >= 0, today: todayIso_()
+  };
+}
+ 
+/** เพิ่ม/แก้ไขรายจ่าย obj:{id?, date, fy, term, fund, voucherNo, chequeNo, project, payee, description, amount, note} */
+function saveExpense(obj) {
+  const u = requireWrite_('finance');
+  obj = obj || {};
+  const fy = Number(obj.fy);
+  if (!fy) throw new Error('ไม่ระบุปีงบประมาณ');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(obj.date || ''))) throw new Error('กรุณาระบุวันที่');
+  if (!getFunds_().some(f => f.code === obj.fund)) throw new Error('รายการเงินไม่ถูกต้อง');
+  if (!/^[12]\/\d{4}$/.test(String(obj.term || ''))) throw new Error('กรุณาเลือกภาคเรียน');
+  const amount = round2_(num_(obj.amount));
+  if (!(amount > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
+  const description = String(obj.description || '').trim();
+  if (!description) throw new Error('กรุณาระบุรายการที่จ่าย');
+  const rec = {
+    date: obj.date, fy: fy, term: obj.term, fund: obj.fund,
+    voucherNo: String(obj.voucherNo || '').trim(), chequeNo: String(obj.chequeNo || '').trim(),
+    project: String(obj.project || '').trim(), payee: String(obj.payee || '').trim(),
+    description: description, amount: amount, note: String(obj.note || '').trim()
+  };
+ 
+  return withLock_(() => {
+    const cur = obj.id ? readObjects_('Expenses_Finance').find(e => String(e.id) === String(obj.id)) : null;
+    if (obj.id && (!cur || cur.activityId || cur.source === 'studentpay'))
+      throw new Error('ไม่พบรายการ หรือรายการนี้ต้องแก้ไขจากเมนูที่เกี่ยวข้อง (งบกิจกรรม/ติดตามรับเงินนักเรียน)');
+ 
+    // เตือน (ไม่บล็อก) ถ้าจ่ายเกินเงินคงเหลือของรายการเงินนี้
+    const rep = getAllocationReport(fy);
+    const fr = rep.fundRows.find(f => f.code === obj.fund);
+    const prevAmt = cur ? num_(cur.amount) : 0;
+    const balanceAfter = fr ? round2_(fr.balance + prevAmt - amount) : 0;
+    const warning = (fr && balanceAfter < -0.004) ? ('จ่ายเกินเงินคงเหลือของ' + fr.name + ' อยู่ ' + money_(-balanceAfter) + ' บาท') : '';
+ 
+    let id = obj.id;
+    if (id) {
+      updateObject_('Expenses_Finance', id, rec);
+      audit_('update', 'Expenses_Finance', id, rec);
+    } else {
+      id = rec.id = newId_('EF'); rec.source = 'manual'; rec.createdBy = u.email; rec.createdAt = new Date();
+      appendObject_('Expenses_Finance', rec);
+      audit_('create', 'Expenses_Finance', id, rec);
+    }
+    return { id: id, warning: warning };
+  });
+}
+ 
+function deleteExpense(id) {
+  requireWrite_('finance');
+  return withLock_(() => {
+    const cur = readObjects_('Expenses_Finance').find(e => String(e.id) === String(id));
+    if (!cur) throw new Error('ไม่พบรายการ');
+    if (cur.activityId || cur.source === 'studentpay')
+      throw new Error('รายการนี้ต้องลบจากเมนูที่เกี่ยวข้อง (งบกิจกรรม/ติดตามรับเงินนักเรียน)');
+    deleteWhere_('Expenses_Finance', o => String(o.id) === String(id));
+    audit_('delete', 'Expenses_Finance', id, cur);
+    return true;
+  });
+}
+ 
