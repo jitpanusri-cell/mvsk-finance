@@ -1,0 +1,331 @@
+/*******************************************************************
+ * Allocation.gs — หนังสือจัดสรรงบประมาณ + นำเข้าตารางเดิมของโรงเรียน
+ *******************************************************************/
+ 
+/** รายการหนังสือจัดสรรของปีงบ (เรียงภาคเรียน → ครั้งที่) */
+function listAllocations(fy) {
+  requirePage_('dashboard');
+  fy = Number(fy);
+  const order = t => { const p = String(t).split('/'); return Number(p[1]) * 10 + (p[0] === '2' ? 0 : 5); };
+  return readObjects_('Allocations')
+    .filter(a => !fy || Number(a.fy) === fy)
+    .sort((a, b) => order(a.term) - order(b.term) || num_(a.round) - num_(b.round));
+}
+ 
+/**
+ * บันทึก/แก้ไขหนังสือจัดสรร
+ * obj: {id?, docNo, docDate, term:'1/2569', round, countDate, studentsLower, studentsUpper,
+ *       TEACH, ACT, EQUIP, UNIFORM, BOOK, pdfUrl, status, note}
+ */
+function saveAllocation(obj) {
+  const u = requireWrite_('allocation');
+  if (!/^[12]\/\d{4}$/.test(String(obj.term || ''))) throw new Error('ภาคเรียนต้องอยู่ในรูปแบบ 1/2569 หรือ 2/2568');
+  if (!num_(obj.round)) throw new Error('กรุณาระบุครั้งที่โอน');
+  const p = String(obj.term).split('/');
+  const fy = p[0] === '2' ? Number(p[1]) + 1 : Number(p[1]);   // ภาค 2/2568 อยู่ในปีงบ 2569
+  const rec = {
+    docNo: obj.docNo || '', docDate: obj.docDate || '', fy: fy, term: obj.term, round: num_(obj.round),
+    countDate: obj.countDate || '', studentsLower: num_(obj.studentsLower), studentsUpper: num_(obj.studentsUpper),
+    pdfUrl: obj.pdfUrl || '', status: obj.status || 'รอตรวจ', note: obj.note || ''
+  };
+  let total = 0;
+  getFunds_().forEach(f => {
+    let v = num_(obj[f.code]);
+    if (f.term1Only && p[0] === '2' && v) throw new Error(f.name + ' จัดสรรเฉพาะภาคเรียนที่ 1');
+    rec[f.code] = v; total += v;
+  });
+  rec.total = round2_(total);
+  if (obj.tranche != null) rec.tranche = String(obj.tranche || '');
+  // เงินเข้าบัญชี: บันทึกตามยอดหนังสือ (ค่าเริ่มต้น) — วันที่เงินเข้า ว่าง = วันที่หนังสือ
+  const syncRec = obj.received !== false;
+  const recDate = obj.receivedDate || rec.docDate;
+  if (syncRec && !/^\d{4}-\d{2}-\d{2}$/.test(String(recDate || ''))) throw new Error('กรุณาระบุวันที่หนังสือหรือวันที่เงินเข้าบัญชี');
+  return withLock_(() => {
+    const all = readObjects_('Allocations');
+    const dup = all.find(a => a.term === rec.term && num_(a.round) === rec.round && a.id !== obj.id);
+    if (dup) throw new Error('มีหนังสือจัดสรร ภาค ' + rec.term + ' ครั้งที่ ' + rec.round + ' อยู่แล้ว');
+    let id = obj.id;
+    if (id) {
+      rec.source = 'manual';                                   // แก้ไขแล้ว → นำเข้าตารางเดิมซ้ำจะไม่ทับ
+      if (!updateObject_('Allocations', id, rec)) throw new Error('ไม่พบรายการที่จะแก้ไข');
+      audit_('update', 'Allocations', id, rec);
+    } else {
+      id = rec.id = newId_('AL');
+      rec.source = 'manual'; rec.createdBy = u.email; rec.createdAt = new Date();
+      appendObject_('Allocations', rec);
+      audit_('create', 'Allocations', id, rec);
+    }
+    if (syncRec) {
+      // เงินเข้าบัญชีของงวดนี้ = ยอดตามหนังสือ แยกรายการเงิน (แทนที่ของเดิมทั้งหมดของงวดนี้)
+      deleteWhere_('Receipts_Finance', o => String(o.allocId) === String(id));
+      const now = new Date();
+      appendObjects_('Receipts_Finance', getFunds_().filter(f => rec[f.code]).map(f => ({
+        id: newId_('RF'), date: recDate, fy: fy, term: rec.term, allocId: id, fund: f.code, amount: rec[f.code],
+        refNo: rec.docNo, note: 'ตามหนังสือจัดสรร ครั้งที่ ' + rec.round, source: 'manual', createdBy: u.email, createdAt: now })));
+    }
+    return Object.assign({ id: id }, rec);
+  });
+}
+ 
+/** ลบหนังสือจัดสรร พร้อมเงินเข้าบัญชีของงวดนั้น */
+function deleteAllocation(id) {
+  requireWrite_('allocation');
+  return withLock_(() => {
+    if (!deleteWhere_('Allocations', o => String(o.id) === String(id))) throw new Error('ไม่พบรายการ');
+    const n = deleteWhere_('Receipts_Finance', o => String(o.allocId) === String(id));
+    audit_('delete', 'Allocations', id, { receipts: n });
+    return true;
+  });
+}
+ 
+/**
+ * ข้อมูลรายงานการจัดสรรงบประมาณในปีงบประมาณ (รูปแบบเดียวกับชีต ปีงบ68 / ปีงบ69)
+ * - terms  : แต่ละภาคเรียน → งวดที่โอน, รวม, จ่ายแล้ว (โอนให้นักเรียน/จ่าย), คงเหลือสิ้นภาค
+ * - funds  : สรุปทั้งปีงบต่อรายการเงิน (ยกมา / ได้รับจัดสรร / จ่ายแล้ว / คงเหลือ)
+ */
+function getAllocationReport(fy) {
+  requirePage_('dashboard');
+  fy = Number(fy);
+  const funds = getFunds_(), s = getSettingsMap_();
+  const allocs = listAllocations(fy);
+  const exp = readExpenses_().filter(e => Number(e.fy) === fy);
+  const terms = termsOfFy_(fy).map(t => {
+    const list = allocs.filter(a => String(a.term) === t.key);
+    const sum = {}, paid = {};
+    funds.forEach(f => {
+      sum[f.code] = round2_(list.reduce((x, a) => x + num_(a[f.code]), 0));
+      paid[f.code] = round2_(exp.filter(e => e.term === t.key && e.fund === f.code).reduce((x, e) => x + num_(e.amount), 0));
+    });
+    const pct = termPctOf_(t.key, allocs, s);
+    return {
+      term: t.key, label: t.label, semester: t.semester, acadYear: t.acadYear, pctReceived: pct,
+      rounds: list.map(a => {
+        const o = { id: a.id, round: num_(a.round), docNo: String(a.docNo || ''), docDate: a.docDate, countDate: String(a.countDate || ''),
+          studentsLower: num_(a.studentsLower), studentsUpper: num_(a.studentsUpper), total: round2_(num_(a.total)),
+          status: a.status || 'รอตรวจ', note: String(a.note || ''), tranche: String(a.tranche || ''), source: String(a.source || ''),
+          estimated: /ประมาณ/.test(String(a.note || '')) };
+        funds.forEach(f => o[f.code] = round2_(num_(a[f.code])));
+        return o;
+      }),
+      sum: sum, paid: paid,
+      total: round2_(funds.reduce((x, f) => x + sum[f.code], 0)),
+      paidTotal: round2_(funds.reduce((x, f) => x + paid[f.code], 0))
+    };
+  });
+  const fundRows = funds.map(f => {
+    const opening = num_(s['open_' + fy + '_' + f.code]);
+    const allocated = terms.reduce((x, t) => x + t.sum[f.code], 0);
+    const spent = exp.filter(e => e.fund === f.code).reduce((x, e) => x + num_(e.amount), 0);
+    return { code: f.code, name: f.name, short: f.short, color: f.color, opening: round2_(opening),
+      allocated: round2_(allocated), spent: round2_(spent), balance: round2_(opening + allocated - spent) };
+  });
+  return {
+    fy: fy, funds: funds, terms: terms, fundRows: fundRows, asOf: todayIso_(),
+    signers: { finOfficer: s.finOfficer || '', deputy: s.deputy || '', director: s.director || '' },
+    docPrefix: String(s.docPrefix || ''), garudaUrl: String(s.garudaUrl || ''),
+    canEdit: WRITE_ROLES.allocation.indexOf(currentUser_().role) >= 0
+  };
+}
+ 
+/* ================================================================
+ * นำเข้าตารางเดิม (รูปแบบชีต "ปีงบ68" / "ปีงบ69")
+ * ----------------------------------------------------------------
+ * รูปแบบที่อ่านได้ (ต่อ 1 ภาคเรียน):
+ *   แถวหัวเรื่อง : "การจัดสรรงบประมาณ (ภาคเรียนที่ 2 ปีการศึกษา 68) ในงบปีประมาณ 2569"
+ *   แถวหัว 2 แถว : "ครั้งที่ | จำนวนนักเรียน | มัธยมต้น | มัธยมปลาย | ค่าจัดการเรียนการสอน | ... | รวม"
+ *   แถวข้อมูล    : ครั้งที่ 0,1,2,3 (ครั้งที่ 0 = ยอดนักเรียน ไม่มีเงิน → ข้าม)
+ *   แถว "โอน...ไปแล้ว" → บันทึกเป็นรายจ่าย (โอนให้นักเรียน/จ่ายค่าหนังสือ)
+ * การนำเข้าซ้ำจะลบข้อมูลที่เคยนำเข้าจากชีตเดียวกันก่อน (ไม่กระทบข้อมูลที่บันทึกเอง)
+ * ================================================================ */
+function importLegacySheets(names) {
+  requireWrite_('allocation');
+  const msgs = [];
+  let alloc = 0, rec = 0, exp = 0;
+  (names || ['ปีงบ68', 'ปีงบ69']).forEach(n => {
+    try {
+      const r = importLegacySheet(n);
+      alloc += r.allocations; rec += r.receipts; exp += r.expenses;
+      msgs.push('✓ ' + n + ': หนังสือจัดสรร ' + r.allocations + ', เงินเข้า ' + r.receipts + ', รายจ่าย ' + r.expenses + ' รายการ');
+    } catch (e) {
+      msgs.push('✗ ' + n + ': ' + e.message);
+    }
+  });
+  return { allocations: alloc, receipts: rec, expenses: exp, messages: msgs };
+}
+ 
+/**
+ * นำเข้าชีตเดิม 1 ชีต
+ * @param {string} sheetName ชื่อชีต เช่น 'ปีงบ69'
+ * @param {Object=} opts {createReceipts:true, createExpenses:true}
+ */
+function importLegacySheet(sheetName, opts) {
+  const u = requireWrite_('allocation');
+  opts = Object.assign({ createReceipts: true, createExpenses: true }, opts || {});
+  const srcId = String(getSetting_('legacySpreadsheetId') || '').trim();
+  const src = srcId ? SpreadsheetApp.openById(srcId) : ss_();
+  const sh = src.getSheetByName(sheetName);
+  if (!sh) throw new Error('ไม่พบชีต "' + sheetName + '"');
+  const V = sh.getDataRange().getDisplayValues();   // ใช้ค่าที่แสดง เพื่อรองรับ "-" และเซลล์ผสาน
+  const blocks = parseLegacyBlocks_(V, sheetName);
+  if (!blocks.length) throw new Error('ไม่พบตาราง "ครั้งที่ / โอน" ในชีตนี้');
+ 
+  const source = 'legacy:' + sheetName;
+  const now = new Date();
+  let allocs = [], receipts = [];
+  const expenses = [];
+  blocks.forEach(b => {
+    b.rounds.forEach(r => {
+      const id = newId_('AL');
+      const est = !r.docDate;
+      const a = {
+        id: id, docNo: r.docNo || '', docDate: r.docDate || estDate_(b.term, r.round), fy: b.fy, term: b.term, round: r.round,
+        countDate: r.countDate || b.countDate, studentsLower: r.lower, studentsUpper: r.upper,
+        pdfUrl: '', status: r.ok ? 'ok' : 'รอตรวจ',
+        note: 'นำเข้าจากชีต ' + sheetName + (est ? ' — วันที่ประมาณ' : ' — วันที่ตามหนังสือ') + (r.docRef ? ' (' + r.docRef + ')' : ''),
+        source: source, createdBy: u.email, createdAt: now, tranche: r.tranche || ''
+      };
+      let total = 0;
+      FUND_CODES.forEach(c => { a[c] = r.amounts[c] || 0; total += a[c]; });
+      a.total = round2_(total);
+      allocs.push(a);
+      if (opts.createReceipts) FUND_CODES.forEach(c => {
+        if (!r.amounts[c]) return;
+        receipts.push({ id: newId_('RF'), date: a.docDate, fy: b.fy, term: b.term, allocId: id, fund: c,
+          amount: r.amounts[c], refNo: r.docNo || '',
+          note: 'นำเข้า ครั้งที่ ' + r.round + (est ? ' — วันที่ประมาณ' : ' — ใช้วันที่หนังสือจัดสรร'), source: source,
+          createdBy: u.email, createdAt: now });
+      });
+    });
+    if (opts.createExpenses) b.paid.forEach(p => FUND_CODES.forEach(c => {
+      if (!p.amounts[c]) return;
+      expenses.push({ id: newId_('EF'), date: estPaidDate_(b.term), fy: b.fy, term: b.term, fund: c,
+        voucherNo: '', chequeNo: '', project: fundName_(c), payee: c === 'BOOK' ? 'ผู้ขาย/ร้านหนังสือ' : 'นักเรียน (โอนเข้าบัญชี)',
+        description: p.label + ' ภาค ' + b.term, amount: p.amounts[c],
+        note: 'นำเข้าจากชีต ' + sheetName + ' — วันที่ประมาณ', source: source, createdBy: u.email, createdAt: now });
+    }));
+  });
+ 
+  return withLock_(() => {
+    // งวดที่แก้ไขในระบบแล้ว (source = manual) ไม่ถูกนำเข้าทับ
+    const kept = {};
+    readObjects_('Allocations').filter(a => a.source !== source).forEach(a => kept[a.term + '|' + num_(a.round)] = 1);
+    const skip = {};
+    allocs = allocs.filter(a => { if (kept[a.term + '|' + num_(a.round)]) { skip[a.id] = 1; return false; } return true; });
+    receipts = receipts.filter(r => !skip[r.allocId]);
+    ['Allocations', 'Receipts_Finance', 'Expenses_Finance'].forEach(n => deleteWhere_(n, o => o.source === source));
+    appendObjects_('Allocations', allocs);
+    appendObjects_('Receipts_Finance', receipts);
+    appendObjects_('Expenses_Finance', expenses);
+    audit_('import', sheetName, '', { allocations: allocs.length, receipts: receipts.length, expenses: expenses.length });
+    return { allocations: allocs.length, receipts: receipts.length, expenses: expenses.length, blocks: blocks.length };
+  });
+}
+ 
+/** อ่านตารางทุกภาคเรียนในชีต (V = display values 2 มิติ) */
+function parseLegacyBlocks_(V, sheetName) {
+  const blocks = [];
+  const cell = (r, c) => (V[r] && V[r][c] != null) ? String(V[r][c]).trim() : '';
+  const rowText = r => (V[r] || []).join(' ');
+  const toN = s => { s = String(s).replace(/[,\s]/g, ''); return (s === '' || s === '-') ? 0 : (Number(s) || 0); };
+  const fyFromName = (String(sheetName).match(/(\d{2,4})\s*$/) || [])[1];
+ 
+  for (let r = 0; r < V.length; r++) {
+    if (!/ครั้งที่/.test(cell(r, 0))) continue;
+    // ---- หัวเรื่องภาคเรียน (ค้นย้อนขึ้นไปไม่เกิน 4 แถว หรือในแถวหัวตาราง) ----
+    let title = rowText(r);
+    for (let k = 1; k <= 4 && r - k >= 0; k++) if (/ภาคเรียน/.test(rowText(r - k))) { title = rowText(r - k) + ' ' + title; break; }
+    const tm = title.match(/ภาคเรียน\s*(?:ที่)?\s*([12])\s*ปีการศึกษา\s*(\d{2,4})/);
+    if (!tm) continue;
+    const acad = toBE_(tm[2]);
+    const term = tm[1] + '/' + acad;
+    const fm = title.match(/งบ(?:ปี)?ประมาณ\s*(\d{2,4})/);
+    const fy = fm ? toBE_(fm[1]) : (fyFromName ? toBE_(fyFromName) : (tm[1] === '2' ? acad + 1 : acad));
+ 
+    // ---- จับคอลัมน์จากหัวตาราง 2 แถว ----
+    const col = {};
+    const nCols = Math.max((V[r] || []).length, (V[r + 1] || []).length);
+    for (let c = 0; c < nCols; c++) {
+      const h = cell(r, c) + ' ' + cell(r + 1, c);
+      if (/เปอร์เซ็?นต์|ร้อยละ/.test(h)) col.pct = c;
+      else if (/มัธยมต้น/.test(h)) col.lower = c;
+      else if (/มัธยมปลาย/.test(h)) col.upper = c;
+      else if (/จัดการเรียน/.test(h)) col.TEACH = c;
+      else if (/กิจกรรม/.test(h)) col.ACT = c;
+      else if (/อุปกรณ์/.test(h)) col.EQUIP = c;
+      else if (/เครื่องแบบ/.test(h)) col.UNIFORM = c;
+      else if (/หนังสือ/.test(h)) col.BOOK = c;
+      else if (/^รวม/.test(cell(r, c))) col.total = c;
+    }
+    let countDate = '';
+    for (let c = 0; c < nCols && !countDate; c++) countDate = ((cell(r + 1, c).match(/ณ\s*(.+)$/) || [])[1] || '').trim();
+    const metaFrom = col.total != null ? col.total + 1 : 99;
+ 
+    const block = { term: term, fy: fy, countDate: countDate, rounds: [], paid: [] };
+    const readAmounts = row => { const a = {}; FUND_CODES.forEach(c => a[c] = col[c] != null ? toN(cell(row, col[c])) : 0); return a; };
+    let curCount = countDate;                                   // วันนับนักเรียนของงวดถัดไป
+    for (let x = r + 2; x < V.length; x++) {
+      const a0 = cell(x, 0);
+      if (/ครั้งที่/.test(a0)) break;                       // เจอตารางถัดไป
+      if (/^โอน$/.test(a0)) {                                  // หัวตารางย่อยกลางภาค (เช่น งวด 30% นับ ณ 10 มิ.ย.)
+        for (let c = 0; c < nCols; c++) { const m = cell(x, c).match(/ณ\s*(.+)$/); if (m) { curCount = m[1].trim(); break; } }
+        continue;
+      }
+      const label = (V[x] || []).slice(0, 4).join(' ').trim();
+      if (/^\d+$/.test(a0)) {                                  // แถวครั้งที่โอน
+        const amounts = readAmounts(x);
+        const sum = FUND_CODES.reduce((s, c) => s + amounts[c], 0);
+        if (sum > 0) {
+          // คอลัมน์ท้ายตาราง (หลัง "รวม"): สถานะ ok / เลขที่หนังสือ ว.... / วันที่ เช่น 30ตค67 สพฐ
+          const meta = { ok: false, docNo: '', docDate: '', docRef: '' };
+          for (let c = metaFrom; c < (V[x] || []).length; c++) {
+            const t = cell(x, c);
+            if (!t) continue;
+            if (/^ok$/i.test(t)) meta.ok = true;
+            else if (/^(ศธ|ว\s*\d)|\/ว\s*\d/.test(t)) meta.docNo = t;
+            else if (parseThaiShortDate_(t)) { meta.docDate = parseThaiShortDate_(t); meta.docRef = t; }
+          }
+          block.rounds.push(Object.assign({ round: Number(a0), countDate: curCount, tranche: col.pct != null ? ((cell(x, col.pct).match(/^\d+(\(\d+\))?/) || [''])[0]) : '', lower: toN(cell(x, col.lower)), upper: toN(cell(x, col.upper)), amounts: amounts }, meta));
+        }
+      } else if (/ไปแล้ว/.test(label)) {                       // แถว "โอน...ไปแล้ว"
+        block.paid.push({ label: label.replace(/\s+/g, ' ').trim(), amounts: readAmounts(x) });
+      } else if (/คงเหลือ/.test(label)) {
+        break;                                                  // จบตาราง
+      }
+    }
+    blocks.push(block);
+  }
+  return blocks;
+}
+ 
+/**
+ * แปลงวันที่แบบย่อในตารางเดิม → 'yyyy-MM-dd'
+ * รองรับ '30ตค67', '6 ธ.ค. 67', '22ธค68 สพฐ', '10 พฤศจิกายน 2567'
+ */
+function parseThaiShortDate_(t) {
+  const MONTHS = [['มกราคม', 'มค'], ['กุมภาพันธ์', 'กพ'], ['มีนาคม', 'มีค'], ['เมษายน', 'เมย'], ['พฤษภาคม', 'พค'], ['มิถุนายน', 'มิย'],
+    ['กรกฎาคม', 'กค'], ['สิงหาคม', 'สค'], ['กันยายน', 'กย'], ['ตุลาคม', 'ตค'], ['พฤศจิกายน', 'พย'], ['ธันวาคม', 'ธค']];
+  const m = String(t).replace(/\./g, '').match(/(\d{1,2})\s*([ก-๙]+)\s*(\d{2,4})/);
+  if (!m) return '';
+  const idx = MONTHS.findIndex(x => x[0] === m[2] || x[1] === m[2]);
+  if (idx < 0) return '';
+  const d = Number(m[1]), y = toBE_(m[3]) - 543;
+  if (d < 1 || d > 31) return '';
+  return y + '-' + pad2_(idx + 1) + '-' + pad2_(d);
+}
+ 
+/** '68' → 2568, '2569' → 2569 */
+function toBE_(s) { const n = Number(s); return n < 100 ? 2500 + n : n; }
+ 
+/** วันที่ประมาณของงวดเงิน (ใช้เมื่อตารางเดิมไม่มีวันที่) */
+function estDate_(term, round) {
+  const p = String(term).split('/'), sem = p[0], y = Number(p[1]) - 543;
+  const map = sem === '2'
+    ? { 1: y + '-11-30', 2: (y + 1) + '-01-31', 3: (y + 1) + '-03-15' }
+    : { 1: y + '-05-31', 2: y + '-07-31', 3: y + '-08-31' };
+  return map[round] || map[3];
+}
+function estPaidDate_(term) {
+  const p = String(term).split('/'), y = Number(p[1]) - 543;
+  return p[0] === '2' ? (y + 1) + '-02-28' : y + '-08-15';
+}
+ 
