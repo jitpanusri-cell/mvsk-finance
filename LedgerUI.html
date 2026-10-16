@@ -1,0 +1,460 @@
+<!-- =========================================================
+  LedgerUI.html — เมนู "ทะเบียนคุมเงินงบประมาณ"
+  ใส่ใน Index.html หนึ่งบรรทัด ต่อจาก include('JS') :  include('LedgerUI')
+  ห้ามเขียนเครื่องหมายทับสองตัวติดกันในสคริปต์ไฟล์นี้ (Apps Script ย่อโค้ดแล้วตัดทิ้ง)
+========================================================= -->
+<style>
+.lg-ext{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.lg-ext .nm{font-weight:600}
+.lg-ext .bad{color:var(--bad)}
+.lg-tbl td{vertical-align:top}
+.lg-tbl .code{font-size:12px;white-space:nowrap;color:var(--muted,#5B6678)}
+.lg-tbl .note{white-space:pre-line;font-size:12.5px;min-width:180px}
+.lg-tbl tr.zero td{opacity:.6}
+.lg-tbl.tbl td{padding:0;border:1px solid #E1E5EE;vertical-align:top}
+.lg-tbl.tbl th{border:1px solid #D9E1F5;padding:8px 6px;white-space:normal;line-height:1.25}
+.lg-tbl .lg-no{width:36px;text-align:center;color:var(--ink3);font-size:12px;padding:8px 2px;position:relative;background:#F8F9FC}
+.lg-c{display:block;width:100%;border:0;background:transparent;font:inherit;font-size:14px;padding:7px 8px;min-height:38px;color:var(--ink)}
+.lg-c:focus{outline:2px solid #2F6FEB;outline-offset:-2px;background:#fff}
+.lg-c.num{text-align:right;font-variant-numeric:tabular-nums}
+.lg-tbl .lg-ro{background:#F4F7FD;padding:9px 8px}
+.lg-uses{font-size:12px;color:var(--ink2);padding:0 8px 6px;line-height:1.5}
+.lg-act{white-space:nowrap;padding:4px 6px!important;border:0!important}
+.lg-act .btnx.sm{min-height:30px}
+.lg-tbl tr.new td{background:#FFFDF2}
+.lg-tbl tr.dirty .lg-no{box-shadow:inset 3px 0 0 #E0751B}
+.lg-tbl tr.saving .lg-no{box-shadow:inset 3px 0 0 #2F6FEB}
+.lg-tbl tr.saved .lg-no{box-shadow:inset 3px 0 0 #15935B}
+.lg-tbl tr.err .lg-no{box-shadow:inset 3px 0 0 #A1261C;color:#A1261C}
+.lg-tbl tr.lg-add td{border:0;padding:6px 0}
+.lg-addbtn{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;border:1px dashed #9DB4E8;background:#F5F8FF;color:#2447A8;border-radius:8px;padding:6px 14px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.lg-addbtn:hover{background:#EAF1FF}
+.lg-tbl tr.tot td{padding:9px 8px}
+.lg-extbox>summary{list-style:none;display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--ink2);user-select:none;padding:2px 4px}
+.lg-extbox>summary::-webkit-details-marker{display:none}
+.lg-chev{width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin:-3px 4px 0 2px;transition:transform .15s}
+.lg-extbox[open] .lg-chev{transform:rotate(-135deg);margin-top:3px}
+.lg-warn{color:var(--bad);font-weight:600}
+.lg-tbl tr.lg-view td.lg-t{padding:8px}
+.lg-tbl tr.lg-view:hover td{background:#FAFBFE}
+.lg-act .btnx.icon.sm{width:32px}
+.lg-bar{height:6px;border-radius:3px;background:#E6EAF0;overflow:hidden;margin-top:4px;min-width:70px}
+.lg-bar i{display:block;height:100%;background:#4A7FB5}
+.lg-hist td{font-size:13px}
+.lg-remain{font-size:15px}
+</style>
+
+<script>
+/* ---------- ลงทะเบียนเมนู ---------- */
+const LG_ROLES = ['admin', 'finance', 'exec', 'account'];
+const LG = { fy: null, data: null, q: '', inited: false };
+(function () {
+  ICON.ledger = '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/><path d="M15.5 17.5l1.5 1.5 3-3"/>';
+  const g = MENU.find(x => x.group === 'บันทึกข้อมูล') || MENU[1];
+  const at = g.items.findIndex(i => i.id === 'ktb');
+  g.items.splice(at >= 0 ? at : g.items.length, 0, { id: 'ledger', label: 'ทะเบียนคุมเงินงบประมาณ' });
+  IMPLEMENTED.push('ledger');
+})();
+const _lgRenderShell = renderShell;
+renderShell = function () {
+  const u = S.boot && S.boot.user;
+  if (u && LG_ROLES.includes(u.role) && !u.pages.includes('ledger')) u.pages.push('ledger');
+  _lgRenderShell();
+};
+const _lgGo = go;
+go = function (page) {
+  _lgGo(page);
+  if (page === 'ledger') loadPageIfStale('ledger', loadLedger);
+};
+
+/* ---------- หน้าเมนู + หน้าต่าง ---------- */
+document.querySelector('main.main').insertAdjacentHTML('beforeend', `
+<section class="page" id="page-ledger">
+  <div class="page-head">
+    <div>
+      <h1 id="lgTitle">ทะเบียนคุมเอกสารเงินงบประมาณ</h1>
+    </div>
+    <div class="controls">
+      <select class="sel" id="lgFy" aria-label="ปีงบประมาณ"></select>
+      <button class="btnx sec" id="btnLgPrint"></button>
+      <button class="btnx pri" id="btnLgAdd"></button>
+    </div>
+  </div>
+  <details class="lg-extbox mb-grid" id="lgExtBox"><summary title="แสดง/ซ่อน ไฟล์ทะเบียนคุม"><span class="lg-chev"></span><span id="lgExtSum">ไฟล์ทะเบียนคุม</span></summary><div class="cardx mt-2"><div class="lg-ext" id="lgExt"></div></div></details>
+  <div class="grid-kpi" id="lgKpi"></div>
+  <div class="cardx mb-grid">
+    <div class="card-h"><h3>รายการในทะเบียน</h3>
+      <input class="inp" id="lgQ" placeholder="ค้นหา รายการ / รหัส / ผู้รับผิดชอบ" aria-label="ค้นหา" style="max-width:320px"></div>
+    <div class="table-responsive"><table class="tbl lg-tbl" id="lgList"></table></div>
+  </div>
+</section>`);
+
+document.body.insertAdjacentHTML('beforeend', `
+<datalist id="lgSrcList"></datalist><datalist id="lgActList"></datalist><datalist id="lgBudList"></datalist>
+<datalist id="lgOwnerList"></datalist><datalist id="lgItemList"></datalist>
+<div class="modal fade" id="lgUseModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:16px">
+      <div class="modal-header border-0 pb-0">
+        <div><h3 class="modal-title" style="font-size:18px">บันทึกการใช้เงิน</h3><div class="muted small-x" id="lgUseItem"></div></div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="lgUseLid">
+        <div class="lg-remain mb-3" id="lgUseRemain"></div>
+        <div class="row g-3">
+          <div class="col-6"><label class="flabel" for="lgUseDate">วันที่ใช้เงิน *</label><input class="inp" type="date" id="lgUseDate"></div>
+          <div class="col-6"><label class="flabel" for="lgUseAmt">จำนวนเงิน (บาท) *</label><input class="inp num" type="number" step="0.01" min="0" id="lgUseAmt"></div>
+          <div class="col-12"><label class="flabel" for="lgUseDetail">รายละเอียด (ถ้ามี)</label><input class="inp" id="lgUseDetail" placeholder="เช่น ซื้อวัสดุ / เลขที่ฎีกา"></div>
+        </div>
+        <div class="flabel mt-3">ประวัติการใช้เงิน</div>
+        <div class="table-responsive"><table class="tbl lg-hist" id="lgUseHist"></table></div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button class="btnx sec" data-bs-dismiss="modal">ปิด</button>
+        <button class="btnx pri" id="btnLgUseSave">บันทึกการใช้เงิน</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="lgExtModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px">
+      <div class="modal-header border-0 pb-0">
+        <h3 class="modal-title" style="font-size:18px">ไฟล์ทะเบียนคุม (ที่บันทึกที่ 2)</h3>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+      </div>
+      <div class="modal-body">
+        <label class="flabel" for="lgExtUrl">ลิงก์ Google ชีตของไฟล์ทะเบียนคุม</label>
+        <input class="inp" id="lgExtUrl" placeholder="วางลิงก์ docs.google.com/spreadsheets/d/...">
+        <div class="small-x muted mt-2">ไฟล์ .xlsx ใช้ไม่ได้ ให้เปิดไฟล์แล้วเลือก <b>ไฟล์ &gt; บันทึกเป็น Google ชีต</b> แล้วนำลิงก์ของไฟล์ใหม่มาวาง ·
+          ระบบเขียนคอลัมน์ A–J ตามแบบเดิม และใส่รหัสอ้างอิงในคอลัมน์ K (ตัวเล็กสีเทา) ห้ามลบคอลัมน์ K</div>
+      </div>
+      <div class="modal-footer border-0 pt-0 justify-content-between">
+        <button class="btnx sec" id="btnLgExtUnlink" style="color:var(--bad);border-color:var(--bad)">เลิกผูกไฟล์</button>
+        <div class="d-flex gap-2"><button class="btnx sec" data-bs-dismiss="modal">ยกเลิก</button><button class="btnx pri" id="btnLgExtSave">บันทึก</button></div>
+      </div>
+    </div>
+  </div>
+</div>`);
+
+/* ---------- โหลด / แสดงผล ---------- */
+function initLedgerPage() {
+  if (LG.inited) return;
+  LG.inited = true;
+  LG.fy = S.fy || S.boot.currentFy;
+  $('lgFy').innerHTML = S.boot.fyList.map(y => `<option value="${y}"${y === LG.fy ? ' selected' : ''}>ปีงบประมาณ ${y}</option>`).join('');
+  $('lgFy').onchange = e => { LG.fy = +e.target.value; loadLedger(); };
+  $('btnLgAdd').innerHTML = ic('plus') + '<span>เพิ่มแถว</span>';
+  $('btnLgPrint').innerHTML = ic('print') + '<span>พิมพ์ทะเบียน</span>';
+  $('btnLgAdd').onclick = () => lgAddRow();
+  $('btnLgPrint').onclick = printLedger;
+  $('lgQ').oninput = e => { LG.q = e.target.value.trim().toLowerCase(); renderLedgerList(); };
+  $('btnLgUseSave').onclick = saveLgUse;
+  $('btnLgExtSave').onclick = () => saveLgExt($('lgExtUrl').value);
+  $('btnLgExtUnlink').onclick = () => { if (confirm('เลิกผูกไฟล์ทะเบียนของปีงบนี้? (ข้อมูลในไฟล์และในระบบไม่ถูกลบ)')) saveLgExt(''); };
+}
+
+async function loadLedger() {
+  initLedgerPage();
+  loading(true);
+  try { LG.data = await api('getLedgerData', LG.fy); renderLedger(); } catch (e) { fail(e); }
+  loading(false);
+}
+
+function lgApply(res, okMsg) {
+  LG.data = res.data;
+  renderLedger();
+  if (res.warn) toast(res.warn, true); else if (okMsg) toast(okMsg);
+}
+
+function lgRenderKpi() {
+  const D = LG.data, T = D.total;
+  const k = (cls, l, v, f) => `<div class="kpi ${cls}"><div class="l">${l}</div><div class="v">${money(v)}<small>บาท</small></div><div class="f">${f}</div></div>`;
+  $('lgKpi').innerHTML =
+    k('dark', 'จำนวนเงินรับ', T.amount, `${T.count} รายการ`) +
+    k('', 'จ่ายไปแล้ว', T.paid, T.amount > 0 ? `${pct(T.paid / T.amount * 100)} ของเงินรับ` : '-') +
+    k('cream', 'คงเหลือ', T.remain, `ณ ${thDate(D.today)}`) +
+    k('', 'ยังไม่ได้ใช้เงิน', D.rows.filter(r => r.paid < 0.005).reduce((a, r) => a + r.amount, 0), `${D.rows.filter(r => r.paid < 0.005).length} รายการ`);
+}
+
+function renderLedger() {
+  const D = LG.data, T = D.total, X = D.ext;
+  $('lgTitle').textContent = 'ทะเบียนคุมเอกสารเงินงบประมาณ ประจำปีงบประมาณ ' + D.fy;
+  $('btnLgAdd').style.display = D.canEdit ? '' : 'none';
+  lgRenderKpi();
+
+  let ext;
+  if (!X.linked) ext = `<div><div class="nm">ยังไม่ได้ผูกไฟล์ทะเบียนคุม</div><div class="small-x muted">ตอนนี้บันทึกในระบบอย่างเดียว · ผูกไฟล์ Google ชีตเพื่อให้บันทึกลงไฟล์ทะเบียนพร้อมกัน</div></div>`;
+  else if (!X.ok) ext = `<div><div class="nm bad">ผูกไฟล์ไว้แต่เปิดไม่ได้</div><div class="small-x bad">${esc(X.error)}</div></div>`;
+  else ext = `<div><div class="small-x muted">บันทึกลงไฟล์ทะเบียนคุมด้วย</div><div class="nm">${ic('check', 'sm')} ${esc(X.name)} <span class="muted small-x">ชีต ${esc(X.sheet)}</span></div></div>`;
+  $('lgExtSum').innerHTML = !X.linked ? 'ไฟล์ทะเบียนคุม · <span class="lg-warn">ยังไม่ผูกไฟล์</span>' : !X.ok ? 'ไฟล์ทะเบียนคุม · <span class="lg-warn">เปิดไม่ได้</span>' : 'ไฟล์ทะเบียนคุม';
+  $('lgExt').innerHTML = ext + `<div class="d-flex gap-2 flex-wrap">` +
+    (X.ok ? `<a class="btnx sec sm" href="${esc(X.url)}" target="_blank" rel="noopener">เปิดไฟล์</a>` : '') +
+    (D.canEdit && X.ok ? `<button class="btnx sec sm" id="btnLgImport" title="ดึงแถวที่มีอยู่แล้วในไฟล์ (ที่ยังไม่อยู่ในระบบ) เข้ามา">นำเข้าจากไฟล์</button>
+      <button class="btnx sec sm" id="btnLgSync" title="เขียนทุกรายการของปีงบนี้ลงไฟล์ใหม่">เขียนลงไฟล์ทั้งหมด</button>` : '') +
+    (D.canEdit ? `<button class="btnx ${X.linked ? 'sec' : 'pri'} sm" id="btnLgExt">${X.linked ? 'เปลี่ยนไฟล์' : 'ผูกไฟล์ทะเบียน'}</button>` : '') + `</div>`;
+  if ($('btnLgExt')) $('btnLgExt').onclick = () => { $('lgExtUrl').value = X.ok ? X.url : (X.id || ''); $('btnLgExtUnlink').style.display = X.linked ? '' : 'none'; modal('lgExtModal').show(); };
+  if ($('btnLgImport')) $('btnLgImport').onclick = importLgExt;
+  if ($('btnLgSync')) $('btnLgSync').onclick = syncLgAll;
+
+  const L = D.lists, opt = a => a.map(v => `<option value="${esc(v)}">`).join('');
+  $('lgSrcList').innerHTML = opt(L.sourceCode); $('lgActList').innerHTML = opt(L.activityCode);
+  $('lgBudList').innerHTML = opt(L.budgetCode); $('lgOwnerList').innerHTML = opt(L.owner); $('lgItemList').innerHTML = opt(L.item);
+  renderLedgerList();
+}
+
+function lgNoteText(r) {
+  const lines = [];
+  if (r.note) lines.push(r.note);
+  r.uses.forEach(u => lines.push(`${lgShortDate(u.date)} ใช้เงินไปแล้ว ${money(u.amount).replace(/\.00$/, '')} บาท${u.detail ? ' (' + u.detail + ')' : ''}`));
+  return lines.join('\n');
+}
+const lgShortDate = iso => { const p = String(iso || '').split('-').map(Number); return p[0] ? `${p[2]}/${p[1]}/${String(p[0] + 543).slice(-2)}` : ''; };
+const lgLongDate = iso => { const p = String(iso || '').split('-').map(Number); return p[0] ? `${p[2]}/${p[1]}/${p[0] + 543}` : ''; };
+
+const LG_COLS = [
+  { k: 'date', t: 'วัน เดือน ปี', type: 'date', w: 132 },
+  { k: 'sourceCode', t: 'รหัสแหล่งเงิน', list: 'lgSrcList', w: 100 },
+  { k: 'activityCode', t: 'รหัสกิจกรรมหลัก', list: 'lgActList', w: 150 },
+  { k: 'budgetCode', t: 'รหัสงบประมาณ', list: 'lgBudList', w: 170 },
+  { k: 'item', t: 'รายการ', list: 'lgItemList', w: 230 },
+  { k: 'amount', t: 'จำนวนเงินรับ', type: 'number', w: 110 },
+  { k: 'paid', t: 'จ่ายไปแล้ว', type: 'number', w: 110 },
+  { k: 'remain', t: 'คงเหลือ', ro: true, w: 105 },
+  { k: 'owner', t: 'ผู้รับผิดชอบ', list: 'lgOwnerList', w: 150 },
+  { k: 'note', t: 'หมายเหตุ', w: 220 }
+];
+
+function renderLedgerList() {
+  const D = LG.data, q = LG.q;
+  const rows = D.rows.filter(r => !q || [r.item, r.sourceCode, r.activityCode, r.budgetCode, r.owner, r.note].join(' ').toLowerCase().includes(q));
+  const head = `<thead><tr><th class="lg-no">#</th>${LG_COLS.map(c => `<th${c.type === 'number' || c.ro ? ' class="num"' : ''} style="min-width:${c.w}px">${c.t}</th>`).join('')}<th></th></tr></thead>`;
+  const tot = `<tr class="tot"><td></td><td colspan="5">รวม ${rows.length} รายการ</td>
+      <td class="num">${money(rows.reduce((a, r) => a + r.amount, 0))}</td><td class="num">${money(rows.reduce((a, r) => a + r.paid, 0))}</td>
+      <td class="num">${money(rows.reduce((a, r) => a + r.remain, 0))}</td><td colspan="3"></td></tr>`;
+  if (!D.canEdit) {
+    $('lgList').innerHTML = head + `<tbody>${rows.map((r, i) => `<tr><td class="lg-no">${i + 1}</td>
+      <td style="white-space:nowrap">${lgLongDate(r.date)}</td><td class="code">${esc(r.sourceCode)}</td><td class="code">${esc(r.activityCode)}</td>
+      <td class="code">${esc(r.budgetCode)}</td><td><b>${esc(r.item)}</b></td><td class="num">${money(r.amount)}</td><td class="num">${money(r.paid)}</td>
+      <td class="num"><b>${money(r.remain)}</b></td><td class="small-x">${esc(r.owner)}</td><td class="note">${esc(lgNoteText(r))}</td>
+      <td><button class="btnx sec sm" data-use="${r.id}">ประวัติ</button></td></tr>`).join('')}${rows.length ? tot : ''}</tbody>`;
+  } else {
+    $('lgList').innerHTML = head + `<tbody id="lgBody">${rows.map((r, i) => lgRowHtml(r, i + 1)).join('')}</tbody>
+      <tbody><tr class="lg-add"><td colspan="${LG_COLS.length + 2}"><button type="button" class="lg-addbtn" id="btnLgAddRow">${ic('plus', 'sm')} เพิ่มแถว</button></td></tr>${rows.length ? tot : ''}</tbody>`;
+    $('btnLgAddRow').onclick = () => lgAddRow();
+    $('lgBody').querySelectorAll('tr').forEach(lgBindRow);
+  }
+  $('lgList').querySelectorAll('[data-use]').forEach(b => b.onclick = () => openLgUse(b.dataset.use));
+}
+
+function lgUsesHtml(r) {
+  return (r.uses || []).map(u => `${lgShortDate(u.date)} ใช้เงินไปแล้ว ${money(u.amount).replace(/\.00$/, '')} บาท${u.detail ? ' (' + esc(u.detail) + ')' : ''}`).join('<br>');
+}
+
+function lgActHtml(r, edit) {
+  if (!r.id) return `<button class="btnx sec icon sm" data-cancel="1" title="ยกเลิกแถวนี้" aria-label="ยกเลิกแถวนี้">×</button>`;
+  if (edit) return `<button class="btnx sec icon sm" data-cancel="1" title="ยกเลิกการแก้ไข" aria-label="ยกเลิกการแก้ไข">×</button>`;
+  return `<button class="btnx pri sm" data-use="${r.id}" title="บันทึกการใช้เงิน">ใช้เงิน</button>
+    <button class="btnx sec icon sm" data-edit="${r.id}" title="แก้ไขแถวนี้" aria-label="แก้ไขแถวนี้">${ic('edit', 'sm')}</button>
+    <button class="btnx sec icon sm" data-del="${r.id}" title="ลบแถว" aria-label="ลบแถว">${ic('trash', 'sm')}</button>`;
+}
+
+function lgRowHtml(r, no, edit) {
+  r = r || {};
+  const uses = lgUsesHtml(r);
+  if (r.id && !edit) {
+    return `<tr data-id="${r.id}" class="lg-view${r.remain < 0.005 ? ' zero' : ''}"><td class="lg-no">${no || ''}</td>
+      <td class="lg-t" style="white-space:nowrap">${lgLongDate(r.date)}</td><td class="lg-t code">${esc(r.sourceCode)}</td>
+      <td class="lg-t code">${esc(r.activityCode)}</td><td class="lg-t code">${esc(r.budgetCode)}</td><td class="lg-t"><b>${esc(r.item)}</b></td>
+      <td class="lg-t num">${money(r.amount)}</td><td class="lg-t num">${money(r.paid)}</td><td class="num lg-ro"><b>${money(r.remain)}</b></td>
+      <td class="lg-t small-x">${esc(r.owner)}</td><td class="lg-t note">${esc(r.note)}${uses ? `<div class="lg-uses" style="padding:0">${uses}</div>` : ''}</td>
+      <td class="lg-act">${lgActHtml(r, false)}</td></tr>`;
+  }
+  const v = c => c.k === 'amount' || c.k === 'paid' ? (r.id || r[c.k] ? (r[c.k] == null ? '' : r[c.k]) : '') : (r[c.k] == null ? '' : r[c.k]);
+  return `<tr data-id="${r.id || ''}" data-no="${no || ''}" class="lg-edit${r.id ? '' : ' new'}"><td class="lg-no">${no || ''}<i class="lg-st"></i></td>
+    ${LG_COLS.map(c => c.ro ? `<td class="num lg-ro" data-k="remain"><b>${r.id ? money(r.remain) : ''}</b></td>` :
+      `<td><input class="lg-c${c.type === 'number' ? ' num' : ''}" data-k="${c.k}"${c.type ? ` type="${c.type}"${c.type === 'number' ? ' step="0.01" min="0"' : ''}` : ''}${c.list ? ` list="${c.list}"` : ''} value="${esc(v(c))}" aria-label="${c.t}">${c.k === 'note' && uses ? `<div class="lg-uses">${uses}</div>` : ''}</td>`).join('')}
+    <td class="lg-act">${lgActHtml(r, true)}</td></tr>`;
+}
+
+function lgReplaceRow(tr, r, edit) {
+  const no = tr.querySelector('.lg-no').textContent.trim() || tr.dataset.no;
+  tr.insertAdjacentHTML('afterend', lgRowHtml(r, no, edit));
+  const nt = tr.nextElementSibling;
+  tr.remove();
+  lgBindRow(nt);
+  return nt;
+}
+
+function lgBindRow(tr) {
+  const use = tr.querySelector('[data-use]');
+  if (use) use.onclick = () => openLgUse(use.dataset.use);
+  const del = tr.querySelector('[data-del]');
+  if (del) del.onclick = () => lgDeleteRow(del.dataset.del);
+  const ed = tr.querySelector('[data-edit]');
+  if (ed) ed.onclick = () => {
+    const r = LG.data.rows.find(x => x.id === ed.dataset.edit);
+    const nt = lgReplaceRow(tr, r, true);
+    const f = nt.querySelector('[data-k="item"]'); if (f) f.focus();
+  };
+  const cancel = tr.querySelector('[data-cancel]');
+  if (cancel) cancel.onmousedown = e => e.preventDefault();
+  if (cancel) cancel.onclick = () => {
+    const r = tr.dataset.id && LG.data.rows.find(x => x.id === tr.dataset.id);
+    if (r) lgReplaceRow(tr, r, false); else tr.remove();
+  };
+  if (!tr.classList.contains('lg-edit')) return;
+  tr.querySelectorAll('.lg-c').forEach(inp => {
+    inp.oninput = () => { tr.dataset.dirty = '1'; tr.classList.add('dirty'); };
+    inp.onkeydown = e => {
+      if (e.key === 'Escape' && cancel) { e.preventDefault(); cancel.click(); return; }
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const wasNew = !tr.dataset.id;
+      lgSaveRow(tr, true).then(nt => { if (nt && wasNew) lgAddRow(); });
+    };
+  });
+  tr.addEventListener('focusout', e => { if (!tr.contains(e.relatedTarget)) setTimeout(() => { if (tr.isConnected) lgSaveRow(tr, true); }, 0); });
+}
+
+function lgAddRow() {
+  const body = $('lgBody');
+  const last = LG.data.rows[LG.data.rows.length - 1] || {};
+  body.insertAdjacentHTML('beforeend', lgRowHtml({ date: LG.data.today, sourceCode: last.sourceCode || '', activityCode: last.activityCode || '',
+    budgetCode: last.budgetCode || '', owner: last.owner || LG.data.me }, body.children.length + 1, true));
+  const tr = body.lastElementChild;
+  lgBindRow(tr);
+  const f = tr.querySelector('[data-k="item"]');
+  if (f) f.focus();
+}
+
+async function lgSaveRow(tr, toView) {
+  if (tr.dataset.saving === '1') return null;
+  if (tr.dataset.dirty !== '1') {
+    const r0 = tr.dataset.id && LG.data.rows.find(x => x.id === tr.dataset.id);
+    return r0 && toView ? lgReplaceRow(tr, r0, false) : null;
+  }
+  const f = { id: tr.dataset.id };
+  tr.querySelectorAll('.lg-c').forEach(i => f[i.dataset.k] = i.value);
+  const st = tr.querySelector('.lg-st');
+  if (!f.id && !f.item.trim() && !(+f.amount > 0)) return null;
+  if (!f.date || !f.item.trim() || !(+f.amount > 0)) { tr.classList.add('err'); st.title = 'กรอก วันที่ รายการ และจำนวนเงินรับ ให้ครบ'; return null; }
+  tr.dataset.saving = '1'; tr.classList.remove('err'); tr.classList.add('saving');
+  let nt = null;
+  try {
+    const res = await api('saveLedgerEntry', f);
+    LG.data = res.data;
+    const r = LG.data.rows.find(x => x.id === res.id);
+    tr.dataset.saving = '';
+    if (r) { nt = lgReplaceRow(tr, r, false); nt.classList.add('saved'); setTimeout(() => nt.classList.remove('saved'), 1200); }
+    lgRenderKpi();
+    if (res.warn) toast(res.warn, true);
+  } catch (e) { tr.classList.add('err'); st.title = (e && e.message) || ''; fail(e); }
+  tr.dataset.saving = ''; tr.classList.remove('saving');
+  return nt;
+}
+
+async function lgDeleteRow(id) {
+  const r = LG.data.rows.find(x => x.id === id);
+  if (!r || !confirm(`ลบแถว "${r.item}" ${money(r.amount)} บาท และประวัติการใช้เงินของแถวนี้?` + (LG.data.ext.ok ? '\n(ลบแถวนี้ในไฟล์ทะเบียนด้วย)' : ''))) return;
+  loading(true);
+  try { const res = await api('deleteLedgerEntry', id); lgApply(res, 'ลบแล้ว'); } catch (e) { fail(e); }
+  loading(false);
+}
+
+/* ---------- การใช้เงิน ---------- */
+function openLgUse(id) {
+  $('lgUseLid').value = id;
+  $('lgUseDate').value = LG.data.today;
+  $('lgUseAmt').value = '';
+  $('lgUseDetail').value = '';
+  renderLgUse();
+  modal('lgUseModal').show();
+  if (LG.data.canEdit) setTimeout(() => $('lgUseAmt').focus(), 300);
+}
+
+function renderLgUse() {
+  const r = LG.data.rows.find(x => x.id === $('lgUseLid').value);
+  if (!r) return;
+  const can = LG.data.canEdit;
+  $('lgUseItem').textContent = r.item;
+  $('lgUseRemain').innerHTML = `รับ ${money(r.amount)} · จ่ายแล้ว ${money(r.paid)} · <b>คงเหลือ ${money(r.remain)} บาท</b>`;
+  ['lgUseDate', 'lgUseAmt', 'lgUseDetail'].forEach(i => { $(i).closest('.col-6, .col-12').style.display = can ? '' : 'none'; });
+  $('btnLgUseSave').style.display = can ? '' : 'none';
+  const rows = [];
+  if (r.paidBase > 0) rows.push(`<tr><td colspan="2" class="muted">ยอดจ่ายยกมาจากไฟล์ทะเบียน</td><td class="num">${money(r.paidBase)}</td><td></td></tr>`);
+  r.uses.forEach(u => rows.push(`<tr><td style="white-space:nowrap">${lgShortDate(u.date)}</td><td>${esc(u.detail) || '-'}</td><td class="num">${money(u.amount)}</td>
+    <td class="text-end">${can ? `<button class="btnx sec icon sm" style="width:32px" data-deluse="${u.id}" title="ลบ" aria-label="ลบ">${ic('trash', 'sm')}</button>` : ''}</td></tr>`));
+  $('lgUseHist').innerHTML = rows.length ? `<thead><tr><th>วันที่</th><th>รายละเอียด</th><th class="num">จำนวนเงิน</th><th></th></tr></thead><tbody>${rows.join('')}</tbody>`
+    : '<tbody><tr><td class="muted">ยังไม่มีการใช้เงิน</td></tr></tbody>';
+  $('lgUseHist').querySelectorAll('[data-deluse]').forEach(b => b.onclick = () => deleteLgUse(b.dataset.deluse));
+}
+
+async function saveLgUse() {
+  const r = LG.data.rows.find(x => x.id === $('lgUseLid').value);
+  const amt = +$('lgUseAmt').value;
+  if (!$('lgUseDate').value || !(amt > 0)) return toast('กรอกวันที่และจำนวนเงินที่ใช้', true);
+  if (r && amt > r.remain + 0.004) return toast(`ยอดใช้เกินยอดคงเหลือ (${money(r.remain)} บาท)`, true);
+  loading(true);
+  try {
+    const res = await api('saveLedgerUse', { ledgerId: $('lgUseLid').value, date: $('lgUseDate').value, amount: amt, detail: $('lgUseDetail').value });
+    lgApply(res, 'บันทึกการใช้เงินแล้ว');
+    $('lgUseAmt').value = ''; $('lgUseDetail').value = '';
+    renderLgUse();
+  } catch (e) { fail(e); }
+  loading(false);
+}
+
+async function deleteLgUse(id) {
+  if (!confirm('ลบรายการใช้เงินนี้? (ยอดจ่ายไปแล้วและหมายเหตุจะปรับให้เอง)')) return;
+  loading(true);
+  try { const res = await api('deleteLedgerUse', id); lgApply(res, 'ลบแล้ว'); renderLgUse(); } catch (e) { fail(e); }
+  loading(false);
+}
+
+/* ---------- ไฟล์ทะเบียน ---------- */
+async function saveLgExt(url) {
+  loading(true);
+  try { LG.data = await api('setLedgerExt', LG.fy, url); modal('lgExtModal').hide(); renderLedger(); toast(url ? 'ผูกไฟล์ทะเบียนแล้ว' : 'เลิกผูกไฟล์แล้ว'); } catch (e) { fail(e); }
+  loading(false);
+}
+async function importLgExt() {
+  if (!confirm('นำเข้าแถวในไฟล์ทะเบียนที่ยังไม่อยู่ในระบบ?\nยอด "จ่ายไปแล้ว" และหมายเหตุเดิมในไฟล์จะถูกเก็บไว้ตามเดิม')) return;
+  loading(true);
+  try { const res = await api('importLedgerFromExt', LG.fy); lgApply(res, `นำเข้า ${res.count} รายการ`); } catch (e) { fail(e); }
+  loading(false);
+}
+async function syncLgAll() {
+  if (!confirm('เขียนทุกรายการของปีงบนี้ลงไฟล์ทะเบียนใหม่ทั้งหมด? (แถวที่มีรหัสในคอลัมน์ K จะถูกเขียนทับด้วยข้อมูลในระบบ)')) return;
+  loading(true);
+  try { const res = await api('syncLedgerAll', LG.fy); lgApply(res, 'เขียนลงไฟล์ครบแล้ว'); } catch (e) { fail(e); }
+  loading(false);
+}
+
+/* ---------- พิมพ์ทะเบียน (A4 แนวนอน) ---------- */
+function printLedger() {
+  const D = LG.data;
+  if (!D || !D.rows.length) return toast('ยังไม่มีรายการให้พิมพ์', true);
+  const cell = 'border:.75pt solid #000;padding:1mm 1.5mm;vertical-align:top';
+  const th = cell + ';text-align:center;font-weight:700';
+  const num = cell + ';text-align:right;white-space:nowrap';
+  const T = D.total;
+  printDoc(`<div style="font-family:THSarabunWeb,'TH Sarabun New',Sarabun,sans-serif;font-size:14pt;line-height:1.15;color:#000">
+    <div style="text-align:center;font-weight:700;font-size:16pt">ทะเบียนคุมเอกสารเงินงบประมาณ ประจำปีงบประมาณ ${D.fy}</div>
+    <div style="text-align:center;font-weight:700;font-size:16pt;margin-bottom:3mm">${esc(D.school)}</div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr>${['วัน เดือน ปี', 'รหัสแหล่งเงิน', 'รหัสกิจกรรมหลัก', 'รหัสงบประมาณ', 'รายการ', 'จำนวนเงินรับ', 'จ่ายไปแล้ว', 'คงเหลือ', 'ผู้รับผิดชอบ', 'หมายเหตุ'].map(h => `<th style="${th}">${h}</th>`).join('')}</tr></thead>
+      <tbody>${D.rows.map(r => `<tr>
+        <td style="${cell};white-space:nowrap">${lgLongDate(r.date)}</td><td style="${cell}">${esc(r.sourceCode)}</td>
+        <td style="${cell};white-space:nowrap">${esc(r.activityCode)}</td><td style="${cell};white-space:nowrap">${esc(r.budgetCode)}</td>
+        <td style="${cell}">${esc(r.item)}</td><td style="${num}">${money(r.amount)}</td><td style="${num}">${money(r.paid)}</td>
+        <td style="${num}">${money(r.remain)}</td><td style="${cell}">${esc(r.owner)}</td>
+        <td style="${cell};white-space:pre-line;font-size:12pt">${esc(lgNoteText(r))}</td></tr>`).join('')}
+        <tr><td colspan="5" style="${th}">รวม</td><td style="${num};font-weight:700">${money(T.amount)}</td><td style="${num};font-weight:700">${money(T.paid)}</td>
+        <td style="${num};font-weight:700">${money(T.remain)}</td><td colspan="2" style="${cell}"></td></tr></tbody>
+    </table>
+    <div style="text-align:right;font-size:12pt;margin-top:2mm">ข้อมูล ณ วันที่ ${thDate(D.today)}</div>
+  </div>`, 'land');
+}
+</script>
