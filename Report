@@ -1,0 +1,47 @@
+/*******************************************************************
+ * Report.gs — รายงานเงินคงเหลือ ณ วันที่ (เมนู 7)
+ * ----------------------------------------------------------------
+ * ยกมา (Settings.open_<fy>_<fund>) + เงินเข้าบัญชีฝ่ายการเงิน (Receipts_Finance)
+ * − รายจ่ายฝ่ายการเงิน (readExpenses_) นับเฉพาะรายการที่วันที่ ≤ วันที่ที่เลือก
+ * = คงเหลือ ณ วันที่นั้น แยก 5 รายการเงิน (หน้ารายงานอย่างเดียว ไม่มีการบันทึกข้อมูล)
+ *******************************************************************/
+
+/** ข้อมูลรายงานเงินคงเหลือ ณ วันที่ที่เลือก (asOf: 'yyyy-MM-dd' ว่าง = วันนี้) */
+function getBalanceReport(fy, asOf) {
+  requirePage_('balance');
+  fy = Number(fy);
+  const range = fyRange_(fy);
+  asOf = /^\d{4}-\d{2}-\d{2}$/.test(String(asOf || '')) ? String(asOf) : todayIso_();
+  if (asOf < range.from) asOf = range.from;
+  if (asOf > range.to) asOf = range.to;
+
+  const funds = getFunds_(), s = getSettingsMap_();
+  const rec = readObjects_('Receipts_Finance').filter(r => Number(r.fy) === fy && String(r.date || '') <= asOf);
+  const exp = readExpenses_().filter(e => Number(e.fy) === fy && String(e.date || '') <= asOf);
+  const sumBy = (rows, code) => round2_(rows.filter(r => r.fund === code).reduce((x, r) => x + num_(r.amount), 0));
+
+  const rows = funds.map(f => {
+    const opening = round2_(num_(s['open_' + fy + '_' + f.code]));
+    const received = sumBy(rec, f.code), spent = sumBy(exp, f.code);
+    return {
+      code: f.code, name: f.name, short: f.short, color: f.color,
+      opening: opening, received: received, spent: spent, balance: round2_(opening + received - spent)
+    };
+  });
+  const T = k => round2_(rows.reduce((x, r) => x + r[k], 0));
+
+  return {
+    fy: fy, asOf: asOf, fyFrom: range.from, fyTo: range.to, today: todayIso_(), rows: rows,
+    totals: { opening: T('opening'), received: T('received'), spent: T('spent'), balance: T('balance') },
+    signers: { finOfficer: s.finOfficer || '', deputy: s.deputy || '', director: s.director || '' },
+    docPrefix: String(s.docPrefix || ''), garudaUrl: String(s.garudaUrl || '')
+  };
+}
+
+/**
+ * รวม getBalanceReport + getBalance25 เป็นการเรียกเซิร์ฟเวอร์ครั้งเดียว
+ * (เดิมหน้าเว็บ (loadBalance) เรียกแยก 2 คำสั่งเรียงกัน ทำให้ต้องรอครบทีละรอบ)
+ */
+function getBalancePageData(fy, asOf) {
+  return { report: getBalanceReport(fy, asOf), balance25: getBalance25(fy) };
+}
