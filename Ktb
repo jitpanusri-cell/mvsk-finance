@@ -1,0 +1,364 @@
+/*******************************************************************
+ * KTB.gs — แจ้งโอนเงิน KTB รายวัน (เมนูบันทึกข้อมูล)
+ * ----------------------------------------------------------------
+ * บันทึก/แสดงตาราง "รายการสั่งจ่ายเงินผ่านระบบ KTB Corporate Online" รายวัน
+ * จัดกลุ่ม: แหล่งเงิน (อ้างอิงประเภทเงิน 25 รายการ ส่วนที่ 1) → บัญชีปลายทาง + วันที่โอน → รายการ
+ * บันทึกแล้วตัดยอดคงเหลือในตาราง 25 ประเภทเงินให้อัตโนมัติ:
+ *   - รายการโหมด 'auto'   → เพิ่มแถวรายจ่ายใน Balance25_Tx (direction='out')
+ *   - รายการโหมด 'manual' → หักยอดกรอกเองลงตรงๆ (Balance25_Manual)
+ *   - รายการโหมด 'link'   → ไม่หักซ้ำที่นี่ (ผูกกับ 5 รายการเงินหลักซึ่งตัดยอดผ่านเมนู
+ *     "บันทึกรายจ่าย"/"งบกิจกรรม" อยู่แล้ว เพื่อไม่ให้มีจุดตัดยอดซ้ำซ้อนกัน)
+ * หมวด "ลูกหนี้เงินยืม" ขึ้นสถานะ "รอส่งใช้เงินยืม" นับถอยหลัง 30 วัน เชื่อมกับเมนู
+ * "ขอยืม-ขอเบิก / พิมพ์เอกสาร" (ผู้ใช้เปิดจากรายการนี้ไปสร้างสัญญา/ติดตามส่งใช้เงินยืมต่อ)
+ * หน้าเว็บ: ปุ่ม ‹ › เลื่อนวัน, ปฏิทิน (getKtbMonth), ตารางกรอกแบบ Excel (saveKtbRows)
+ *******************************************************************/
+
+const KTB_BANKS = ['ธนาคารกรุงไทย', 'ต่างธนาคาร', 'ธนาคารออมสิน', 'ธนาคารกรุงเทพ', 'ธนาคารกรุงศรีอยุธยา'];
+const KTB_CATS = ['ค่าใช้สอยอื่นๆ', 'ค่าตอบแทน', 'ค่าตอบแทนการปฏิบัติงาน', 'คชจ.เดินทางไปราชการ', 'ค่าจ้างเหมา', 'ค่าวัสดุ', 'ลูกหนี้เงินยืม'];
+const KTB_LOAN_CAT = 'ลูกหนี้เงินยืม';
+/* ประเภทการแจ้งโอน: bud = เงินงบประมาณ, rev = เงินรายได้แผ่นดิน, off = เงินนอกงบประมาณ (ว่าง = ดูจากหมวดของประเภทเงิน) */
+const KTB_BT = ['bud', 'rev', 'off'];
+
+/** เพิ่มหัวคอลัมน์ให้ชีต ถ้ายังไม่มี (ข้อมูลเดิมไม่กระทบ) */
+function ktbEnsureCol_(name, col) {
+  const sh = sh_(name), n = sh.getLastColumn();
+  const head = sh.getRange(1, 1, 1, n).getValues()[0].map(String);
+  if (head.indexOf(col) < 0) { sh.getRange(1, n + 1).setValue(col); _clearRowCache_(name); }
+}
+
+function ktbBal25Options_(fy) {
+  return getBalance25(fy).rows.map(r => ({ id: r.id, name: r.name, category: r.category, catLabel: r.catLabel, mode: r.mode }));
+}
+
+/** ข้อมูลตั้งต้นสำหรับ dropdown ต่างๆ ของหน้าแจ้งโอนเงิน */
+function getKtbFormData(fy) {
+  requirePage_('ktb');
+  fy = Number(fy);
+  const names = {};
+  readObjects_('KTB_Items').forEach(it => { if (it.name) names[it.name] = 1; });
+  return {
+    fy: fy, banks: KTB_BANKS, cats: KTB_CATS, loanCat: KTB_LOAN_CAT,
+    bal25: ktbBal25Options_(fy),
+    activities: readObjects_('Activities').filter(a => Number(a.fy) === fy && a.status === 'active')
+      .map(a => ({ id: a.id, code: String(a.code || ''), name: a.name })),
+    names: Object.keys(names).sort((a, b) => a.localeCompare(b, 'th')),
+    canEdit: WRITE_ROLES.ktb.indexOf(currentUser_().role) >= 0
+  };
+}
+
+/** ตารางแจ้งโอนเงินของวันที่เลือก (จัดกลุ่มตามแหล่งเงิน → บัญชีปลายทาง) */
+function getKtbDay(fy, date) {
+  requirePage_('ktb');
+  fy = Number(fy);
+  date = /^\d{4}-\d{2}-\d{2}$/.test(String(date || '')) ? date : todayIso_();
+  const bal25 = ktbBal25Options_(fy);
+  const bal25Of = id => bal25.find(x => String(x.id) === String(id)) || {};
+  const acts = readObjects_('Activities');
+  const actName = id => { const a = acts.find(x => x.id === id); return a ? ((a.code ? a.code + ' ' : '') + a.name) : ''; };
+
+  const batches = readObjects_('KTB_Batches').filter(b => Number(b.fy) === fy && b.date === date);
+  const items = readObjects_('KTB_Items');
+  const school = getSettingsMap_();
+
+  const out = batches.map(b => {
+    const list = items.filter(it => it.batchId === b.id).sort((a, c) => num_(a.no) - num_(c.no));
+    const rows = list.map(it => {
+      const cat = String(it.expenseCat || '');
+      const custom = String(it.customName || '');
+      const tail = it.activityId ? actName(it.activityId) : (custom || String(it.note || ''));
+      return {
+        id: it.id, no: num_(it.no), expenseCat: cat, activityId: String(it.activityId || ''),
+        activityName: it.activityId ? actName(it.activityId) : '', customName: custom,
+        itemName: [cat, tail].filter(Boolean).join(' - '),
+        name: String(it.name || ''), isGroup: isTrue_(it.isGroup), groupCount: num_(it.groupCount),
+        groupNames: String(it.groupNames || '').split('\n').map(s => s.trim()).filter(Boolean),
+        amount: round2_(num_(it.amount)),
+        loanFlag: isTrue_(it.loanFlag), loanDueDate: it.loanDueDate || '', loanStatus: String(it.loanStatus || ''),
+        note: String(it.note || ''), budgetType: String(it.budgetType || '')
+      };
+    });
+    return {
+      id: b.id, date: b.date, bankAccount: b.bankAccount, fundSource: b.fundSource,
+      fundSourceName: bal25Of(b.fundSource).name || '', fundCat: Number(bal25Of(b.fundSource).category) || 0,
+      rows: rows, total: round2_(rows.reduce((x, r) => x + r.amount, 0))
+    };
+  });
+  const shown = out.filter(b => b.rows.length);
+  return {
+    fy: fy, date: date, batches: shown, arriveOther: ktbArriveDate_(date, school), arriveOtherAuto: !ktbArriveSetting_(date, school),
+    grandTotal: round2_(shown.reduce((x, b) => x + b.total, 0)),
+    school: { name: school.schoolName || '', logoUrl: school.garudaUrl || '' },
+    canEdit: WRITE_ROLES.ktb.indexOf(currentUser_().role) >= 0
+  };
+}
+
+/**
+ * รวม getKtbFormData + getKtbDay เป็นการเรียกเซิร์ฟเวอร์ครั้งเดียว
+ * (เดิมหน้าเว็บ (loadKtb) เรียก getKtbFormData แล้วรอ ต่อด้วย getKtbDay เรียงกัน)
+ */
+function getKtbPageData(fy, date) {
+  return { form: getKtbFormData(fy), day: getKtbDay(fy, date) };
+}
+
+/**
+ * สรุปรายวันของเดือน สำหรับปฏิทินหน้าแจ้งโอนเงิน (ไม่จำกัดปีงบ เพื่อให้ปฏิทินข้าม ต.ค. ได้)
+ * ym = 'YYYY-MM' → { ym, days: { 'YYYY-MM-DD': { n: จำนวนรายการ, total: ยอดรวม } } }
+ */
+function getKtbMonth(ym) {
+  requirePage_('ktb');
+  ym = /^\d{4}-\d{2}$/.test(String(ym || '')) ? String(ym) : todayIso_().slice(0, 7);
+  const dateOf = {};
+  readObjects_('KTB_Batches').forEach(b => { const d = String(b.date || ''); if (d.slice(0, 7) === ym) dateOf[b.id] = d; });
+  const days = {};
+  if (Object.keys(dateOf).length) {
+    readObjects_('KTB_Items').forEach(it => {
+      const d = dateOf[it.batchId]; if (!d) return;
+      const x = days[d] || (days[d] = { n: 0, total: 0 });
+      x.n++; x.total = round2_(x.total + num_(it.amount));
+    });
+  }
+  return { ym: ym, days: days };
+}
+
+/**
+ * บันทึกการเปลี่ยนแปลงจากตารางกรอกแบบ Excel ในครั้งเดียว (เพิ่ม / แก้ / ลบ)
+ * rows: [{rowNo, id?, bankAccount, fundSource, expenseCat, customName, name, amount, note, activityId?, isGroup?, groupNames?}]
+ *   มี id = แก้รายการเดิม (คืนยอดเดิม แล้วหักยอดใหม่) · ไม่มี id = เพิ่มใหม่
+ * dels: [id] รายการที่ลบออกจากตาราง (คืนยอดคงเหลือให้อัตโนมัติ)
+ * ตรวจทุกแถวก่อน ถ้ามีแถวผิดจะไม่บันทึกเลย
+ */
+function saveKtbRows(fy, date, rows, dels) {
+  requireWrite_('ktb');
+  fy = Number(fy);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) throw new Error('กรุณาระบุวันที่โอน');
+  rows = (rows || []).filter(r => r);
+  dels = (dels || []).map(String).filter(Boolean);
+  if (!rows.length && !dels.length) throw new Error('ไม่มีรายการที่ต้องบันทึก');
+  rows.forEach(r => {
+    const at = 'แถวที่ ' + (r.rowNo || '?') + ': ';
+    if (!(num_(r.amount) > 0)) throw new Error(at + 'จำนวนเงินต้องมากกว่า 0');
+    if (!String(r.bankAccount || '').trim()) throw new Error(at + 'กรุณาระบุบัญชีปลายทาง');
+    if (!String(r.fundSource || '').trim()) throw new Error(at + 'กรุณาเลือกประเภทเงิน');
+  });
+  const out = { added: 0, updated: 0, deleted: 0 };
+  dels.forEach(id => { deleteKtbItem(id); out.deleted++; });
+  rows.forEach(r => {
+    try {
+      saveKtbItem({
+        id: r.id ? String(r.id) : '', fy: fy, date: date, bankAccount: String(r.bankAccount).trim(), fundSource: String(r.fundSource),
+        budgetType: String(r.budgetType || ''), expenseCat: String(r.expenseCat || ''), activityId: String(r.activityId || ''), customName: String(r.customName || ''),
+        name: String(r.name || ''), isGroup: !!r.isGroup, groupNames: String(r.groupNames || ''),
+        amount: num_(r.amount), note: String(r.note || '')
+      });
+      if (r.id) out.updated++; else out.added++;
+    } catch (e) {
+      throw new Error('แถวที่ ' + (r.rowNo || '?') + ': ' + e.message);
+    }
+  });
+  return out;
+}
+
+/* วันที่เงินเข้าบัญชีต่างธนาคาร: ค่าเริ่มต้น = วันทำการถัดไป (ข้ามเสาร์-อาทิตย์) แก้ได้ต่อวันโอน (Settings ktbArrive_<วันโอน>) */
+function ktbArriveSetting_(date, settings) {
+  const v = (settings || getSettingsMap_())['ktbArrive_' + date];
+  if (!v) return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const s = String(v).replace(/^'/, '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+}
+function ktbNextBizDay_(iso) {
+  const d = isoToDate_(iso);
+  do { d.setDate(d.getDate() + 1); } while (d.getDay() === 0 || d.getDay() === 6);
+  return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+function ktbArriveDate_(date, settings) { return ktbArriveSetting_(date, settings) || ktbNextBizDay_(date); }
+
+/** เปลี่ยนวันที่เงินเข้าต่างธนาคาร ของรายการโอนวันที่ date (ว่าง = กลับไปใช้วันทำการถัดไป) */
+function setKtbArriveDate(date, arrive) {
+  requireWrite_('ktb');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) throw new Error('วันที่โอนไม่ถูกต้อง');
+  arrive = String(arrive || '');
+  if (arrive && !/^\d{4}-\d{2}-\d{2}$/.test(arrive)) throw new Error('วันที่เงินเข้าไม่ถูกต้อง');
+  if (arrive && arrive < date) throw new Error('วันที่เงินเข้าต้องไม่ก่อนวันโอน');
+  const key = 'ktbArrive_' + date, val = arrive ? "'" + arrive : '';
+  withLock_(() => {
+    if (!updateObject_('Settings', key, { value: val }))
+      appendObject_('Settings', { key: key, label: 'วันเงินเข้าต่างธนาคาร (โอนวันที่ ' + date + ')', value: val });
+  });
+  audit_('update', 'Settings', key, { value: arrive });
+  return arrive || ktbNextBizDay_(date);
+}
+
+/** หา/สร้าง batch ของ {fy,date,bankAccount,fundSource} */
+function ktbEnsureBatch_(fy, date, bankAccount, fundSource, u) {
+  const cur = readObjects_('KTB_Batches').find(b => Number(b.fy) === fy && b.date === date && b.bankAccount === bankAccount && String(b.fundSource) === String(fundSource));
+  if (cur) return cur.id;
+  const rec = { id: newId_('KB'), fy: fy, date: date, bankAccount: bankAccount, fundSource: String(fundSource), createdBy: u.email, createdAt: new Date() };
+  appendObject_('KTB_Batches', rec);
+  return rec.id;
+}
+
+/** ปรับยอดคงเหลือ 25 รายการ ตามรายการ KTB ที่บันทึก/ลบ (delta ติดลบ = คืนยอด เช่นตอนลบ) */
+function ktbAdjustBalance25_(fy, itemId, delta, u) {
+  if (!itemId || !delta) return;
+  const it = readObjects_('Balance25_Items').find(r => String(r.id) === String(itemId));
+  if (!it) return;
+  if (it.mode === 'auto') {
+    appendObject_('Balance25_Tx', {
+      id: newId_('BX'), itemId: String(itemId), fy: fy, date: todayIso_(),
+      direction: delta > 0 ? 'out' : 'in', amount: Math.abs(delta),
+      note: 'ตัดยอดจากแจ้งโอนเงิน KTB', createdBy: u.email, createdAt: new Date()
+    });
+  } else if (it.mode === 'manual') {
+    const id = fy + '-' + itemId;
+    const cur = readObjects_('Balance25_Manual').find(r => r.id === id);
+    const v = round2_((cur ? num_(cur.value) : 0) - delta);
+    const rec = { id: id, fy: fy, itemId: String(itemId), value: v, updatedAt: new Date(), updatedBy: u.email };
+    if (!updateObject_('Balance25_Manual', id, rec)) appendObject_('Balance25_Manual', rec);
+  }
+  // mode 'link' (13-18): ไม่ตัดซ้ำที่นี่ — ตัดผ่านเมนูบันทึกรายจ่าย/งบกิจกรรมตามปกติ
+}
+
+/**
+ * เพิ่ม/แก้ไขรายการแจ้งโอนเงิน 1 รายการ
+ * obj: {id?, fy, date, bankAccount, fundSource(=Balance25 id), expenseCat, activityId?, name,
+ *       isGroup, groupCount, groupNames, amount, note}
+ */
+function saveKtbItem(obj) {
+  const u = requireWrite_('ktb');
+  obj = obj || {};
+  const fy = Number(obj.fy);
+  if (!fy) throw new Error('ไม่ระบุปีงบประมาณ');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(obj.date || ''))) throw new Error('กรุณาระบุวันที่โอน');
+  if (!String(obj.bankAccount || '').trim()) throw new Error('กรุณาเลือกบัญชีปลายทาง');
+  if (!String(obj.fundSource || '').trim()) throw new Error('กรุณาเลือกแหล่งเงิน (ประเภทเงิน 25 รายการ)');
+  const amount = round2_(num_(obj.amount));
+  if (!(amount > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
+  const isGroup = !!obj.isGroup;
+  const groupNames = isGroup ? String(obj.groupNames || '').split('\n').map(s => s.trim()).filter(Boolean) : [];
+  if (isGroup && !groupNames.length) throw new Error('กรุณาระบุรายชื่อย่อยของการโอนแบบกลุ่ม');
+  const isLoan = String(obj.expenseCat || '') === KTB_LOAN_CAT;
+
+  return withLock_(() => {
+    let cur = null, prevAmount = 0, prevFund = '';
+    if (obj.id) {
+      cur = readObjects_('KTB_Items').find(x => String(x.id) === String(obj.id));
+      if (!cur) throw new Error('ไม่พบรายการ');
+      prevAmount = num_(cur.amount); prevFund = String(cur.itemId || '');
+    }
+    const batchId = ktbEnsureBatch_(fy, obj.date, obj.bankAccount, obj.fundSource, u);
+    const rec = {
+      batchId: batchId, expenseCat: String(obj.expenseCat || ''), activityId: String(obj.activityId || ''),
+      itemId: String(obj.fundSource), customName: String(obj.customName || '').trim(),
+      name: String(obj.name || '').trim(), isGroup: isGroup,
+      groupCount: isGroup ? groupNames.length : 0, groupNames: groupNames.join('\n'), amount: amount,
+      note: String(obj.note || '').trim(),
+      loanFlag: isLoan, loanDueDate: isLoan ? addDays_(obj.date, 30) : '',
+      loanStatus: isLoan ? (cur && cur.loanStatus ? cur.loanStatus : 'รอส่งใช้เงินยืม') : '',
+      budgetType: obj.budgetType !== undefined ? (KTB_BT.indexOf(String(obj.budgetType)) >= 0 ? String(obj.budgetType) : '') : (cur ? String(cur.budgetType || '') : '')
+    };
+    ktbEnsureCol_('KTB_Items', 'budgetType');
+    let id = obj.id;
+    if (id) {
+      updateObject_('KTB_Items', id, rec);
+      audit_('update', 'KTB_Items', id, rec);
+      // ปรับยอดคงเหลือ: คืนยอดเดิมก่อน แล้วหักยอดใหม่ (รองรับกรณีย้ายไปคนละประเภทเงิน)
+      if (prevFund) ktbAdjustBalance25_(fy, prevFund, -prevAmount, u);
+      ktbAdjustBalance25_(fy, rec.itemId, amount, u);
+    } else {
+      const list = readObjects_('KTB_Items').filter(x => x.batchId === batchId);
+      rec.id = id = newId_('KI'); rec.no = list.length + 1; rec.createdBy = u.email; rec.createdAt = new Date();
+      appendObject_('KTB_Items', rec);
+      audit_('create', 'KTB_Items', id, rec);
+      ktbAdjustBalance25_(fy, rec.itemId, amount, u);
+    }
+    return id;
+  });
+}
+
+/** เพิ่มหลายรายการพร้อมกันจาก Batch Paste (รายการ\tชื่อ-สกุล\tจำนวนเงิน ต่อบรรทัด) */
+function saveKtbBatchPaste(fy, date, bankAccount, fundSource, text) {
+  const rows = String(text || '').split('\n').map(l => l.split('\t').map(s => s.trim())).filter(r => r.length >= 2 && r[0]);
+  let n = 0;
+  rows.forEach(r => {
+    const amount = num_(r[2]);
+    if (!amount) return;
+    saveKtbItem({ fy: fy, date: date, bankAccount: bankAccount, fundSource: fundSource, expenseCat: '', customName: r[0], name: r[1] || '', amount: amount });
+    n++;
+  });
+  return n;
+}
+
+function deleteKtbItem(id) {
+  const u = requireWrite_('ktb');
+  return withLock_(() => {
+    const cur = readObjects_('KTB_Items').find(x => String(x.id) === String(id));
+    if (!cur) throw new Error('ไม่พบรายการ');
+    const batch = readObjects_('KTB_Batches').find(b => b.id === cur.batchId);
+    deleteWhere_('KTB_Items', o => String(o.id) === String(id));
+    if (batch) ktbAdjustBalance25_(Number(batch.fy), cur.itemId, -num_(cur.amount), u);
+    audit_('delete', 'KTB_Items', id, cur);
+    return true;
+  });
+}
+
+/** ตั้งสถานะติดตามลูกหนี้เงินยืม (จากเมนูขอยืม-ขอเบิก เมื่อบันทึกส่งใช้ครบ) */
+function setKtbLoanStatus(id, status) {
+  requireWrite_('ktb');
+  return withLock_(() => {
+    if (!updateObject_('KTB_Items', id, { loanStatus: status })) throw new Error('ไม่พบรายการ');
+    audit_('update', 'KTB_Items', id, { loanStatus: status });
+    return true;
+  });
+}
+
+/** รายการลูกหนี้เงินยืมที่ยังไม่ส่งใช้ (ใช้เชื่อมกับเมนูขอยืม-ขอเบิก) */
+function getKtbPendingLoans(fy) {
+  requirePage_('docs');
+  fy = Number(fy);
+  return readObjects_('KTB_Items').filter(it => isTrue_(it.loanFlag) && String(it.loanStatus || '').indexOf('รอ') === 0)
+    .map(it => {
+      const b = readObjects_('KTB_Batches').find(x => x.id === it.batchId);
+      return { id: it.id, name: it.name, amount: round2_(num_(it.amount)), date: b ? b.date : '', loanDueDate: it.loanDueDate,
+        daysLeft: it.loanDueDate ? Math.ceil((isoToDate_(it.loanDueDate) - isoToDate_(todayIso_())) / 86400000) : null };
+    }).filter(x => !fy || (x.date && fyOf_(x.date) === fy));
+}
+
+function addDays_(iso, n) {
+  const d = isoToDate_(iso); d.setDate(d.getDate() + n);
+  return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+/**
+ * ข้อมูลแจ้งโอนทั้งเดือน สำหรับส่งออก Excel (ym = 'YYYY-MM', ไม่จำกัดปีงบ)
+ * → { ym, school, days: [{ date, fy, arriveOther, rows: [{ bankAccount, fundSourceName, fundCat, budgetType, expenseCat, itemName, name, groupNames, amount, note }] }] }
+ */
+function getKtbMonthExport(ym) {
+  requirePage_('ktb');
+  ym = /^\d{4}-\d{2}$/.test(String(ym || '')) ? String(ym) : todayIso_().slice(0, 7);
+  const school = getSettingsMap_();
+  const batches = readObjects_('KTB_Batches').filter(b => String(b.date || '').slice(0, 7) === ym);
+  const items = readObjects_('KTB_Items');
+  const acts = readObjects_('Activities');
+  const actName = id => { const a = acts.find(x => x.id === id); return a ? ((a.code ? a.code + ' ' : '') + a.name) : ''; };
+  const balCache = {};
+  const balOf = (fy, id) => { const L = balCache[fy] || (balCache[fy] = ktbBal25Options_(fy)); return L.find(x => String(x.id) === String(id)) || {}; };
+  const byDate = {};
+  batches.forEach(b => {
+    const fy = Number(b.fy), bal = balOf(fy, b.fundSource);
+    items.filter(it => it.batchId === b.id).sort((a, c) => num_(a.no) - num_(c.no)).forEach(it => {
+      const cat = String(it.expenseCat || ''), custom = String(it.customName || '');
+      const tail = it.activityId ? actName(it.activityId) : (custom || String(it.note || ''));
+      const d = byDate[b.date] || (byDate[b.date] = { date: b.date, fy: fy, rows: [] });
+      d.rows.push({
+        bankAccount: String(b.bankAccount || ''), fundSourceName: bal.name || '', fundCat: Number(bal.category) || 0,
+        budgetType: String(it.budgetType || ''), expenseCat: cat, itemName: [cat, tail].filter(Boolean).join(' - '),
+        name: String(it.name || ''), isGroup: isTrue_(it.isGroup), groupCount: num_(it.groupCount),
+        groupNames: String(it.groupNames || '').split('\n').map(s => s.trim()).filter(Boolean).join(', '),
+        amount: round2_(num_(it.amount)), note: String(it.note || '')
+      });
+    });
+  });
+  const days = Object.keys(byDate).sort().map(k => Object.assign(byDate[k], { arriveOther: ktbArriveDate_(k, school) }));
+  return { ym: ym, school: { name: school.schoolName || '' }, days: days };
+}
