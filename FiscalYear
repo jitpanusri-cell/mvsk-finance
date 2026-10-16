@@ -1,0 +1,61 @@
+/*******************************************************************
+ * FiscalYear.gs — ปีงบประมาณในระบบ (เมนูตั้งค่า)
+ * ----------------------------------------------------------------
+ * - ปีงบปัจจุบันคิดจากวันที่เสมอ (ต.ค. ขึ้นปีงบใหม่) → เปิดเว็บแล้วเริ่มที่ปีงบล่าสุด
+ * - เพิ่มปีงบเองได้ (ล่วงหน้า/ย้อนหลัง) เก็บใน Settings คีย์ fyExtra เช่น "2571,2567"
+ * - ลบได้เฉพาะปีที่เพิ่มเอง (ปีที่มีหนังสือจัดสรร/ปีปัจจุบันยังแสดงเสมอ)
+ * หน้าเว็บเรียก getBootstrapFy แทน getBootstrap (Code.gs ไม่ต้องแก้)
+ *******************************************************************/
+
+function fyExtra_(s) {
+  return String((s || getSettingsMap_()).fyExtra || '').split(/[,\s]+/).map(Number).filter(y => y >= 2550 && y <= 2700);
+}
+
+/** getBootstrap + ปีงบที่เพิ่มเอง + ตั้งปีงบเริ่มต้นเป็นปีล่าสุดตามวันที่ */
+function getBootstrapFy() {
+  const b = getBootstrap();
+  const fyNow = fyOf_(todayIso_());
+  const extra = fyExtra_();
+  const fys = {};
+  b.fyList.concat(extra, [fyNow]).forEach(y => { fys[Number(y)] = 1; });
+  b.fyList = Object.keys(fys).map(Number).sort((a, c) => c - a);
+  b.fyExtra = extra;
+  b.fyNow = fyNow;
+  b.currentFy = fyNow;
+  return b;
+}
+
+function saveFyExtra_(list) {
+  const v = list.filter((y, i) => list.indexOf(y) === i).sort((a, b) => b - a).join(',');
+  if (!updateObject_('Settings', 'fyExtra', { value: v }))
+    appendObject_('Settings', { key: 'fyExtra', label: 'ปีงบประมาณที่เพิ่มเอง (คั่นด้วยจุลภาค)', value: v });
+  return v;
+}
+
+/** เพิ่มปีงบประมาณ (พ.ศ.) */
+function addFiscalYear(fy) {
+  requireWrite_('settings');
+  fy = Number(fy);
+  if (!(fy >= 2550 && fy <= 2700)) throw new Error('ปีงบประมาณไม่ถูกต้อง (กรอกเป็น พ.ศ. เช่น 2571)');
+  return withLock_(() => {
+    const list = fyExtra_();
+    if (list.indexOf(fy) >= 0) throw new Error('มีปีงบประมาณ ' + fy + ' อยู่แล้ว');
+    list.push(fy);
+    const v = saveFyExtra_(list);
+    audit_('create', 'Settings', 'fyExtra', { fy: fy });
+    return v;
+  });
+}
+
+/** ลบปีงบที่เพิ่มเองออกจากรายการ (ไม่ลบข้อมูลใด ๆ ของปีนั้น) */
+function removeFiscalYear(fy) {
+  requireWrite_('settings');
+  fy = Number(fy);
+  return withLock_(() => {
+    const list = fyExtra_();
+    if (list.indexOf(fy) < 0) throw new Error('ปีงบ ' + fy + ' ไม่ได้เพิ่มเอง จึงลบออกไม่ได้');
+    const v = saveFyExtra_(list.filter(y => y !== fy));
+    audit_('delete', 'Settings', 'fyExtra', { fy: fy });
+    return v;
+  });
+}
