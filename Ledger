@@ -1,0 +1,386 @@
+/*******************************************************************
+ * Ledger.gs — ทะเบียนคุมเอกสารเงินงบประมาณ (ประจำปีงบประมาณ)
+ * ----------------------------------------------------------------
+ * บันทึก 2 ที่พร้อมกัน:
+ *   1) ในระบบ  : ชีต BudgetLedger (รายการรับเงิน) + BudgetLedger_Use (การใช้เงินแต่ละครั้ง)
+ *   2) ไฟล์ทะเบียนคุม (Google Sheet ของผู้ใช้) : คอลัมน์ A–J ตามแบบเดิม + K = รหัสอ้างอิง
+ *      A วัน เดือน ปี | B รหัสแหล่งเงิน | C รหัสกิจกรรมหลัก | D รหัสงบประมาณ | E รายการ
+ *      F จำนวนเงินรับ | G จ่ายไปแล้ว | H คงเหลือ (=F-G) | I ผู้รับผิดชอบ | J หมายเหตุ
+ * ไฟล์ทะเบียนคุมต้องเป็น Google ชีต (ไฟล์ .xlsx ให้ ไฟล์ > บันทึกเป็น Google ชีต ก่อน)
+ * ลิงก์ไฟล์เก็บใน Settings คีย์ ledgerSpreadsheetId_<ปีงบ>
+ * ไม่ต้องแก้ Code.gs — ชีตของเมนูนี้สร้างเองตอนเรียกใช้ครั้งแรก
+ *******************************************************************/
+
+const LEDGER_SHEETS = {
+  BudgetLedger:     ['id', 'fy', 'date', 'sourceCode', 'activityCode', 'budgetCode', 'item', 'amount', 'paidBase',
+                     'owner', 'note', 'extRow', 'createdBy', 'createdAt', 'updatedAt'],
+  BudgetLedger_Use: ['id', 'ledgerId', 'date', 'amount', 'detail', 'createdBy', 'createdAt']
+};
+const LEDGER_VIEW_ROLES = ['admin', 'finance', 'exec', 'account'];
+const LEDGER_TEXT_COLS = ['sourceCode', 'activityCode', 'budgetCode'];
+
+function ledgerEnsure_() {
+  const ss = ss_();
+  Object.keys(LEDGER_SHEETS).forEach(name => {
+    let sh = ss.getSheetByName(name);
+    const head = LEDGER_SHEETS[name];
+    if (!sh) {
+      sh = ss.insertSheet(name);
+      sh.getRange(1, 1, 1, head.length).setValues([head])
+        .setFontWeight('bold').setBackground('#16263D').setFontColor('#FFFFFF');
+      sh.setFrozenRows(1);
+      sh.getRange(2, 4, sh.getMaxRows() - 1, 3).setNumberFormat('@');
+    } else {
+      const cur = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getValues()[0].map(String);
+      const miss = head.filter(h => cur.indexOf(h) < 0);
+      if (miss.length) sh.getRange(1, cur.filter(String).length + 1, 1, miss.length).setValues([miss]);
+    }
+  });
+}
+
+function ledgerView_() {
+  const u = currentUser_();
+  if (LEDGER_VIEW_ROLES.indexOf(u.role) < 0) throw new Error('ไม่มีสิทธิ์เข้าถึงทะเบียนคุมเงินงบประมาณ');
+  ledgerEnsure_();
+  return u;
+}
+function ledgerWrite_() { ledgerView_(); return requireWrite_('finance'); }
+
+/** ค่าที่เขียนลงชีตในระบบ: รหัสต่าง ๆ บังคับเป็นข้อความ */
+function ledgerCell_(o) {
+  const out = Object.assign({}, o);
+  LEDGER_TEXT_COLS.forEach(k => { if (out[k] !== undefined && out[k] !== '') out[k] = "'" + String(out[k]).replace(/^'/, ''); });
+  return out;
+}
+
+/* ================================================================
+ * อ่านข้อมูล
+ * ================================================================ */
+function ledgerRows_(fy) {
+  const uses = readObjects_('BudgetLedger_Use');
+  return readObjects_('BudgetLedger')
+    .filter(r => !fy || Number(r.fy) === Number(fy))
+    .map(r => {
+      const us = uses.filter(u => u.ledgerId === r.id)
+        .map(u => ({ id: u.id, date: u.date, amount: round2_(num_(u.amount)), detail: String(u.detail || '') }))
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+      const amount = round2_(num_(r.amount));
+      const paid = round2_(num_(r.paidBase) + us.reduce((a, u) => a + u.amount, 0));
+      return {
+        id: r.id, fy: Number(r.fy), date: r.date, sourceCode: String(r.sourceCode || ''), activityCode: String(r.activityCode || ''),
+        budgetCode: String(r.budgetCode || ''), item: String(r.item || ''), amount: amount, paidBase: round2_(num_(r.paidBase)),
+        paid: paid, remain: round2_(amount - paid), owner: String(r.owner || ''), note: String(r.note || ''),
+        extRow: num_(r.extRow), uses: us, createdAt: r.createdAt
+      };
+    })
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.createdAt).localeCompare(String(b.createdAt)));
+}
+
+function getLedgerData(fy) {
+  const u = ledgerView_();
+  fy = Number(fy) || fyOf_(todayIso_());
+  const rows = ledgerRows_(fy);
+  const ext = ledgerExtInfo_(fy);
+  const T = k => round2_(rows.reduce((a, r) => a + r[k], 0));
+  const pick = k => rows.map(r => r[k]).filter((v, i, a) => v && a.indexOf(v) === i);
+  return {
+    fy: fy, today: todayIso_(), canEdit: ['admin', 'finance'].indexOf(u.role) >= 0, me: u.name || u.email,
+    school: getSetting_('schoolName') || '',
+    ext: ext, rows: rows,
+    total: { amount: T('amount'), paid: T('paid'), remain: T('remain'), count: rows.length },
+    lists: { sourceCode: pick('sourceCode'), activityCode: pick('activityCode'), budgetCode: pick('budgetCode'), owner: pick('owner'), item: pick('item') }
+  };
+}
+
+/* ================================================================
+ * บันทึกรายการรับเงิน
+ * ================================================================ */
+function saveLedgerEntry(f) {
+  const u = ledgerWrite_();
+  f = f || {};
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(f.date))) throw new Error('กรุณาเลือกวันที่');
+  if (!String(f.item || '').trim()) throw new Error('กรุณากรอกรายการ');
+  const amount = round2_(num_(f.amount));
+  if (!(amount > 0)) throw new Error('จำนวนเงินรับต้องมากกว่า 0');
+  const obj = {
+    fy: fyOf_(f.date), date: f.date,
+    sourceCode: String(f.sourceCode || '').trim(), activityCode: String(f.activityCode || '').trim(), budgetCode: String(f.budgetCode || '').trim(),
+    item: String(f.item).trim(), amount: amount, owner: String(f.owner || '').trim() || (u.name || ''), note: String(f.note || '').trim(),
+    updatedAt: new Date()
+  };
+  /* จ่ายไปแล้ว พิมพ์ในตารางได้โดยตรง: เก็บส่วนที่ไม่ได้มาจาก "ใช้เงิน" เป็น paidBase */
+  const hasPaid = f.paid !== undefined && f.paid !== null && String(f.paid).trim() !== '';
+  const paidIn = round2_(num_(f.paid));
+  if (hasPaid && paidIn < 0) throw new Error('จ่ายไปแล้วติดลบไม่ได้');
+  let id = f.id;
+  withLock_(() => {
+    if (id) {
+      const cur = ledgerRows_().find(r => r.id === id);
+      if (!cur) throw new Error('ไม่พบรายการ');
+      const usesSum = round2_(cur.paid - cur.paidBase);
+      if (hasPaid) {
+        if (paidIn + 0.004 < usesSum) throw new Error('จ่ายไปแล้วต้องไม่น้อยกว่ายอดที่บันทึกใช้เงินไว้ (' + money_(usesSum) + ' บาท)');
+        obj.paidBase = round2_(paidIn - usesSum);
+      }
+      const paidNew = hasPaid ? paidIn : cur.paid;
+      if (amount + 0.004 < paidNew) throw new Error('จำนวนเงินรับน้อยกว่ายอดที่จ่ายไปแล้ว (' + money_(paidNew) + ' บาท)');
+      updateObject_('BudgetLedger', id, ledgerCell_(obj));
+      audit_('update', 'BudgetLedger', id, obj);
+    } else {
+      if (hasPaid && paidIn > amount + 0.004) throw new Error('จ่ายไปแล้วมากกว่าจำนวนเงินรับ');
+      id = newId_('BL');
+      appendObject_('BudgetLedger', ledgerCell_(Object.assign({ id: id, paidBase: hasPaid ? paidIn : 0, extRow: '', createdBy: u.email, createdAt: new Date() }, obj)));
+      audit_('create', 'BudgetLedger', id, obj);
+    }
+  });
+  const warn = ledgerSyncOne_(id);
+  return { id: id, warn: warn, data: getLedgerData(obj.fy) };
+}
+
+function deleteLedgerEntry(id) {
+  ledgerWrite_();
+  const cur = ledgerRows_().find(r => r.id === id);
+  if (!cur) throw new Error('ไม่พบรายการ');
+  let warn = '';
+  try { ledgerExtDelete_(cur); } catch (e) { warn = 'ลบในระบบแล้ว แต่ลบในไฟล์ทะเบียนไม่สำเร็จ: ' + e.message; }
+  withLock_(() => {
+    deleteWhere_('BudgetLedger_Use', r => r.ledgerId === id);
+    deleteWhere_('BudgetLedger', r => r.id === id);
+  });
+  audit_('delete', 'BudgetLedger', id, { item: cur.item, amount: cur.amount });
+  return { warn: warn, data: getLedgerData(cur.fy) };
+}
+
+/* ================================================================
+ * บันทึกการใช้เงิน (จ่ายไปแล้ว + หมายเหตุ)
+ * ================================================================ */
+function saveLedgerUse(f) {
+  const u = ledgerWrite_();
+  f = f || {};
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(f.date))) throw new Error('กรุณาเลือกวันที่ใช้เงิน');
+  const amount = round2_(num_(f.amount));
+  if (!(amount > 0)) throw new Error('จำนวนเงินที่ใช้ต้องมากกว่า 0');
+  let fy;
+  withLock_(() => {
+    const cur = ledgerRows_().find(r => r.id === f.ledgerId);
+    if (!cur) throw new Error('ไม่พบรายการรับเงิน');
+    if (amount > cur.remain + 0.004) throw new Error('ยอดใช้เกินยอดคงเหลือ (คงเหลือ ' + money_(cur.remain) + ' บาท)');
+    fy = cur.fy;
+    const id = newId_('BU');
+    appendObject_('BudgetLedger_Use', { id: id, ledgerId: cur.id, date: f.date, amount: amount,
+      detail: String(f.detail || '').trim(), createdBy: u.email, createdAt: new Date() });
+    audit_('create', 'BudgetLedger_Use', id, { ledgerId: cur.id, amount: amount });
+  });
+  const warn = ledgerSyncOne_(f.ledgerId);
+  return { warn: warn, data: getLedgerData(fy) };
+}
+
+function deleteLedgerUse(id) {
+  ledgerWrite_();
+  const use = readObjects_('BudgetLedger_Use').find(r => r.id === id);
+  if (!use) throw new Error('ไม่พบรายการใช้เงิน');
+  withLock_(() => deleteWhere_('BudgetLedger_Use', r => r.id === id));
+  audit_('delete', 'BudgetLedger_Use', id, { ledgerId: use.ledgerId, amount: use.amount });
+  const warn = ledgerSyncOne_(use.ledgerId);
+  const cur = ledgerRows_().find(r => r.id === use.ledgerId);
+  return { warn: warn, data: getLedgerData(cur ? cur.fy : null) };
+}
+
+/* ================================================================
+ * ไฟล์ทะเบียนคุม (ที่ที่ 2)
+ * ================================================================ */
+function ledgerExtKey_(fy) { return 'ledgerSpreadsheetId_' + fy; }
+function ledgerExtId_(fy) { return String(getSetting_(ledgerExtKey_(fy)) || '').trim(); }
+
+function ledgerExtInfo_(fy) {
+  const id = ledgerExtId_(fy);
+  if (!id) return { linked: false };
+  try {
+    const ss = SpreadsheetApp.openById(id);
+    const sh = ledgerExtSheet_(ss);
+    return { linked: true, ok: true, id: id, name: ss.getName(), sheet: sh.getName(), url: ss.getUrl() };
+  } catch (e) {
+    return { linked: true, ok: false, id: id, error: 'เปิดไฟล์ไม่ได้ (' + e.message + ') — ไฟล์ต้องเป็น Google ชีต และบัญชีนี้ต้องมีสิทธิ์แก้ไข' };
+  }
+}
+
+/** ตั้งค่าลิงก์ไฟล์ทะเบียนคุมของปีงบ (รับลิงก์เต็มหรือ ID) */
+function setLedgerExt(fy, urlOrId) {
+  ledgerWrite_();
+  fy = Number(fy);
+  const s = String(urlOrId || '').trim();
+  const m = s.match(/\/d\/([a-zA-Z0-9_-]{20,})/);
+  const id = m ? m[1] : s;
+  if (id) {
+    let ss;
+    try { ss = SpreadsheetApp.openById(id); } catch (e) {
+      throw new Error('เปิดไฟล์ไม่ได้ — ถ้าเป็นไฟล์ .xlsx ให้เปิดแล้วเลือก ไฟล์ > บันทึกเป็น Google ชีต แล้วใช้ลิงก์ของไฟล์ใหม่');
+    }
+    ledgerExtSheet_(ss);
+  }
+  const key = ledgerExtKey_(fy);
+  withLock_(() => {
+    if (!updateObject_('Settings', key, { value: id }))
+      appendObject_('Settings', { key: key, label: 'ไฟล์ทะเบียนคุมเอกสารเงินงบประมาณ ปีงบ ' + fy + ' (ID Google ชีต)', value: id });
+  });
+  audit_('update', 'Settings', key, { value: id });
+  return getLedgerData(fy);
+}
+
+/** ชีตที่ใช้ในไฟล์ทะเบียน: ชีตแรกที่มีหัวตาราง "รายการ" ในคอลัมน์ E */
+function ledgerExtSheet_(ss) {
+  const list = ss.getSheets();
+  for (let i = 0; i < list.length; i++) {
+    const sh = list[i];
+    if (sh.getMaxColumns() < 10) continue;
+    if (!ledgerExtHeadRow_(sh)) continue;
+    if (sh.getMaxColumns() < 11) sh.insertColumnsAfter(sh.getMaxColumns(), 11 - sh.getMaxColumns());   /* คอลัมน์ K เก็บรหัสอ้างอิง */
+    return sh;
+  }
+  throw new Error('ไม่พบหัวตาราง "รายการ" (คอลัมน์ E) ในไฟล์ทะเบียน');
+}
+function ledgerExtHeadRow_(sh) {
+  const n = Math.min(Math.max(sh.getLastRow(), 1), 15);
+  const v = sh.getRange(1, 1, n, 10).getDisplayValues();
+  for (let i = 0; i < v.length; i++) {
+    if (/รายการ/.test(v[i][4]) && /วัน/.test(v[i][0])) return i + 1;
+  }
+  return 0;
+}
+
+/** วันที่ไทย d/m/พ.ศ. (short = ปี 2 หลัก) */
+function ledgerThDate_(iso, short) {
+  const p = String(iso).split('-').map(Number);
+  if (p.length < 3 || !p[0]) return '';
+  const be = p[0] + 543;
+  return p[2] + '/' + p[1] + '/' + (short ? String(be).slice(-2) : be);
+}
+
+/** หมายเหตุในไฟล์ = หมายเหตุที่กรอก + ประวัติการใช้เงินทีละบรรทัด */
+function ledgerExtNote_(r) {
+  const lines = [];
+  if (r.note) lines.push(r.note);
+  r.uses.forEach(u => lines.push(ledgerThDate_(u.date, true) + ' ใช้เงินไปแล้ว ' + money_(u.amount).replace(/\.00$/, '') + ' บาท' + (u.detail ? ' (' + u.detail + ')' : '')));
+  return lines.join('\n');
+}
+
+/** หาแถวของรายการในไฟล์ทะเบียน (คอลัมน์ K = id, สำรองด้วย extRow) */
+function ledgerExtFindRow_(sh, r, head) {
+  const last = sh.getLastRow();
+  if (last > head) {
+    const ids = sh.getRange(head + 1, 11, last - head, 1).getDisplayValues();
+    for (let i = 0; i < ids.length; i++) if (String(ids[i][0]).trim() === r.id) return head + 1 + i;
+  }
+  return 0;
+}
+function ledgerExtLastDataRow_(sh, head) {
+  const last = sh.getLastRow();
+  if (last <= head) return head;
+  const v = sh.getRange(head + 1, 1, last - head, 11).getDisplayValues();
+  for (let i = v.length - 1; i >= 0; i--) {
+    if (String(v[i][4]).trim() !== '' || String(v[i][10]).trim() !== '') return head + 1 + i;
+  }
+  return head;
+}
+
+function ledgerExtWrite_(sh, row, r) {
+  sh.getRange(row, 1, 1, 4).setNumberFormat('@');
+  sh.getRange(row, 1, 1, 7).setValues([[ledgerThDate_(r.date), r.sourceCode, r.activityCode, r.budgetCode, r.item, r.amount, r.paid]]);
+  sh.getRange(row, 8).setFormula('=F' + row + '-G' + row);
+  sh.getRange(row, 9, 1, 2).setValues([[r.owner, ledgerExtNote_(r)]]);
+  sh.getRange(row, 6, 1, 3).setNumberFormat('#,##0.00');
+  sh.getRange(row, 10).setWrap(true);
+  sh.getRange(row, 11).setValue(r.id).setFontColor('#9AA3AF').setFontSize(8);
+}
+
+/** เขียนรายการเดียวลงไฟล์ทะเบียน — คืนข้อความเตือน (ว่าง = สำเร็จ / ยังไม่ผูกไฟล์) */
+function ledgerSyncOne_(id) {
+  const r = ledgerRows_().find(x => x.id === id);
+  if (!r) return '';
+  const extId = ledgerExtId_(r.fy);
+  if (!extId) return 'ยังไม่ได้ผูกไฟล์ทะเบียนคุมของปีงบ ' + r.fy + ' — บันทึกในระบบอย่างเดียว';
+  try {
+    const sh = ledgerExtSheet_(SpreadsheetApp.openById(extId));
+    const head = ledgerExtHeadRow_(sh);
+    let row = ledgerExtFindRow_(sh, r, head);
+    if (!row) {
+      const last = ledgerExtLastDataRow_(sh, head);
+      if (last < sh.getMaxRows() && sh.getRange(last + 1, 1, 1, 11).getDisplayValues()[0].join('') === '') row = last + 1;
+      else { sh.insertRowAfter(last); row = last + 1; }
+    }
+    ledgerExtWrite_(sh, row, r);
+    if (row !== r.extRow) updateObject_('BudgetLedger', r.id, { extRow: row });
+    return '';
+  } catch (e) {
+    return 'บันทึกในระบบแล้ว แต่เขียนไฟล์ทะเบียนไม่สำเร็จ: ' + e.message;
+  }
+}
+
+function ledgerExtDelete_(r) {
+  const extId = ledgerExtId_(r.fy);
+  if (!extId) return;
+  const sh = ledgerExtSheet_(SpreadsheetApp.openById(extId));
+  const row = ledgerExtFindRow_(sh, r, ledgerExtHeadRow_(sh));
+  if (row) sh.deleteRow(row);
+}
+
+/** เขียนทุกรายการของปีงบลงไฟล์ทะเบียนใหม่ (ใช้เมื่อไฟล์กับระบบไม่ตรงกัน) */
+function syncLedgerAll(fy) {
+  ledgerWrite_();
+  fy = Number(fy);
+  if (!ledgerExtId_(fy)) throw new Error('ยังไม่ได้ผูกไฟล์ทะเบียนคุมของปีงบ ' + fy);
+  const errs = [];
+  ledgerRows_(fy).forEach(r => { const w = ledgerSyncOne_(r.id); if (w) errs.push(r.item + ': ' + w); });
+  return { warn: errs.join('\n'), data: getLedgerData(fy) };
+}
+
+/** นำเข้ารายการที่มีอยู่แล้วในไฟล์ทะเบียน (แถวที่ยังไม่มีรหัสในคอลัมน์ K) */
+function importLedgerFromExt(fy) {
+  const u = ledgerWrite_();
+  fy = Number(fy);
+  const extId = ledgerExtId_(fy);
+  if (!extId) throw new Error('ยังไม่ได้ผูกไฟล์ทะเบียนคุมของปีงบ ' + fy);
+  const sh = ledgerExtSheet_(SpreadsheetApp.openById(extId));
+  const head = ledgerExtHeadRow_(sh);
+  const last = ledgerExtLastDataRow_(sh, head);
+  if (last <= head) return { count: 0, data: getLedgerData(fy) };
+  const n = last - head;
+  const disp = sh.getRange(head + 1, 1, n, 11).getDisplayValues();
+  const raw = sh.getRange(head + 1, 1, n, 11).getValues();
+  const tz = Session.getScriptTimeZone();
+  let count = 0;
+  withLock_(() => {
+    disp.forEach((d, i) => {
+      if (String(d[10]).trim() || !String(d[4]).trim()) return;
+      const amount = num_(raw[i][5]);
+      if (!(amount > 0)) return;
+      const iso = ledgerParseDate_(raw[i][0], d[0], tz) || fyRange_(fy).from;
+      const id = newId_('BL');
+      const row = head + 1 + i;
+      appendObject_('BudgetLedger', ledgerCell_({
+        id: id, fy: fy, date: iso, sourceCode: String(d[1]).trim(), activityCode: String(d[2]).trim(), budgetCode: String(d[3]).trim(),
+        item: String(d[4]).trim(), amount: round2_(amount), paidBase: round2_(num_(raw[i][6])), owner: String(d[8]).trim(),
+        note: String(raw[i][9] || '').trim(), extRow: row, createdBy: u.email, createdAt: new Date(), updatedAt: new Date()
+      }));
+      sh.getRange(row, 11).setValue(id).setFontColor('#9AA3AF').setFontSize(8);
+      count++;
+    });
+  });
+  audit_('import', 'BudgetLedger', '', { fy: fy, count: count });
+  return { count: count, data: getLedgerData(fy) };
+}
+
+/** อ่านวันที่จากเซลล์: ข้อความ d/m/พ.ศ. (ปี 2 หรือ 4 หลัก) หรือเซลล์วันที่ */
+function ledgerParseDate_(v, text, tz) {
+  if (v instanceof Date) {
+    let y = Number(Utilities.formatDate(v, tz, 'yyyy'));
+    if (y > 2400) y -= 543;
+    return y + '-' + Utilities.formatDate(v, tz, 'MM-dd');
+  }
+  const m = String(text || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (!m) return '';
+  let y = Number(m[3]);
+  if (y < 100) y += 2500;
+  if (y > 2400) y -= 543;
+  return y + '-' + pad2_(Number(m[2])) + '-' + pad2_(Number(m[1]));
+}
