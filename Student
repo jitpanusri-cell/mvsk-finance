@@ -1,0 +1,673 @@
+/*******************************************************************
+ * Student.gs — ติดตามการรับเงินค่าอุปกรณ์การเรียน / ค่าเครื่องแบบนักเรียน
+ * ----------------------------------------------------------------
+ * - Students        : รายชื่อนักเรียนต่อปีการศึกษา (นำเข้าจาก DMC)
+ * - StudentPayments : นักเรียน 1 คน รับเงิน 1 ครั้ง ต่อ ภาคเรียน+รายการเงิน
+ * - ยอดที่จ่ายจริงรวมเป็นรายจ่าย 1 แถวต่อภาคเรียน+รายการเงิน ใน Expenses_Finance (source = studentpay)
+ *   และใช้แทนยอดรวมที่นำเข้าจากตารางเดิม (ดู readExpenses_)
+ * - ยอดที่นักเรียนไม่มารับ/ย้าย/ลาออก → ส่งไปชีต Refunds (เมนูเงินเหลือจ่าย/ส่งคืน)
+ *******************************************************************/
+
+const STUDENT_FUNDS = ['EQUIP', 'UNIFORM'];
+const STUDENT_STATUS = { active: 'กำลังศึกษา', moved: 'ย้าย', left: 'ลาออก' };
+/* เหตุผลที่ต้องโอนให้นักเรียนในครั้งที่ 2 เป็นต้นไป (ไม่มีบันทึก = returned) */
+const RETRY_REASONS = { returned: 'ตีกลับ/โอนไม่สำเร็จ', new: 'นักเรียนเข้าใหม่', wrong: 'โอนผิดบัญชี' };
+
+/** เหตุผลรายคนของภาคเรียน: { studentId: 'new' | 'wrong' } */
+function retryMap_(term) {
+  const m = {};
+  readObjects_('StudentRetry').filter(r => r.term === term && RETRY_REASONS[r.reason]).forEach(r => m[String(r.studentId)] = r.reason);
+  return m;
+}
+
+/**
+ * ตั้งเหตุผลที่ต้องโอนในครั้งถัดไป ให้นักเรียนหลายคนพร้อมกัน
+ * reason: 'returned' (ตีกลับ/โอนไม่สำเร็จ — ค่าเริ่มต้น จะลบบันทึกออก) | 'new' (นักเรียนเข้าใหม่) | 'wrong' (โอนผิดบัญชี)
+ */
+function setRetryReason(term, studentIds, reason) {
+  const u = requireWrite_('finance');
+  if (!/^[12]\/\d{4}$/.test(String(term))) throw new Error('ภาคเรียนไม่ถูกต้อง');
+  if (!RETRY_REASONS[reason]) throw new Error('เหตุผลไม่ถูกต้อง');
+  const ids = (Array.isArray(studentIds) ? studentIds : [studentIds]).map(String).filter(Boolean);
+  if (!ids.length) return 0;
+  return withLock_(() => {
+    const idset = {};
+    ids.forEach(id => idset[term + '|' + id] = 1);
+    deleteWhere_('StudentRetry', o => idset[String(o.term) + '|' + String(o.studentId)]);
+    if (reason !== 'returned') {
+      const now = new Date();
+      appendObjects_('StudentRetry', ids.map(id => ({ id: term + '|' + id, term: term, studentId: id, reason: reason, updatedBy: u.email, updatedAt: now })));
+    }
+    audit_('retry', 'StudentRetry', term, { reason: reason, count: ids.length });
+    return ids.length;
+  });
+}
+
+/** ข้อมูลหน้าค่าอุปกรณ์การเรียนฯ (ติดตามรับเงินรายคน) */
+function getPaymentTracking(term, fund) {
+  const u = requirePage_('students');
+  checkTermFund_(term, fund);
+  const acadYear = Number(String(term).split('/')[1]);
+  const rate = rateOf_(fund);
+  const onlyTerm1 = fund === 'UNIFORM' && String(term).charAt(0) === '2';
+
+  let students = readObjects_('Students').filter(s => num_(s.acadYear) === acadYear);
+  const hasStudents = students.length > 0;
+  if (u.role === 'teacher' && u.rooms.length) students = students.filter(s => u.rooms.indexOf(roomLabel_(s)) >= 0);
+  const pays = {};
+  readObjects_('StudentPayments').filter(p => p.term === term && p.fund === fund).forEach(p => pays[p.studentId] = p);
+  const retry = retryMap_(term);
+
+  const list = students.map(s => {
+    const lv = levelOf_(s.grade), p = pays[String(s.studentId)];
+    return {
+      id: String(s.studentId), no: num_(s.no), name: [s.prefix, s.firstName].join('') + ' ' + (s.lastName || ''),
+      grade: String(s.grade), room: roomLabel_(s), level: lv, status: s.status || 'active',
+      due: onlyTerm1 ? 0 : rate[lv], paid: p ? round2_(num_(p.amount)) : 0, paidDate: p ? p.paidDate : '', payId: p ? p.id : '', batch: p ? num_(p.batch) || 1 : 0, cid: normCid_(s.citizenId),
+      retry: retry[String(s.studentId)] || 'returned'
+    };
+  }).sort((a, b) => a.room.localeCompare(b.room, 'th', { numeric: true }) || a.no - b.no || a.id.localeCompare(b.id));
+
+  const active = list.filter(s => s.status === 'active');
+  const paidList = list.filter(s => s.payId);
+  const agg = arr => {
+    const act = arr.filter(s => s.status === 'active');
+    const paid = act.filter(s => s.payId).length;
+    return { total: act.length, paid: paid, unpaid: act.length - paid, pct: act.length ? round2_(paid / act.length * 100) : 0 };
+  };
+  const grades = ['ม.1', 'ม.2', 'ม.3', 'ม.4', 'ม.5', 'ม.6'].map(g => Object.assign({ grade: g }, agg(list.filter(s => s.grade === g))));
+  const rooms = Array.from(new Set(list.map(s => s.room))).map(r => Object.assign({ room: r, grade: r.split('/')[0] }, agg(list.filter(s => s.room === r))));
+
+  // เงินที่ได้รับจัดสรร และยอดเดิมในตาราง
+  const fy = fyOfTerm_(term);
+  const received = readObjects_('Receipts_Finance').filter(r => r.term === term && r.fund === fund).reduce((x, r) => x + num_(r.amount), 0);
+  const legacy = readObjects_('Expenses_Finance').filter(e => e.term === term && e.fund === fund && String(e.source || '').indexOf('legacy:') === 0)
+    .reduce((x, e) => x + num_(e.amount), 0);
+  const paidAmount = paidList.reduce((x, s) => x + s.paid, 0);
+  const unpaidAmount = active.filter(s => !s.payId).reduce((x, s) => x + s.due, 0);
+  const leftAmount = list.filter(s => s.status !== 'active' && !s.payId).reduce((x, s) => x + s.due, 0);
+  const deadline = String(getSetting_('payDeadline_' + fund) || '');
+  const refunds = readObjects_('Refunds').filter(r => r.source === 'studentpay:' + term + ':' + fund);
+
+  return {
+    term: term, fund: fund, fy: fy, acadYear: acadYear, onlyTerm1: onlyTerm1, hasStudents: hasStudents,
+    rate: rate, deadline: deadline, pastDeadline: !!deadline && todayIso_() > deadline,
+    summary: Object.assign(agg(list), {
+      paidAmount: round2_(paidAmount), unpaidAmount: round2_(unpaidAmount), leftAmount: round2_(leftAmount),
+      left: list.filter(s => s.status !== 'active').length,
+      received: round2_(received), legacy: round2_(legacy), remain: round2_(received - paidAmount)
+    }),
+    grades: grades, rooms: rooms, students: list,
+    refundSent: refunds.reduce((x, r) => x + num_(r.amount), 0),
+    canPay: WRITE_ROLES.student.indexOf(u.role) >= 0,
+    canManage: WRITE_ROLES.finance.indexOf(u.role) >= 0,
+    myRooms: u.role === 'teacher' ? u.rooms : [],
+    today: todayIso_()
+  };
+}
+
+/**
+ * รวม getPaymentTracking + getDisbursement เป็นการเรียกเซิร์ฟเวอร์ครั้งเดียว
+ * (เดิมหน้าเว็บ (loadStudents) เรียกแยก 2 คำสั่งพร้อมกันด้วย Promise.all ซึ่งยังทำให้
+ * เซิร์ฟเวอร์ต้องเปิดรันสคริปต์ 2 รอบ และอ่านชีต Students/StudentPayments ซ้ำ 2 รอบ
+ * เพราะแต่ละรอบ google.script.run เป็นการรันสคริปต์แยกกันคนละ instance ไม่ได้ใช้แคชร่วมกัน)
+ */
+function getStudentPageData(term, fund) {
+  return { tracking: getPaymentTracking(term, fund), disb: getDisbursement(term) };
+}
+
+/**
+ * บันทึกรับเงินรายคน (หลายคนพร้อมกันได้)
+ * @param {string} term       ภาคเรียน เช่น '1/2569'
+ * @param {string|string[]} fund 'EQUIP' / 'UNIFORM' หรือทั้งสอง ['EQUIP','UNIFORM'] (จ่ายพร้อมกัน)
+ * @param {string[]} studentIds
+ * @param {string} paidDate   'yyyy-MM-dd'
+ * @param {string=} note
+ * @param {number=} batch     รอบเบิกจ่าย (ขออนุมัติ/โอน ครั้งที่) — ว่าง = รอบล่าสุด หรือ 1
+ */
+function savePayment(term, fund, studentIds, paidDate, note, batch) {
+  const u = requireWrite_('student');
+  let funds = (Array.isArray(fund) ? fund : [fund]).map(String);
+  funds.forEach(f => checkTermFund_(term, f));
+  if (String(term).charAt(0) === '2') {
+    if (funds.length === 1 && funds[0] === 'UNIFORM') throw new Error('ค่าเครื่องแบบจ่ายเฉพาะภาคเรียนที่ 1');
+    funds = funds.filter(f => f !== 'UNIFORM');
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(paidDate || ''))) throw new Error('กรุณาระบุวันที่รับเงิน');
+  const ids = (Array.isArray(studentIds) ? studentIds : [studentIds]).map(String);
+  const acadYear = Number(String(term).split('/')[1]);
+  return withLock_(() => {
+    const stu = {};
+    readObjects_('Students').filter(s => num_(s.acadYear) === acadYear).forEach(s => stu[String(s.studentId)] = s);
+    const all = readObjects_('StudentPayments').filter(p => p.term === term);
+    const b = num_(batch) || all.reduce((m, p) => Math.max(m, num_(p.batch)), 0) || 1;
+    const now = new Date(), rows = [];
+    funds.forEach(f => {
+      const rate = rateOf_(f), done = {};
+      all.filter(p => p.fund === f).forEach(p => done[String(p.studentId)] = 1);
+      ids.forEach(id => {
+        const s = stu[id];
+        if (!s) throw new Error('ไม่พบนักเรียนรหัส ' + id);
+        if (u.role === 'teacher' && u.rooms.length && u.rooms.indexOf(roomLabel_(s)) < 0) throw new Error('ไม่มีสิทธิ์บันทึกห้อง ' + roomLabel_(s));
+        if (done[id]) return;                                 // บันทึกแล้ว ข้าม
+        done[id] = 1;
+        rows.push({ id: newId_('SP'), studentId: id, term: term, fund: f, amount: rate[levelOf_(s.grade)],
+          paidDate: paidDate, by: u.email, note: note || '', createdAt: now, batch: b });
+      });
+    });
+    appendObjects_('StudentPayments', rows);
+    funds.forEach(f => syncStudentExpense_(term, f));
+    audit_('pay', 'StudentPayments', '', { term: term, funds: funds, batch: b, count: rows.length });
+    return { saved: rows.length, skipped: ids.length * funds.length - rows.length, batch: b };
+  });
+}
+
+/**
+ * บันทึกรับเงินทั้งห้อง (เฉพาะคนที่ยังไม่รับและกำลังศึกษา)
+ * @param {string|string[]} room ชื่อห้องเดียว หรือหลายห้องพร้อมกัน เช่น ['ม.1/1','ม.2/3']
+ */
+function savePaymentByRoom(room, term, fund, paidDate, batch) {
+  requireWrite_('student');
+  const acadYear = Number(String(term).split('/')[1]);
+  const rooms = (Array.isArray(room) ? room : [room]).map(String);
+  const funds = Array.isArray(fund) ? fund : [fund];
+  const paid = {};
+  funds.forEach(f => { paid[f] = {}; });
+  readObjects_('StudentPayments').filter(p => p.term === term && paid[p.fund]).forEach(p => paid[p.fund][String(p.studentId)] = 1);
+  const ids = readObjects_('Students')
+    .filter(s => num_(s.acadYear) === acadYear && rooms.indexOf(roomLabel_(s)) >= 0 && (s.status || 'active') === 'active' &&
+      funds.some(f => !paid[f][String(s.studentId)]))
+    .map(s => String(s.studentId));
+  if (!ids.length) return { saved: 0, skipped: 0 };
+  return savePayment(term, fund, ids, paidDate, 'บันทึกทั้งห้อง ' + rooms.join(', '), batch);
+}
+
+/**
+ * สรุปรายชั้นแบบฟอร์ม "ขออนุมัติเบิกจ่าย / รายงานโอน" ของโรงเรียน
+ * - request : นักเรียนที่ยังไม่ได้รับ (กำลังศึกษา) แยก ม.1–ม.6 × ค่าอุปกรณ์ / ค่าเครื่องแบบ
+ * - batches : ยอดที่จ่ายแล้วแยกตามรอบ (รายงานโอน ครั้งที่ n)
+ * - money   : เงินที่ได้รับจัดสรรแล้ว / จ่ายแล้ว / คงเหลือ / ขาดอีก ต่อรายการเงิน
+ */
+function getDisbursement(term) {
+  const u = requirePage_('students');
+  if (!/^[12]\/\d{4}$/.test(String(term))) throw new Error('ภาคเรียนไม่ถูกต้อง');
+  const funds = String(term).charAt(0) === '2' ? ['EQUIP'] : ['EQUIP', 'UNIFORM'];
+  const acadYear = Number(String(term).split('/')[1]);
+  const GR = ['ม.1', 'ม.2', 'ม.3', 'ม.4', 'ม.5', 'ม.6'];
+  const stu = readObjects_('Students').filter(s => num_(s.acadYear) === acadYear);
+  const byId = {};
+  stu.forEach(s => byId[String(s.studentId)] = s);
+  const pays = readObjects_('StudentPayments').filter(p => p.term === term && funds.indexOf(p.fund) >= 0);
+  const paid = {};
+  funds.forEach(f => paid[f] = {});
+  pays.forEach(p => paid[p.fund][String(p.studentId)] = p);
+  const rates = {};
+  funds.forEach(f => rates[f] = rateOf_(f));
+  const blank = () => { const o = {}; GR.forEach(g => o[g] = { n: 0 }); return o; };
+
+  // ---- ขออนุมัติ: ยังไม่ได้รับ ----
+  const req = blank();
+  stu.filter(s => (s.status || 'active') === 'active').forEach(s => {
+    const g = String(s.grade); if (!req[g]) return;
+    let any = false;
+    funds.forEach(f => {
+      if (paid[f][String(s.studentId)]) return;
+      req[g][f] = (req[g][f] || 0) + rates[f][levelOf_(g)]; any = true;
+    });
+    if (any) req[g].n++;
+  });
+
+  // ---- รายงานโอน: แยกตามรอบ ----
+  const batches = {};
+  pays.forEach(p => {
+    const b = num_(p.batch) || 1, s = byId[String(p.studentId)];
+    const g = s ? String(s.grade) : '';
+    if (!batches[b]) batches[b] = { batch: b, grades: blank(), ids: {}, dates: {} };
+    const B = batches[b];
+    if (!B.grades[g]) return;
+    B.grades[g][p.fund] = (B.grades[g][p.fund] || 0) + num_(p.amount);
+    if (!B.ids[g + '|' + p.studentId]) { B.ids[g + '|' + p.studentId] = 1; B.grades[g].n++; }
+    B.dates[p.paidDate] = 1;
+  });
+  const batchList = Object.keys(batches).map(Number).sort((a, b) => a - b).map(k => {
+    const B = batches[k];
+    return { batch: k, grades: B.grades, dates: Object.keys(B.dates).sort() };
+  });
+
+  // ---- เงิน: ได้รับแล้ว / จ่ายแล้ว / ขาด ----
+  const rec = readObjects_('Receipts_Finance').filter(r => r.term === term);
+  const money = funds.map(f => {
+    const received = rec.filter(r => r.fund === f).reduce((x, r) => x + num_(r.amount), 0);
+    const spent = pays.filter(p => p.fund === f).reduce((x, p) => x + num_(p.amount), 0);
+    const need = GR.reduce((x, g) => x + (req[g][f] || 0), 0);
+    return { fund: f, name: fundName_(f), received: round2_(received), spent: round2_(spent),
+      remain: round2_(received - spent), need: round2_(need), short: round2_(Math.max(0, need - (received - spent))) };
+  });
+  const s = getSettingsMap_();
+  return {
+    term: term, funds: funds, grades: GR, rates: rates, request: req, batches: batchList,
+    nextBatch: (batchList.length ? batchList[batchList.length - 1].batch : 0) + 1, money: money,
+    signers: { finOfficer: s.finOfficer || '', deputy: s.deputy || '', director: s.director || '' }
+  };
+}
+
+/**
+ * ข้อมูลสำหรับพิมพ์ "บันทึกข้อความขออนุมัติจ่ายเงิน" และ "บันทึกข้อความรายงานการจ่ายเงิน"
+ * ค่าอุปกรณ์การเรียน (+ ค่าเครื่องแบบนักเรียน เฉพาะภาคเรียนที่ 1) ของภาคเรียนที่เลือก
+ * เรียกเฉพาะตอนกดพิมพ์ (ไม่โหลดพร้อมหน้าเว็บ เพื่อให้หน้าเว็บยังเร็วเหมือนเดิม)
+ *
+ * นิยามต่อรอบโอน (ครั้งที่ b):
+ *   - เป้าหมายรอบ b (target)  = นักเรียนที่ยังไม่ได้รับเงินก่อนรอบ b
+ *   - โอนสำเร็จรอบ b (success) = นักเรียนที่บันทึกรับเงินในรอบ b
+ *   - สะสมถึงรอบ b (cum)       = นักเรียนที่ได้รับเงินในรอบ 1..b
+ *   - ตีกลับ/คงค้างหลังรอบ b (out) = นักเรียนที่ยังไม่ได้รับเงินหลังรอบ b
+ * นักเรียน 1 คนนับรอบเดียว (รอบแรกที่ได้รับเงิน) แม้จ่ายค่าอุปกรณ์กับค่าเครื่องแบบคนละรอบ
+ *
+ * เหตุผลที่ต้องโอนในครั้งที่ 2 เป็นต้นไป (ชีต StudentRetry, ตั้งจากหน้าเว็บ):
+ *   - returned (ค่าเริ่มต้น) ตีกลับ/โอนไม่สำเร็จ, wrong โอนผิดบัญชี → นับอยู่ในเป้าหมายตั้งแต่ครั้งที่ 1
+ *   - new นักเรียนเข้าใหม่ → เริ่มนับตั้งแต่รอบที่ได้รับเงิน (หรือรอบถัดไปถ้ายังไม่ได้รับ)
+ *     จึงไม่ถูกนับเป็น "โอนไม่สำเร็จ" ของรอบก่อนหน้า
+ */
+function getDisbMemoData(term) {
+  requirePage_('students');
+  if (!/^[12]\/\d{4}$/.test(String(term))) throw new Error('ภาคเรียนไม่ถูกต้อง');
+  const sem = String(term).charAt(0), acadYear = Number(String(term).split('/')[1]);
+  const funds = sem === '2' ? ['EQUIP'] : ['UNIFORM', 'EQUIP'];
+  const GR = ['ม.1', 'ม.2', 'ม.3', 'ม.4', 'ม.5', 'ม.6'];
+  const rates = {};
+  funds.forEach(f => rates[f] = rateOf_(f));
+
+  const pays = readObjects_('StudentPayments').filter(p => p.term === term && funds.indexOf(p.fund) >= 0);
+  const payBy = {}, dates = {};
+  pays.forEach(p => {
+    const id = String(p.studentId), b = num_(p.batch) || 1;
+    const o = payBy[id] || (payBy[id] = { pb: {}, amt: {} });
+    o.pb[p.fund] = o.pb[p.fund] ? Math.min(o.pb[p.fund], b) : b;   // รอบที่จ่ายของแต่ละรายการเงิน
+    o.amt[p.fund] = (o.amt[p.fund] || 0) + num_(p.amount);
+    (dates[b] = dates[b] || {})[String(p.paidDate || '')] = 1;
+  });
+
+  const retry = retryMap_(term);
+  // นักเรียนที่นับ: กำลังศึกษา หรือเคยได้รับเงินในภาคนี้แล้ว (กันยอดหายเมื่อย้ายออกหลังรับเงิน)
+  const stu = readObjects_('Students').filter(s => num_(s.acadYear) === acadYear)
+    .filter(s => (s.status || 'active') === 'active' || payBy[String(s.studentId)])
+    .map(s => {
+      const g = String(s.grade), lv = levelOf_(g), id = String(s.studentId), p = payBy[id];
+      const due = {};
+      funds.forEach(f => due[f] = rates[f][lv]);
+      const pb = p ? p.pb : {};
+      // ได้รับครบทุกรายการเงินแล้วในรอบใด (ยังขาดบางรายการ = ยังไม่ได้รับ → อยู่ในรอบถัดไปเฉพาะรายการที่ขาด)
+      const full = funds.every(f => pb[f]);
+      return { id: id, g: g, room: roomLabel_(s), no: num_(s.no), lv: lv, due: due,
+        name: [s.prefix, s.firstName].join('') + ' ' + (s.lastName || ''), cid: normCid_(s.citizenId),
+        pb: pb, batch: full ? Math.max.apply(null, funds.map(f => pb[f])) : 0,
+        partial: !full && funds.some(f => pb[f]),
+        amt: p ? p.amt : {}, reason: retry[id] || 'returned' };
+    })
+    .filter(s => GR.indexOf(s.g) >= 0)
+    .sort((a, b) => GR.indexOf(a.g) - GR.indexOf(b.g) ||
+      a.room.localeCompare(b.room, 'th', { numeric: true }) || a.no - b.no || a.id.localeCompare(b.id));
+
+  const byGrade = (list, fn) => { const o = {}; GR.forEach(g => o[g] = 0); list.forEach(s => o[s.g] += fn(s)); return o; };
+  const cnt = list => byGrade(list, () => 1);
+  /* ยอดค้างจ่ายของรายการเงิน f ณ ต้นรอบ b (ยังไม่จ่าย หรือจ่ายในรอบ b ขึ้นไป) — b = Infinity คือยังไม่จ่ายเลย */
+  const owes = (s, f, b) => !s.pb[f] || s.pb[f] >= b;
+  /* ยอดที่จ่ายของรายการเงิน f ในช่วงรอบที่ผ่านเงื่อนไข */
+  const paidF = (s, f, test) => (s.pb[f] && test(s.pb[f])) ? num_(s.amt[f]) : 0;
+  const fundGrade = (list, fn) => { const o = {}; funds.forEach(f => o[f] = byGrade(list, s => fn(s, f))); return o; };
+  const dueOf = (list, b) => round2_(list.reduce((x, s) => x + funds.reduce((y, f) => y + (owes(s, f, b) ? s.due[f] : 0), 0), 0));
+  const amtOf = (list, test) => round2_(list.reduce((x, s) => x + funds.reduce((y, f) => y + paidF(s, f, test), 0), 0));
+  const brief = s => ({ name: s.name, cid: s.cid, cls: s.room + ' เลขที่ ' + (s.no || '-'), reason: s.reason });
+  /* แยกจำนวนคน/จำนวนเงินตามเหตุผล { returned:{n,due,amt}, new:{...}, wrong:{...} } */
+  let mixB = 1;
+  const mix = (list, b) => {
+    mixB = b;
+    const o = {};
+    Object.keys(RETRY_REASONS).forEach(k => {
+      const l = list.filter(s => s.reason === k);
+      o[k] = { n: l.length, due: dueOf(l, mixB), amt: amtOf(l, x => x >= mixB) };
+    });
+    return o;
+  };
+
+  const maxB = stu.reduce((m, s) => Math.max(m, s.batch, ...funds.map(f => s.pb[f] || 0)), 0);
+  // รอบแรกที่นักเรียนเริ่มถูกนับ: นักเรียนเข้าใหม่ = รอบที่ได้รับเงิน (ยังไม่ได้รับ = รอบถัดไป), อื่น ๆ = รอบที่ 1
+  stu.forEach(s => s.entry = s.reason === 'new' ? (s.batch || maxB + 1) : 1);
+  const rounds = [];
+  for (let b = 1; b <= maxB; b++) {
+    const pop = stu.filter(s => s.entry <= b);
+    const target = pop.filter(s => !s.batch || s.batch >= b);
+    const success = pop.filter(s => s.batch === b);
+    const cum = pop.filter(s => s.batch && s.batch <= b);
+    const out = pop.filter(s => !s.batch || s.batch > b);
+    const outRet = out.filter(s => s.reason !== 'wrong');
+    const inB = x => x === b, upToB = x => x <= b;
+    rounds.push({
+      n: b, dates: Object.keys(dates[b] || {}).filter(Boolean).sort(),
+      popN: pop.length, popG: cnt(pop),
+      targetN: target.length, targetDue: dueOf(target, b), targetG: cnt(target), targetF: fundGrade(target, (s, f) => owes(s, f, b) ? s.due[f] : 0), targetMix: mix(target, b),
+      successN: success.length, successAmt: amtOf(success, inB), successG: cnt(success), successF: fundGrade(success, (s, f) => paidF(s, f, inB)), successMix: mix(success, b),
+      cumN: cum.length, cumAmt: amtOf(cum, upToB), cumG: cnt(cum), cumF: fundGrade(cum, (s, f) => paidF(s, f, upToB)),
+      outN: out.length, outDue: dueOf(out, b + 1), outG: cnt(out), outMix: mix(out, b + 1),
+      outRetN: outRet.length, outRetG: cnt(outRet),
+      outList: out.map(brief), paidList: b > 1 ? success.map(brief) : []
+    });
+  }
+  const pend = stu.filter(s => !s.batch);
+  const nb = maxB + 1;
+  const next = { n: nb, targetN: pend.length, targetG: cnt(pend), targetF: fundGrade(pend, (s, f) => owes(s, f, Infinity) ? s.due[f] : 0),
+    total: dueOf(pend, Infinity), mix: mix(pend, Infinity) };
+  // นักเรียนที่ยกเลิกไว้แค่บางรายการเงิน (เช่น ยกเลิกค่าอุปกรณ์แต่ค่าเครื่องแบบยังบันทึกว่าได้รับ)
+  const partial = stu.filter(s => s.partial).map(s => Object.assign(brief(s), { missing: funds.filter(f => !s.pb[f]).map(fundName_) }));
+
+  // เงินที่ได้รับแล้ว / จ่ายแล้ว (ต่อรายการเงิน) → ขาดอีกเท่าไรถ้าจ่ายรอบถัดไป
+  const rec = readObjects_('Receipts_Finance').filter(r => r.term === term);
+  const received = {}, spent = {};
+  funds.forEach(f => {
+    received[f] = round2_(rec.filter(r => r.fund === f).reduce((x, r) => x + num_(r.amount), 0));
+    spent[f] = round2_(pays.filter(p => p.fund === f).reduce((x, p) => x + num_(p.amount), 0));
+  });
+
+  // ยอดจัดสรรตามหนังสือจัดสรรของภาคเรียนนี้ (ไม่มีข้อมูล → ใช้ยอดเงินเข้าบัญชีแทน)
+  const s = getSettingsMap_();
+  const allocAll = readObjects_('Allocations');
+  const allocT = allocAll.filter(a => String(a.term) === term);
+  const alloc = {};
+  funds.forEach(f => {
+    const v = round2_(allocT.reduce((x, a) => x + num_(a[f]), 0));
+    alloc[f] = v || received[f];
+  });
+  const allocTotal = round2_(funds.reduce((x, f) => x + alloc[f], 0));
+  const receivedTotal = round2_(funds.reduce((x, f) => x + received[f], 0));
+  // ยืมจากกิจกรรมพัฒนาผู้เรียนในรอบแรก = ยอดที่ต้องจ่ายทั้งหมด − เงินที่ได้รับ (ถ้าติดลบ = ไม่ต้องยืม)
+  const firstNeed = rounds.length ? rounds[0].targetDue : next.total;
+  const borrow1 = round2_(Math.max(0, firstNeed - receivedTotal));
+  // เงินที่ต้องยืมเพิ่มสำหรับรอบถัดไป: เงินที่มีอยู่ = ได้รับ + ที่ยืมไปแล้วในรอบแรก − จ่ายไปแล้ว
+  // (รอบแรก: ยังไม่ได้จ่ายและยังไม่ได้ยืม จึงเท่ากับ ต้องจ่าย − ได้รับ)
+  const spentTotal = round2_(funds.reduce((x, f) => x + spent[f], 0));
+  const available = rounds.length ? receivedTotal + borrow1 - spentTotal : receivedTotal;
+  const nextShort = round2_(Math.max(0, next.total - Math.max(0, available)));
+
+  return {
+    term: term, semester: Number(sem), acadYear: acadYear, fy: fyOfTerm_(term), funds: funds, grades: GR, rates: rates,
+    alloc: alloc, allocTotal: allocTotal, pct: termPctOf_(term, allocAll, s), received: received, receivedTotal: receivedTotal,
+    popN: stu.length, popG: cnt(stu), popDue: dueOf(stu, 1), popF: fundGrade(stu, (s, f) => s.due[f]),
+    rounds: rounds, next: next, nextShort: nextShort, borrow1: borrow1, reasons: RETRY_REASONS, partial: partial,
+    school: { name: s.schoolName || '', docPrefix: String(s.docPrefix || ''), garudaUrl: String(s.garudaUrl || '') },
+    signers: { finOfficer: s.finOfficer || '', deputy: s.deputy || '', director: s.director || '' },
+    today: todayIso_()
+  };
+}
+
+/** ยกเลิกการรับเงิน */
+function cancelPayment(payId) {
+  const u = requireWrite_('student');
+  return withLock_(() => {
+    const p = readObjects_('StudentPayments').find(x => x.id === payId);
+    if (!p) throw new Error('ไม่พบรายการ');
+    if (u.role === 'teacher') {
+      const s = readObjects_('Students').find(x => String(x.studentId) === String(p.studentId));
+      if (u.rooms.length && (!s || u.rooms.indexOf(roomLabel_(s)) < 0)) throw new Error('ไม่มีสิทธิ์แก้ไขห้องนี้');
+    }
+    // ยกเลิกทั้งรอบของนักเรียนคนนี้ (ค่าอุปกรณ์ + ค่าเครื่องแบบ ที่บันทึกในรอบเดียวกัน) — เงินโอนเป็นก้อนเดียวต่อคน
+    // ถ้าตีกลับ/โอนผิดบัญชีก็ต้องยกเลิกทั้งก้อน กันกรณียกเลิกไม่ครบแล้วระบบนับว่า "ได้รับแล้ว"
+    const b = num_(p.batch) || 1;
+    const same = o => String(o.studentId) === String(p.studentId) && String(o.term) === String(p.term) && (num_(o.batch) || 1) === b;
+    const rows = readObjects_('StudentPayments').filter(same);
+    deleteWhere_('StudentPayments', same);
+    const funds = rows.map(r => r.fund).filter((f, i, a) => a.indexOf(f) === i);
+    funds.forEach(f => syncStudentExpense_(p.term, f));
+    audit_('unpay', 'StudentPayments', payId, { studentId: p.studentId, term: p.term, batch: b, funds: funds, ids: rows.map(r => r.id) });
+    return { removed: rows.length, funds: funds };
+  });
+}
+
+/** เปลี่ยนสถานะนักเรียน: active / moved (ย้าย) / left (ลาออก) */
+function setStudentStatus(studentId, acadYear, status) {
+  requireWrite_('finance');
+  if (!STUDENT_STATUS[status]) throw new Error('สถานะไม่ถูกต้อง');
+  return withLock_(() => {
+    const sh = sh_('Students');
+    const data = sh.getDataRange().getValues(), head = data[0].map(String);
+    const ci = head.indexOf('studentId'), ay = head.indexOf('acadYear'), st = head.indexOf('status'), up = head.indexOf('updatedAt');
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][ci]) === String(studentId) && num_(data[i][ay]) === num_(acadYear)) {
+        sh.getRange(i + 1, st + 1).setValue(status);
+        sh.getRange(i + 1, up + 1).setValue(new Date());
+        audit_('status', 'Students', studentId, status);
+        return true;
+      }
+    }
+    throw new Error('ไม่พบนักเรียน');
+  });
+}
+
+/**
+ * นำเข้ารายชื่อนักเรียน (จาก DMC — หน้าเว็บแปลงไฟล์เป็นแถวให้แล้ว)
+ * @param {number} acadYear ปีการศึกษา เช่น 2569
+ * @param {Array<Object>} rows [{studentId, citizenId, prefix, firstName, lastName, grade, room, no}]
+ * แทนที่รายชื่อเดิมของปีการศึกษานั้น (การรับเงินที่บันทึกแล้วยังอยู่ ผูกด้วยรหัสนักเรียน)
+ * เลขบัตรประชาชน / เลขบัญชี / ธนาคาร: ถ้าแถวใหม่ไม่มี ใช้ค่าเดิมของรหัสนักเรียนนั้น (ไม่หายเมื่อนำเข้าซ้ำ)
+ */
+function importStudents(acadYear, rows) {
+  requireWrite_('finance');
+  acadYear = num_(acadYear);
+  if (acadYear < 2500) throw new Error('ปีการศึกษาไม่ถูกต้อง');
+  if (!rows || !rows.length) throw new Error('ไม่มีข้อมูลนักเรียน');
+  const seen = {}, out = [], errs = [];
+  const old = {};
+  readObjects_('Students').filter(s => num_(s.acadYear) === acadYear).forEach(s => old[String(s.studentId)] = s);
+  let cidNew = 0, cidBad = 0;
+  rows.forEach((r, i) => {
+    const g = normGrade_(r.grade), room = String(r.room || '').replace(/[^\d]/g, '');
+    // ไม่มีเลขประจำตัว (เช่น รายชื่อสำหรับโอนธนาคาร) → ใช้ ชั้น/ห้อง-เลขที่ เป็นรหัส
+    const id = String(r.studentId || '').trim() || (g && room && num_(r.no) ? g + '/' + room + '-' + num_(r.no) : '');
+    if (!id) { errs.push('แถว ' + (i + 1) + ': ไม่มีเลขประจำตัว และไม่มี ชั้น/ห้อง/เลขที่ ครบ'); return; }
+    if (!g) { errs.push('แถว ' + (i + 1) + ': ระดับชั้นไม่ถูกต้อง (' + r.grade + ')'); return; }
+    if (seen[id]) return;
+    seen[id] = 1;
+    const o = old[id] || {};
+    let cid = normCid_(r.citizenId);
+    if (cid) cidNew++;
+    else { if (String(r.citizenId || '').trim()) cidBad++; cid = normCid_(o.citizenId); }
+    out.push({ studentId: id, prefix: String(r.prefix || '').trim(), firstName: String(r.firstName || '').trim(),
+      lastName: String(r.lastName || '').trim(), grade: g, room: room || '1', level: levelOf_(g),
+      status: o.status || 'active', updatedAt: new Date(), acadYear: acadYear, no: num_(r.no) || '',
+      citizenId: cid, bankAccount: normAccount_(r.bankAccount) || normAccount_(o.bankAccount),
+      bank: String(r.bank || '').trim() || String(o.bank || '').trim() });
+  });
+  if (!out.length) throw new Error('นำเข้าไม่ได้: ' + errs.slice(0, 5).join(' · '));
+  return withLock_(() => {
+    deleteWhere_('Students', o => num_(o.acadYear) === acadYear);
+    appendObjects_('Students', out);
+    const cidAll = out.filter(s => s.citizenId).length;
+    audit_('import', 'Students', '', { acadYear: acadYear, count: out.length, errors: errs.length, cid: cidAll, cidBad: cidBad });
+    return { imported: out.length, errors: errs.slice(0, 20), errorCount: errs.length, cidCount: cidAll, cidNew: cidNew, cidBad: cidBad };
+  });
+}
+
+/**
+ * เติมเลขประจำตัวประชาชนจากไฟล์ DMC ให้รายชื่อที่มีอยู่แล้ว (ไม่แทนที่รายชื่อ / ไม่กระทบการรับเงิน)
+ * ใช้พิมพ์ในเอกสารหมายเลข 2 — จับคู่ด้วย ชื่อ+นามสกุล ก่อน ถ้าชื่อซ้ำ/ไม่พบ ใช้ ชั้น/ห้อง/เลขที่
+ * @param {number} acadYear
+ * @param {Array<Object>} rows [{citizenId, prefix, firstName, lastName, grade, room, no}]
+ */
+function updateCitizenIds(acadYear, rows) {
+  requireWrite_('finance');
+  acadYear = num_(acadYear);
+  const PFX = /^(เด็กชาย|เด็กหญิง|ด\.ช\.|ด\.ญ\.|นางสาว|น\.ส\.|นาย|นาง)\s*/;
+  const nameKey = (f, l) => (String(f || '').replace(PFX, '') + String(l || '')).replace(/\s+/g, '');
+  const posKey = (g, r, n) => normGrade_(g) + '/' + String(r || '').replace(/[^\d]/g, '') + '-' + num_(n);
+  const src = (rows || []).map(r => ({ cid: normCid_(r.citizenId), nk: nameKey(r.firstName, r.lastName),
+    pk: posKey(r.grade, r.room, r.no) })).filter(r => r.cid.length === 13);
+  if (!src.length) throw new Error('ไม่พบเลขประจำตัวประชาชน 13 หลักในไฟล์ (ต้องมีคอลัมน์ เลขประจำตัวประชาชน)');
+  const byName = {}, byPos = {};
+  src.forEach(r => { (byName[r.nk] = byName[r.nk] || []).push(r); byPos[r.pk] = r; });
+  return withLock_(() => {
+    const sh = sh_('Students');
+    const data = sh.getDataRange().getValues(), head = data[0].map(String);
+    const c = k => head.indexOf(k);
+    const ci = c('citizenId'), ay = c('acadYear');
+    if (ci < 0) throw new Error('ชีต Students ไม่มีคอลัมน์ citizenId');
+    let matched = 0, byNo = 0;
+    const col = data.slice(1).map(row => {
+      if (num_(row[ay]) !== acadYear) return [row[ci]];
+      const nm = byName[nameKey(row[c('firstName')], row[c('lastName')])];
+      let hit = nm && nm.length === 1 ? nm[0] : null;
+      if (!hit) { hit = byPos[posKey(row[c('grade')], row[c('room')], row[c('no')])] || null; if (hit) byNo++; }
+      if (!hit) return [row[ci]];
+      matched++;
+      return ["'" + hit.cid];
+    });
+    const total = data.slice(1).filter(row => num_(row[ay]) === acadYear).length;
+    if (col.length) sh.getRange(2, ci + 1, col.length, 1).setValues(col);
+    _clearRowCache_('Students');
+    audit_('citizenIds', 'Students', '', { acadYear: acadYear, matched: matched, byNo: byNo, total: total });
+    return { matched: matched, byNo: byNo, total: total, missing: total - matched, fileRows: src.length };
+  });
+}
+
+/**
+ * ส่งยอดที่ยังไม่ได้จ่ายไปเมนูเงินเหลือจ่าย/ส่งคืน (แทนที่ของเดิมของภาค+รายการเงินนี้)
+ * แยกที่มา: ไม่มารับ / ย้าย-ลาออก / ส่วนต่างเงินจัดสรรกับรายชื่อ
+ */
+function closeUnclaimed(term, fund) {
+  const u = requireWrite_('finance');
+  const t = getPaymentTracking(term, fund);
+  const S = t.summary;
+  const src = 'studentpay:' + term + ':' + fund;
+  const diff = round2_(S.remain - S.unpaidAmount - S.leftAmount);
+  const lines = [
+    { reason: 'นักเรียนไม่มารับ ' + S.unpaid + ' คน', amount: S.unpaidAmount },
+    { reason: 'นักเรียนย้าย/ลาออก ' + S.left + ' คน', amount: S.leftAmount },
+    { reason: 'ส่วนต่างเงินจัดสรรกับรายชื่อนักเรียน', amount: diff }
+  ].filter(l => Math.abs(l.amount) > 0.004);
+  return withLock_(() => {
+    const done = readObjects_('Refunds').filter(o => o.source === src && String(o.status || 'รอดำเนินการ') !== 'รอดำเนินการ');
+    if (done.length) throw new Error('ยอดของภาค ' + term + ' นี้ดำเนินการในเมนูเงินเหลือจ่ายแล้ว (' + done[0].status + ') จึงปิดยอดซ้ำไม่ได้');
+    deleteWhere_('Refunds', o => o.source === src);
+    const now = new Date();
+    appendObjects_('Refunds', lines.map(l => ({ id: newId_('RF'), fy: t.fy, fund: fund, source: src, amount: l.amount,
+      docNo: '', status: 'รอดำเนินการ', refundDate: '', evidenceUrl: '', note: l.reason + ' (ภาค ' + term + ')',
+      createdBy: u.email, createdAt: now })));
+    audit_('close', 'Refunds', src, lines);
+    return { lines: lines, total: round2_(lines.reduce((x, l) => x + l.amount, 0)) };
+  });
+}
+
+/* ---------- ภายใน ---------- */
+/** รวมยอดรับเงินรายคน → รายจ่าย 1 แถวต่อภาค+รายการเงิน */
+function syncStudentExpense_(term, fund) {
+  const pays = readObjects_('StudentPayments').filter(p => p.term === term && p.fund === fund);
+  const id = 'SP-' + fund + '-' + String(term).replace('/', '-');
+  const total = round2_(pays.reduce((x, p) => x + num_(p.amount), 0));
+  if (!total) { deleteWhere_('Expenses_Finance', o => String(o.id) === id); return; }
+  const last = pays.map(p => String(p.paidDate)).sort().pop();
+  const rec = { date: last, fy: fyOfTerm_(term), term: term, fund: fund, voucherNo: '', chequeNo: '', project: fundName_(fund),
+    payee: 'นักเรียน ' + pays.length + ' คน', description: 'จ่าย' + fundName_(fund) + 'ให้นักเรียน ภาค ' + term + ' (รวมจากรายชื่อ)',
+    amount: total, note: 'ปรับอัตโนมัติจากเมนูค่าอุปกรณ์การเรียนฯ', source: 'studentpay' };
+  if (!updateObject_('Expenses_Finance', id, rec)) appendObject_('Expenses_Finance', Object.assign({ id: id, createdAt: new Date(), createdBy: 'system' }, rec));
+}
+
+function checkTermFund_(term, fund) {
+  if (!/^[12]\/\d{4}$/.test(String(term))) throw new Error('ภาคเรียนไม่ถูกต้อง');
+  if (STUDENT_FUNDS.indexOf(fund) < 0) throw new Error('รายการเงินต้องเป็นค่าอุปกรณ์หรือค่าเครื่องแบบ');
+}
+function rateOf_(fund) {
+  const s = getSettingsMap_(), k = fund === 'EQUIP' ? 'Equip' : 'Uniform';
+  return { lower: num_(s['rate' + k + 'Lower']), upper: num_(s['rate' + k + 'Upper']) };
+}
+/** ภาค 2/2568 → ปีงบ 2569, ภาค 1/2569 → ปีงบ 2569 */
+function fyOfTerm_(term) { const p = String(term).split('/'); return Number(p[1]) + (p[0] === '2' ? 1 : 0); }
+function levelOf_(grade) { const n = Number(String(grade).replace(/[^\d]/g, '')); return n >= 4 ? 'upper' : 'lower'; }
+function roomLabel_(s) { return String(s.grade) + '/' + String(s.room); }
+/** 'มัธยมศึกษาปีที่ 1' / 'ม.1' / 'ม1' / '1' / 'ม.1/2' → 'ม.1' */
+function normGrade_(g) {
+  const t = String(g || '').trim();
+  const m = t.match(/(?:ม\.?|มัธยมศึกษาปีที่\s*|^)\s*([1-6])(?!\d)/);
+  return m ? 'ม.' + m[1] : '';
+}
+
+/**
+ * นำเข้ารายชื่อจาก Google Sheet อื่น (เช่น ไฟล์ "แบบลงชื่อค่าอุปกรณ์การเรียน" ที่มีชีต รายชื่อ ม.1 … รายชื่อ ม.6)
+ * อ่านทุกชีตที่มีหัวตาราง ชื่อ-สกุล + ระดับชั้น
+ */
+function importStudentsFromSheet(urlOrId, acadYear) {
+  requireWrite_('finance');
+  const src = /^https?:/.test(String(urlOrId)) ? SpreadsheetApp.openByUrl(urlOrId) : SpreadsheetApp.openById(String(urlOrId).trim());
+  const rows = [], used = [];
+  src.getSheets().forEach(sh => {
+    const V = sh.getDataRange().getDisplayValues();
+    const got = parseRosterRows_(V);
+    if (got.length) { used.push(sh.getName() + ' (' + got.length + ')'); got.forEach(r => rows.push(r)); }
+  });
+  if (!rows.length) throw new Error('ไม่พบตารางรายชื่อ (ต้องมีหัวคอลัมน์ ชื่อ-สกุล และ ระดับชั้น)');
+  const r = importStudents(acadYear, rows);
+  r.sheets = used;
+  return r;
+}
+
+/** อ่านตารางรายชื่อ 1 ชีต (2 มิติ) → แถวนักเรียน */
+function parseRosterRows_(V) {
+  const t = v => String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+  let hi = -1, c = {};
+  for (let r = 0; r < Math.min(V.length, 15) && hi < 0; r++) {
+    const m = {};
+    V[r].forEach((h0, i) => {
+      const h = t(h0);
+      if (m.id == null && /เลขประจำตัวนักเรียน|รหัสนักเรียน|^เลขประจำตัว$/.test(h)) m.id = i;
+      else if (m.cid == null && /ประชาชน|เลขบัตร/.test(h)) m.cid = i;
+      else if (m.prefix == null && /คำนำหน้า/.test(h)) m.prefix = i;
+      else if (m.full == null && /ชื่อ\s*[-–]?\s*(นาม)?สกุล/.test(h)) m.full = i;
+      else if (m.last == null && /^(นาม)?สกุล/.test(h)) m.last = i;
+      else if (m.first == null && /^ชื่อ/.test(h)) m.first = i;
+      else if (m.grade == null && /^(ระดับ)?ชั้น/.test(h)) m.grade = i;
+      else if (m.room == null && /^ห้อง/.test(h)) m.room = i;
+      else if (m.no == null && /^(เลขที่|ที่)$/.test(h)) m.no = i;
+      else if (m.acct == null && /เลขบัญชี|เลขที่บัญชี/.test(h)) m.acct = i;
+      else if (m.bank == null && /^ธนาคาร/.test(h)) m.bank = i;
+    });
+    if ((m.first != null || m.full != null) && m.grade != null) { hi = r; c = m; }
+  }
+  if (hi < 0) return [];
+  const PFX = /^(เด็กชาย|เด็กหญิง|ด\.ช\.|ด\.ญ\.|นางสาว|น\.ส\.|นาย|นาง)\s*/;
+  const out = [];
+  for (let r = hi + 1; r < V.length; r++) {
+    const row = V[r], g0 = t(row[c.grade]);
+    let first = c.first != null ? t(row[c.first]) : '', last = c.last != null ? t(row[c.last]) : '', prefix = c.prefix != null ? t(row[c.prefix]) : '';
+    if (c.full != null) {
+      let f = t(row[c.full]); const m = f.match(PFX);
+      if (m && !prefix) prefix = m[1];
+      f = f.replace(PFX, ''); const p = f.split(' '); first = p.shift() || ''; last = p.join(' ');
+    }
+    if (!first || !g0) continue;
+    let grade = g0, room = c.room != null ? t(row[c.room]) : '';
+    const gm = g0.match(/([1-6])\s*\/\s*(\d+)/);
+    if (gm) { grade = 'ม.' + gm[1]; if (!room) room = gm[2]; }
+    out.push({ studentId: c.id != null ? t(row[c.id]) : '', prefix: prefix, firstName: first, lastName: last, grade: grade, room: room,
+      no: c.no != null ? t(row[c.no]) : '', citizenId: c.cid != null ? t(row[c.cid]) : '',
+      bankAccount: c.acct != null ? t(row[c.acct]) : '', bank: c.bank != null ? t(row[c.bank]) : '' });
+  }
+  return out;
+}
+
+/** เลขบัญชี: ตัดอักขระอื่น, ค่าที่ Sheets เก็บเป็นตัวเลข (เช่น 6656932894.0) → 10 หลัก */
+function normAccount_(v) {
+  let s = String(v == null ? '' : v).trim();
+  if (/^\d+(\.0+)?$/.test(s)) s = s.replace(/\.0+$/, '');
+  s = s.replace(/[^\d]/g, '');
+  if (s && s.length < 10) s = ('0000000000' + s).slice(-10);
+  return s;
+}
+
+/**
+ * เลขบัตรประชาชน 13 หลัก: รับ '1-2345-67890-12-3', "'1234567890123", 1234567890123 (ตัวเลขจาก Sheets)
+ * ค่าที่ Excel แสดงเป็น 1.23457E+12 (ตัวเลขหายไปแล้ว) หรือไม่ครบ 13 หลัก → '' (ถือว่าไม่มี)
+ */
+function normCid_(v) {
+  if (v == null || v === '') return '';
+  let s = typeof v === 'number' ? v.toFixed(0) : String(v).trim().replace(/^'/, '');
+  if (/e\+?\d+$/i.test(s)) return '';
+  s = s.replace(/\.0+$/, '').replace(/[^\d]/g, '');
+  return s.length === 13 ? s : '';
+}
