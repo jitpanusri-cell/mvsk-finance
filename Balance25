@@ -1,0 +1,207 @@
+/*******************************************************************
+ * Balance25.gs — ยอดคงเหลือแต่ละประเภทเงิน (ระดับหน่วยเบิก 25 รายการ + Hybrid)
+ * ----------------------------------------------------------------
+ * ตาราง 25 รายการ แบ่ง 4 หมวด ต่อท้ายตารางสรุป 5 หมวดเดิมในแดชบอร์ด และ
+ * เชื่อมกับเมนู "เงินคงเหลือ ณ วันที่"
+ *
+ * โหมดต่อรายการ (เก็บในชีต Balance25_Items คอลัมน์ mode):
+ *   'link'   — รายการที่ 13-18: ดึงยอดคงเหลืออัตโนมัติจาก 5 รายการเงินหลักในแดชบอร์ดเดิม
+ *              (รายการ 13/14 มาจากยอดเดียวกันคือ "ค่าจัดการเรียนการสอน" — ไม่มีข้อมูลแยกปัจจัย
+ *              พื้นฐานนักเรียนยากจนในระบบเดิม จึงให้ 14 เป็นยอดที่กรอกเอง (ส่วนหนึ่งของยอดรวม)
+ *              และ 13 = ยอดคงเหลือของ "ค่าจัดการเรียนการสอน" หักด้วยยอดที่กรอกไว้ในข้อ 14)
+ *              แก้โหมดไม่ได้ (auto ตายตัว)
+ *   'auto'   — Auto-Calculate: (ยอดยกมา + รายรับ) − รายจ่าย/โอน จากรายการที่บันทึกในชีต
+ *              Balance25_Tx ของรายการนั้น (ยอดยกมาเก็บใน Settings คีย์ bal25open_<fy>_<id>)
+ *   'manual' — Manual Override: กรอกยอดคงเหลือสุทธิเองโดยตรง (Balance25_Manual)
+ *              พร้อมบันทึกวันที่อัปเดตล่าสุดกำกับไว้ใต้ชื่อประเภทเงิน
+ * ทุกรายการ (ยกเว้น 13/14) สลับโหมด auto <-> manual ได้เอง ตามรายการที่ทำในระบบอื่นของโรงเรียน
+ *******************************************************************/
+
+const BAL25_DEFS = [
+  // หมวดที่ 1 เงินงบประมาณ (เบิกจ่ายตรง GFMIS)
+  { id: '1',  cat: 1, name: 'งบดำเนินงาน - ค่าตอบแทน ใช้สอยและวัสดุ' },
+  { id: '2',  cat: 1, name: 'งบดำเนินงาน - ค่าสาธารณูปโภค' },
+  { id: '3',  cat: 1, name: 'งบดำเนินงาน - รายการเบิกค่าเช่าบ้านข้าราชการ' },
+  { id: '4',  cat: 1, name: 'งบบุคลากร / สวัสดิการค่ารักษาพยาบาลและการศึกษาบุตร' },
+  { id: '5',  cat: 1, name: 'งบลงทุน - ค่าครุภัณฑ์/ที่ดินและสิ่งก่อสร้าง' },
+  { id: '6',  cat: 1, name: 'งบรายจ่ายอื่น' },
+  // หมวดที่ 2 เงินรายได้แผ่นดิน (รอนำส่งคลัง GFMIS)
+  { id: '7',  cat: 2, name: 'ดอกเบี้ยเงินอุดหนุนทั่วไป' },
+  { id: '8',  cat: 2, name: 'ดอกเบี้ยเงินอุดหนุนโครงการสนับสนุนค่าใช้จ่ายในการจัดการศึกษาขั้นพื้นฐาน (ระดับมัธยมศึกษา)' },
+  { id: '9',  cat: 2, name: 'ดอกเบี้ยเงินอุดหนุนจาก อปท. (อบจ./เทศบาล)' },
+  { id: '10', cat: 2, name: 'เงินอุดหนุนเหลือจ่ายเกินปีงบประมาณ กรณีสิ้นสุดโครงการ' },
+  { id: '11', cat: 2, name: 'เงินค่าขายพัสดุชำรุด/ค่าขายแบบรูปรายการ' },
+  { id: '12', cat: 2, name: 'เงินรายได้แผ่นดินประเภทอื่นๆ ที่ต้องนำส่งคลัง' },
+  // หมวดที่ 3 เงินอุดหนุนทั่วไป / เรียนฟรี 15 ปี (ดึงยอดจาก 5 หมวดหลักอัตโนมัติ)
+  { id: '13', cat: 3, name: 'ค่าจัดการเรียนการสอน - เงินอุดหนุนรายหัว',          mode: 'link', fund: 'TEACH', linkNote: 'auto-minus-14' },
+  { id: '14', cat: 3, name: 'ค่าจัดการเรียนการสอน - ปัจจัยพื้นฐานนักเรียนยากจน', mode: 'link', fund: 'TEACH', linkNote: 'manual-portion' },
+  { id: '15', cat: 3, name: 'ค่าหนังสือเรียน',                                  mode: 'link', fund: 'BOOK' },
+  { id: '16', cat: 3, name: 'ค่าอุปกรณ์การเรียน',                               mode: 'link', fund: 'EQUIP' },
+  { id: '17', cat: 3, name: 'ค่าเครื่องแบบนักเรียน',                            mode: 'link', fund: 'UNIFORM' },
+  { id: '18', cat: 3, name: 'ค่ากิจกรรมพัฒนาคุณภาพผู้เรียน',                    mode: 'link', fund: 'ACT' },
+  // หมวดที่ 4 เงินนอกงบประมาณ (รายได้สถานศึกษาและเงินรับฝาก)
+  { id: '19', cat: 4, name: 'เงินบำรุงการศึกษา (ภาคปกติ)' },
+  { id: '20', cat: 4, name: 'เงินบำรุงการศึกษา - โครงการห้องเรียนพิเศษ' },
+  { id: '21', cat: 4, name: 'เงินอุดหนุนจาก อปท. (อบจ./เทศบาล)' },
+  { id: '22', cat: 4, name: 'เงินบริจาคโดยมีวัตถุประสงค์/กัลปนาผล' },
+  { id: '23', cat: 4, name: 'เงินลูกเสือ เนตรนารี ยุวกาชาด และผู้บำเพ็ญประโยชน์' },
+  { id: '24', cat: 4, name: 'เงินประกันสัญญา/ค้ำประกันซอง' },
+  { id: '25', cat: 4, name: 'เงินภาษีหัก ณ ที่จ่าย (รอนำส่งสรรพากร)' }
+];
+const BAL25_CAT_LABEL = {
+  1: 'หมวดที่ 1 เงินงบประมาณ (เบิกจ่ายตรง GFMIS)',
+  2: 'หมวดที่ 2 เงินรายได้แผ่นดิน (รอนำส่งคลัง GFMIS)',
+  3: 'หมวดที่ 3 เงินอุดหนุนทั่วไป / เรียนฟรี 15 ปี',
+  4: 'หมวดที่ 4 เงินนอกงบประมาณ (รายได้สถานศึกษาและเงินรับฝาก)'
+};
+
+function seedBalance25_() {
+  if (readObjects_('Balance25_Items').length) return;
+  appendObjects_('Balance25_Items', BAL25_DEFS.map(d => ({
+    id: d.id, category: d.cat, name: d.name, mode: d.mode || 'manual', fundCode: d.fund || ''
+  })));
+}
+
+function bal25Def_(id) { return BAL25_DEFS.find(d => d.id === String(id)); }
+
+/** ยอดคงเหลือ 25 รายการ ของปีงบที่เลือก (เรียกจากแดชบอร์ด และเมนูเงินคงเหลือ ณ วันที่) */
+function getBalance25(fy) {
+  requirePage_('dashboard');
+  fy = Number(fy);
+  seedBalance25_();
+  const items = readObjects_('Balance25_Items').sort((a, b) => Number(a.id) - Number(b.id));
+  const manuals = {}; readObjects_('Balance25_Manual').filter(m => Number(m.fy) === fy).forEach(m => manuals[m.itemId] = m);
+  const txByItem = {};
+  readObjects_('Balance25_Tx').filter(t => Number(t.fy) === fy).forEach(t => (txByItem[t.itemId] = txByItem[t.itemId] || []).push(t));
+  const s = getSettingsMap_();
+  const fundBal = {};
+  if (items.some(it => it.mode === 'link')) {
+    getBalanceReport(fy, todayIso_()).rows.forEach(r => fundBal[r.code] = r.balance);
+  }
+
+  const rows = items.map(it => {
+    const def = bal25Def_(it.id) || {};
+    let value = 0, updatedAt = '', updatedBy = '', opening = 0, txList = [];
+    const mode = it.mode || 'manual';
+    if (mode === 'link') {
+      if (def.linkNote === 'manual-portion') {
+        const m = manuals[it.id];
+        value = m ? round2_(num_(m.value)) : 0;
+        updatedAt = m ? m.updatedAt : ''; updatedBy = m ? m.updatedBy : '';
+      } else if (def.linkNote === 'auto-minus-14') {
+        const m14 = manuals['14'];
+        value = round2_((fundBal[it.fundCode] || 0) - (m14 ? num_(m14.value) : 0));
+      } else {
+        value = round2_(fundBal[it.fundCode] || 0);
+      }
+    } else if (mode === 'manual') {
+      const m = manuals[it.id];
+      value = m ? round2_(num_(m.value)) : 0;
+      updatedAt = m ? m.updatedAt : ''; updatedBy = m ? m.updatedBy : '';
+    } else { // auto (ledger)
+      opening = round2_(num_(s['bal25open_' + fy + '_' + it.id]));
+      txList = (txByItem[it.id] || []).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      const inSum = txList.filter(t => t.direction === 'in').reduce((x, t) => x + num_(t.amount), 0);
+      const outSum = txList.filter(t => t.direction === 'out').reduce((x, t) => x + num_(t.amount), 0);
+      value = round2_(opening + inSum - outSum);
+    }
+    return {
+      id: it.id, category: Number(it.category), catLabel: BAL25_CAT_LABEL[it.category], name: it.name,
+      mode: mode, editableMode: mode !== 'link', value: value, updatedAt: updatedAt, updatedBy: updatedBy,
+      opening: opening, tx: txList.map(t => ({ id: t.id, date: t.date, direction: t.direction, amount: round2_(num_(t.amount)), note: String(t.note || '') }))
+    };
+  });
+  return {
+    fy: fy, rows: rows, total: round2_(rows.reduce((x, r) => x + r.value, 0)),
+    canEdit: WRITE_ROLES.finance.indexOf(currentUser_().role) >= 0 || WRITE_ROLES.account.indexOf(currentUser_().role) >= 0
+  };
+}
+
+function requireBal25Write_() {
+  const u = currentUser_();
+  if (WRITE_ROLES.finance.indexOf(u.role) < 0 && WRITE_ROLES.account.indexOf(u.role) < 0)
+    throw new Error('ไม่มีสิทธิ์แก้ไขยอดคงเหลือประเภทเงิน');
+  return u;
+}
+
+/** สลับโหมด auto/manual ของรายการ (ยกเว้นรายการ 13/14 ที่ผูกกับแดชบอร์ดเดิมตายตัว) */
+function saveBalance25Mode(itemId, mode) {
+  requireBal25Write_();
+  itemId = String(itemId);
+  const it = readObjects_('Balance25_Items').find(r => String(r.id) === itemId);
+  if (!it) throw new Error('ไม่พบรายการ');
+  if (it.mode === 'link') throw new Error('รายการนี้ผูกกับแดชบอร์ดเดิม แก้โหมดไม่ได้');
+  if (['auto', 'manual'].indexOf(mode) < 0) throw new Error('โหมดไม่ถูกต้อง');
+  withLock_(() => updateObject_('Balance25_Items', itemId, { mode: mode }));
+  audit_('update', 'Balance25_Items', itemId, { mode: mode });
+  return true;
+}
+
+/** บันทึกยอดคงเหลือแบบกรอกเอง (Manual Override) พร้อมประทับเวลา */
+function saveBalance25Manual(fy, itemId, value) {
+  const u = requireBal25Write_();
+  fy = Number(fy); itemId = String(itemId);
+  const it = readObjects_('Balance25_Items').find(r => String(r.id) === itemId);
+  if (!it) throw new Error('ไม่พบรายการ');
+  const isPortion = itemId === '14';
+  if (it.mode !== 'manual' && !isPortion) throw new Error('รายการนี้ไม่ได้อยู่ในโหมดกรอกเอง');
+  const v = round2_(num_(value));
+  const id = fy + '-' + itemId;
+  return withLock_(() => {
+    const rec = { id: id, fy: fy, itemId: itemId, value: v, updatedAt: new Date(), updatedBy: u.email };
+    if (!updateObject_('Balance25_Manual', id, rec)) appendObject_('Balance25_Manual', rec);
+    audit_('update', 'Balance25_Manual', id, rec);
+    return v;
+  });
+}
+
+/** บันทึกยอดยกมาต้นปีงบของรายการโหมด Auto-Calculate */
+function saveBalance25Opening(fy, itemId, value) {
+  requireBal25Write_();
+  fy = Number(fy); itemId = String(itemId);
+  const key = 'bal25open_' + fy + '_' + itemId;
+  const v = round2_(num_(value));
+  withLock_(() => {
+    if (!updateObject_('Settings', key, { value: v }))
+      appendObject_('Settings', { key: key, label: 'ยอดยกมา Balance25 #' + itemId + ' ปีงบ ' + fy, value: v });
+  });
+  audit_('update', 'Settings', key, { value: v });
+  return v;
+}
+
+/** เพิ่ม/แก้ไขรายการรับ-จ่าย/โอนเงิน ของรายการโหมด Auto-Calculate */
+function saveBalance25Tx(obj) {
+  const u = requireBal25Write_();
+  obj = obj || {};
+  const itemId = String(obj.itemId || '');
+  const it = readObjects_('Balance25_Items').find(r => String(r.id) === itemId);
+  if (!it || it.mode !== 'auto') throw new Error('รายการนี้ไม่ได้อยู่ในโหมด Auto-Calculate');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(obj.date || ''))) throw new Error('กรุณาระบุวันที่');
+  if (['in', 'out'].indexOf(obj.direction) < 0) throw new Error('กรุณาระบุประเภทรายการ');
+  const amount = round2_(num_(obj.amount));
+  if (!(amount > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
+  const fy = Number(obj.fy) || fyOf_(obj.date);
+  const rec = { itemId: itemId, fy: fy, date: obj.date, direction: obj.direction, amount: amount, note: String(obj.note || '').trim() };
+  return withLock_(() => {
+    if (obj.id) {
+      if (!updateObject_('Balance25_Tx', obj.id, rec)) throw new Error('ไม่พบรายการ');
+      audit_('update', 'Balance25_Tx', obj.id, rec);
+      return obj.id;
+    }
+    rec.id = newId_('BX'); rec.createdBy = u.email; rec.createdAt = new Date();
+    appendObject_('Balance25_Tx', rec);
+    audit_('create', 'Balance25_Tx', rec.id, rec);
+    return rec.id;
+  });
+}
+
+function deleteBalance25Tx(id) {
+  requireBal25Write_();
+  return withLock_(() => {
+    const cur = readObjects_('Balance25_Tx').find(r => String(r.id) === String(id));
+    if (!cur) throw new Error('ไม่พบรายการ');
+    deleteWhere_('Balance25_Tx', o => String(o.id) === String(id));
+    audit_('delete', 'Balance25_Tx', id, cur);
+    return true;
+  });
+}
