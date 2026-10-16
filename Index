@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <?!= include('CSS'); ?>
+</head>
+<body>
+  <!-- ===== เมนูซ้าย ===== -->
+  <aside class="sidebar" id="sidebar" aria-label="เมนูหลัก">
+    <div class="brand">
+      <div class="brand-logo" id="brandIcon"></div>
+      <div>
+        <div class="brand-t">งบประมาณ สพฐ.</div>
+        <div class="brand-s" id="brandSchool">กำลังโหลด…</div>
+      </div>
+    </div>
+    <nav class="nav-scroll" id="nav"></nav>
+    <div class="side-user">
+      <div class="avatar" id="uAvatar">?</div>
+      <div style="min-width:0">
+        <div class="n" id="uName">—</div>
+        <div class="r" id="uRole"></div>
+      </div>
+    </div>
+  </aside>
+  <div class="backdrop" id="backdrop"></div>
+
+  <!-- ===== เนื้อหา ===== -->
+  <main class="main">
+    <div class="topbar">
+      <button class="btnx sec icon" id="btnMenu" aria-label="เปิดเมนู"></button>
+      <div class="t" id="topTitle">แดชบอร์ด</div>
+    </div>
+
+    <!-- แดชบอร์ด -->
+    <section class="page on" id="page-dashboard">
+      <div class="page-head">
+        <div>
+          <h1>แดชบอร์ดงบประมาณ</h1>
+          <div class="sub" id="dSub">โครงการสนับสนุนค่าใช้จ่ายในการจัดการศึกษาตั้งแต่ระดับอนุบาลจนจบการศึกษาขั้นพื้นฐาน</div>
+        </div>
+        <div class="controls">
+          <select class="sel" id="fySel" aria-label="ปีงบประมาณ"></select>
+          <div class="seg" id="termSeg" role="tablist"></div>
+          <button class="btnx sec icon" id="btnRefresh" title="โหลดข้อมูลใหม่" aria-label="โหลดข้อมูลใหม่"></button>
+          <button class="btnx pri" id="btnPrint"></button>
+        </div>
+      </div>
+
+      <div id="dEmpty"></div>
+      <div class="grid-kpi" id="dKpi"></div>
+
+      <div class="cardx mb-grid">
+        <div class="card-h">
+          <h3>สรุปตามรายการเงิน</h3>
+          <span class="hint" id="dTblHint"></span>
+        </div>
+        <div class="table-responsive"><table class="tbl" id="dTbl"></table></div>
+      </div>
+
+      <div class="cardx mb-grid">
+        <div class="card-h">
+          <h3>ยอดคงเหลือแต่ละประเภทเงิน</h3>
+          <span class="hint">ระดับหน่วยเบิก 25 รายการ · เชื่อมกับเมนู "เงินคงเหลือ ณ วันที่" · คลิกแถวเพื่อแก้ไข</span>
+        </div>
+        <div class="table-responsive"><table class="tbl bal25-tbl" id="dBal25"></table></div>
+      </div>
+
+      <div class="grid-3">
+        <div class="cardx">
+          <div class="card-h">
+            <h3>รายจ่ายรายเดือน</h3>
+            <button class="linkbtn" id="btnChartTable">ดูเป็นตาราง</button>
+          </div>
+          <div class="chart-wrap" id="dChart"></div>
+        </div>
+        <div class="cardx">
+          <div class="card-h">
+            <h3>เรื่องที่ต้องติดตาม</h3>
+            <span id="dAlertCount"></span>
+          </div>
+          <div class="alerts" id="dAlerts"></div>
+        </div>
+      </div>
+
+      <div class="cardx">
+        <div class="card-h">
+          <h3>งวดเงินที่ได้รับ</h3>
+          <span class="hint">สัดส่วนจริงของแต่ละงวดในภาคเรียน</span>
+        </div>
+        <div class="rounds-grid" id="dRounds"></div>
+      </div>
+    </section>
+
+    <!-- งบกิจกรรม/โครงการ -->
+    <section class="page" id="page-activity">
+      <div class="page-head">
+        <div>
+          <h1>งบกิจกรรม/โครงการ</h1>
+          <div class="sub">กำหนดว่าแต่ละกิจกรรมใช้เงินรายการไหน เท่าไร แล้วตัดงบเมื่อจ่ายจริง</div>
+        </div>
+        <div class="controls">
+          <select class="sel" id="actFy" aria-label="ปีงบประมาณ"></select>
+          <div class="seg" id="actView" role="tablist">
+            <button class="on" data-v="act">ตามกิจกรรม</button>
+            <button data-v="fund">ตามรายการเงิน</button>
+          </div>
+          <button class="btnx pri" id="btnAddAct"></button>
+        </div>
+      </div>
+      <div class="grid-kpi" id="aKpi"></div>
+      <div id="aByAct" class="cardx">
+        <div class="act-filter">
+          <select class="sel" id="aFund" aria-label="กรองรายการเงิน"></select>
+          <select class="sel" id="aDept" aria-label="กรองกลุ่มงาน"></select>
+          <input class="inp" id="aQ" placeholder="ค้นหาชื่อกิจกรรม / รหัส / ผู้รับผิดชอบ" aria-label="ค้นหา">
+        </div>
+        <div class="table-responsive"><table class="tbl" id="aTbl"></table></div>
+      </div>
+      <div id="aByFund" class="fund-grid" style="display:none"></div>
+    </section>
+
+    <!-- ค่าอุปกรณ์การเรียนฯ (ติดตามรับเงินนักเรียน) -->
+    <section class="page" id="page-students">
+      <div class="page-head">
+        <div>
+          <h1>ค่าอุปกรณ์การเรียนฯ</h1>
+          <div class="sub" id="stSub">ค่าอุปกรณ์การเรียน และค่าเครื่องแบบนักเรียน รายชั้น รายห้อง รายคน</div>
+        </div>
+        <div class="controls">
+          <select class="sel" id="stTerm" aria-label="ภาคเรียน"></select>
+          <div class="seg" id="stFund" role="tablist">
+            <button class="on" data-f="EQUIP">อุปกรณ์การเรียน</button>
+            <button data-f="UNIFORM">เครื่องแบบนักเรียน</button>
+          </div>
+          <button class="btnx sec" id="btnStImport"></button>
+        </div>
+      </div>
+      <div id="stNotice"></div>
+      <div class="st-top" id="stTop"></div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>ความคืบหน้ารายชั้น</h3><span class="hint">คลิกเลือกชั้นเพื่อดูรายห้อง</span></div>
+        <div class="grade-bars" id="stGrades"></div>
+      </div>
+      <div class="cardx mb-grid" id="stDisbCard">
+        <div class="card-h"><h3>สรุปเบิกจ่ายรายชั้น</h3>
+          <div class="d-flex gap-2 flex-wrap align-items-center"><div class="seg" id="stDisbTabs"></div>
+            <button class="btnx sec sm" id="btnDisbPrint"></button></div></div>
+        <div id="stDisb"></div>
+      </div>
+      <div class="cardx mb-grid" id="stF2Card">
+        <div class="card-h mb-0"><h3>พิมพ์เอกสารหมายเลข 2 <span class="muted small-x" style="font-family:var(--f-body);font-weight:400">แบบหลักฐานยืนยันการจัดหา</span></h3>
+          <div class="d-flex gap-2 flex-wrap align-items-center">
+            <select class="sel" id="stForm2Room" aria-label="เลือกห้องสำหรับพิมพ์เอกสารหมายเลข 2"></select>
+            <button class="btnx sec" id="btnStForm2"></button>
+            <button class="btnx sec" id="btnStCid" title="อัปโหลดไฟล์จาก DMC ที่มีเลขประจำตัวประชาชน เพื่อกรอกในเอกสารหมายเลข 2"></button>
+            <input type="file" id="stCidFile" accept=".xlsx,.xls,.csv,.txt" hidden></div></div>
+        <div class="small-x muted mt-2" id="stCidInfo"></div>
+      </div>
+      <div class="grid-3 st-grid">
+        <div class="cardx">
+          <div class="card-h"><h3 id="stRoomTitle">รายห้อง</h3>
+            <div class="legend m-0">
+              <span><i style="background:#1C6B42"></i>ครบ</span><span><i style="background:#CDE8D6"></i>≥95%</span>
+              <span><i style="background:#FBE7B0"></i>90–95%</span><span><i style="background:#F6CFCA"></i>&lt;90%</span>
+            </div></div>
+          <div id="stRooms"></div>
+        </div>
+        <div class="cardx">
+          <div class="card-h"><h3 id="stListTitle">ยังไม่รับเงิน</h3><div id="stListTools"></div></div>
+          <input class="inp mb-2" id="stQ" placeholder="ค้นหาชื่อ / เลขประจำตัว" aria-label="ค้นหานักเรียน">
+          <div id="stList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- หนังสือจัดสรร -->
+    <section class="page" id="page-allocation">
+      <div class="page-head">
+        <div>
+          <h1>หนังสือจัดสรรงบประมาณ</h1>
+          <div class="sub">งวดเงินที่ได้รับจัดสรร แยกภาคเรียน · แก้ไขจำนวนเงิน เลขที่/วันที่หนังสือ และพิมพ์รายงาน</div>
+        </div>
+        <div class="controls">
+          <select class="sel" id="alFy" aria-label="ปีงบประมาณ"></select>
+          <button class="btnx sec" id="btnAlMemo"></button>
+          <button class="btnx sec" id="btnAlReport"></button>
+          <button class="btnx pri" id="btnAlAdd"></button>
+        </div>
+      </div>
+      <div id="alTerms"></div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>สรุปทั้งปีงบประมาณ</h3><span class="hint">หน่วย: บาท</span></div>
+        <div class="table-responsive"><table class="tbl" id="alSum"></table></div>
+      </div>
+    </section>
+
+    <!-- บันทึกเงินเข้าบัญชีจริง -->
+    <section class="page" id="page-receipt">
+      <div class="page-head">
+        <div>
+          <h1>บันทึกเงินเข้าบัญชีจริง</h1>
+          <div class="sub">บันทึกยอดเงินที่เข้าบัญชีโรงเรียนจริง อ้างอิงหนังสือจัดสรรได้ · แจ้งเตือนถ้ายอดไม่ตรงกับหนังสือ</div>
+        </div>
+        <div class="controls">
+          <select class="sel" id="rpFy" aria-label="ปีงบประมาณ"></select>
+          <button class="btnx pri" id="btnRpAdd"></button>
+        </div>
+      </div>
+      <div class="grid-kpi" id="rpKpi"></div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>เทียบยอดตามหนังสือจัดสรร</h3><span class="hint">หน่วย: บาท</span></div>
+        <div class="table-responsive"><table class="tbl" id="rpRounds"></table></div>
+      </div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>รายการเงินเข้าบัญชี</h3></div>
+        <div class="table-responsive"><table class="tbl" id="rpList"></table></div>
+      </div>
+    </section>
+
+    <!-- บันทึกรายจ่าย -->
+    <section class="page" id="page-expense">
+      <div class="page-head">
+        <div>
+          <h1>บันทึกรายจ่าย</h1>
+          <div class="sub">รายจ่ายทั่วไปตามฎีกา/เช็ค ไม่ผูกกิจกรรม (รายจ่ายที่ผูกกิจกรรมจัดการที่เมนูงบกิจกรรม/โครงการ) · เตือนเมื่อจ่ายเกินเงินคงเหลือ</div>
+        </div>
+        <div class="controls">
+          <select class="sel" id="exFy" aria-label="ปีงบประมาณ"></select>
+          <button class="btnx pri" id="btnExAdd"></button>
+        </div>
+      </div>
+      <div class="grid-kpi" id="exKpi"></div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>รายการรายจ่าย</h3><span class="hint">หน่วย: บาท</span></div>
+        <div class="table-responsive"><table class="tbl" id="exList"></table></div>
+      </div>
+    </section>
+
+    <!-- ข้อมูลฝ่ายบัญชี -->
+    <section class="page" id="page-account">
+      <div class="page-head">
+        <div>
+          <h1>ข้อมูลฝ่ายบัญชี</h1>
+          <div class="sub">ยอดรับ-จ่ายตามทะเบียนคุมเงินของฝ่ายบัญชี แยก 5 รายการ เทียบกับฝ่ายการเงิน</div>
+        </div>
+        <div class="controls">
+          <select class="sel" id="acFy" aria-label="ปีงบประมาณ"></select>
+          <button class="btnx sec" id="btnAcImport"></button>
+          <button class="btnx pri" id="btnAcAdd"></button>
+        </div>
+      </div>
+      <div class="grid-kpi" id="acKpi"></div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>เทียบยอดตามรายการเงิน</h3><span class="hint">หน่วย: บาท · ทั้งปีงบ (ไม่แยกภาคเรียน)</span></div>
+        <div class="table-responsive"><table class="tbl" id="acSum"></table></div>
+      </div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><div class="seg" id="acTabs" role="tablist">
+            <button class="on" data-k="receipt">เงินเข้า</button>
+            <button data-k="expense">รายจ่าย</button>
+          </div></div>
+        <div class="table-responsive"><table class="tbl" id="acList"></table></div>
+      </div>
+    </section>
+
+    <!-- กระทบยอด การเงิน vs บัญชี -->
+    <section class="page" id="page-reconcile">
+      <div class="page-head">
+        <div>
+          <h1>กระทบยอด การเงิน vs บัญชี</h1>
+          <div class="sub">เทียบยอดรับ-จ่ายรายเดือนของฝ่ายการเงินกับฝ่ายบัญชี แยกตามรายการเงิน · บันทึกเหตุผลของผลต่าง</div>
+        </div>
+        <div class="controls">
+          <select class="sel" id="rcFy" aria-label="ปีงบประมาณ"></select>
+          <select class="sel" id="rcFilter" aria-label="กรองสถานะ"></select>
+        </div>
+      </div>
+      <div class="grid-kpi" id="rcKpi"></div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>เทียบยอดรายเดือน</h3><span class="hint">หน่วย: บาท · เรียงตามปฏิทินงบประมาณ (ต.ค.–ก.ย.)</span></div>
+        <div class="table-responsive"><table class="tbl" id="rcList"></table></div>
+      </div>
+    </section>
+
+    <!-- รายงานเงินคงเหลือ ณ วันที่ -->
+    <section class="page" id="page-balance">
+      <div class="page-head">
+        <div>
+          <h1>เงินคงเหลือ ณ วันที่</h1>
+          <div class="sub">ยกมา + เงินเข้าบัญชี − รายจ่าย = คงเหลือ ณ วันที่เลือก แยก 5 รายการเงิน + 25 รายการระดับหน่วยเบิก</div>
+        </div>
+        <div class="controls">
+          <select class="sel" id="blFy" aria-label="ปีงบประมาณ"></select>
+          <input class="sel" id="blDate" type="date" aria-label="ณ วันที่">
+          <button class="btnx sec" id="btnBlMemo"></button>
+        </div>
+      </div>
+      <div class="grid-kpi" id="blKpi"></div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>คงเหลือแยกรายการเงิน</h3><span class="hint">หน่วย: บาท</span></div>
+        <div class="table-responsive"><table class="tbl" id="blList"></table></div>
+      </div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>ยอดคงเหลือแต่ละประเภทเงิน (25 รายการ)</h3><span class="hint">คลิกแถวเพื่อแก้ไข</span></div>
+        <div class="table-responsive"><table class="tbl bal25-tbl" id="blBal25"></table></div>
+      </div>
+    </section>
+
+    <section class="page" id="page-refund">
+      <div class="page-head">
+        <div>
+          <h1>เงินเหลือจ่าย / ส่งคืน</h1>
+          <div class="sub">ยอดคงเหลือแต่ละประเภทเงิน · ลงรายการ กันเงินไว้ใช้ต่อ หรือส่งคืน · พิมพ์บันทึกขออนุมัติ</div>
+        </div>
+        <div class="controls">
+          <select class="sel" id="rfFy" aria-label="ปีงบประมาณ"></select>
+          <button class="btnx sec" id="btnRfMemo"></button>
+          <button class="btnx pri" id="btnRfAdd"></button>
+        </div>
+      </div>
+      <div class="grid-kpi" id="rfKpi"></div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>สรุปตามประเภทเงิน</h3><span class="hint">หน่วย: บาท</span></div>
+        <div class="table-responsive"><table class="tbl" id="rfSum"></table></div>
+      </div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>รายการเงินเหลือจ่าย</h3>
+          <select class="sel" id="rfFilter" aria-label="กรองสถานะ" style="min-height:34px"></select></div>
+        <div class="rf-bulk" id="rfBulk"></div>
+        <div class="table-responsive"><table class="tbl" id="rfList"></table></div>
+      </div>
+    </section>
+
+    <!-- แจ้งโอนเงิน KTB รายวัน -->
+    <section class="page" id="page-ktb">
+      <div class="page-head">
+        <div>
+          <h1>แจ้งโอนเงิน KTB รายวัน</h1>
+          <div class="sub">รายการสั่งจ่ายเงินผ่านระบบ KTB Corporate Online · แยกกลุ่มตามวันที่โอน</div>
+        </div>
+        <div class="controls">
+          <select class="sel" id="ktFy" aria-label="ปีงบประมาณ"></select>
+          <input class="sel" id="ktDate" type="date" aria-label="วันที่โอน">
+          <button class="btnx sec" id="btnKtExportPng"></button>
+          <button class="btnx sec" id="btnKtExportPdf"></button>
+          <button class="btnx pri" id="btnKtAdd"></button>
+        </div>
+      </div>
+      <div class="grid-kpi" id="ktKpi"></div>
+      <div id="ktDoc"></div>
+    </section>
+
+    <!-- สัญญายืม ส่งคืน เบิก -->
+    <section class="page" id="page-docs">
+      <div class="dc2-head">
+        <div class="dc2-brand">
+          <img id="dcLogo" class="dc2-logo" alt="ตราโรงเรียน">
+          <div>
+            <div class="dc2-org" id="dcOrg">งานการเงินและบัญชี</div>
+            <h1>สัญญายืม ส่งคืน เบิก</h1>
+          </div>
+        </div>
+        <div class="controls">
+          <select class="sel" id="dcFy" aria-label="ปีงบประมาณ"></select>
+          <button type="button" class="btnx sec" id="btnDcHelp" aria-expanded="false"></button>
+        </div>
+      </div>
+      <div class="dc2-cards mb-grid" id="dcCards">
+        <button type="button" class="dc2-card t-loan" data-go="loan">
+          <span class="dc2-ic"></span><span class="dc2-k">ขั้นที่ 1</span><b>สัญญายืมเงิน</b>
+          <span class="dc2-d">ต้องการเงินก่อนจัดกิจกรรม หรือไปราชการ</span>
+          <span class="dc2-n">ส่งคืนภายใน 30 วัน · ไปราชการ 15 วันหลังกลับ</span>
+          <span class="dc2-go">เริ่มกรอกสัญญา</span></button>
+        <button type="button" class="dc2-card t-return" data-go="return">
+          <span class="dc2-ic"></span><span class="dc2-k">ขั้นที่ 2</span><b>ส่งคืนเงินยืม</b>
+          <span class="dc2-d">นำหลักฐานการจ่ายมาล้างหนี้</span>
+          <span class="dc2-n">หลักฐาน + เงินสดคืน = ยอดยืม</span>
+          <span class="dc2-go">ส่งคืนเงินยืม</span></button>
+        <button type="button" class="dc2-card t-adv" data-go="adv">
+          <span class="dc2-ic"></span><span class="dc2-k">สำรองจ่าย</span><b>เบิกเงิน</b>
+          <span class="dc2-d">สำรองจ่ายไปก่อน แล้วนำหลักฐานมาเบิก</span>
+          <span class="dc2-n">การเงินตรวจ → ผอ.อนุมัติ → โอนเงิน</span>
+          <span class="dc2-go">ขอเบิกเงิน</span></button>
+      </div>
+      <div class="cardx mb-grid dc-guide" id="dcGuide" hidden></div>
+      <div class="cardx mb-grid dc2-list">
+        <div class="card-h">
+          <div><h3 id="dcListTitle">รายการของฉัน</h3><div class="hint" id="dcListHint"></div></div>
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <div class="seg" id="dcFilter" role="tablist" aria-label="กรองรายการ"></div>
+            <button class="btnx sec sm" id="btnDcBlank"></button>
+            <button class="btnx sec sm" id="btnDcRegister"></button>
+          </div>
+        </div>
+        <div class="dc2-blank" id="dcBlankMain" hidden></div>
+        <div class="table-responsive"><table class="tbl dc2-tbl" id="dcList"></table></div>
+      </div>
+    </section>
+
+    <!-- ตั้งค่า -->
+    <section class="page" id="page-settings">
+      <div class="page-head">
+        <div>
+          <h1>ตั้งค่า</h1>
+          <div class="sub">ข้อมูลโรงเรียน ผู้ลงนาม เอกสาร อัตราต่อหัว ยอดยกมาต้นปีงบ</div>
+        </div>
+        <div class="controls"><button class="btnx pri" id="btnSfSave"></button></div>
+      </div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>ข้อมูลโรงเรียน</h3></div>
+        <div class="row g-3 p-3 pt-0">
+          <div class="col-sm-8"><label class="flabel" for="sfSchoolName">ชื่อโรงเรียน</label><input class="inp" id="sfSchoolName"></div>
+          <div class="col-sm-4"><label class="flabel" for="sfDocPrefix">เลขที่หนังสือ (ที่)</label><input class="inp" id="sfDocPrefix" placeholder="เช่น ศธ 04246.xx/"></div>
+          <div class="col-12"><label class="flabel" for="sfArea">สังกัด</label><input class="inp" id="sfArea"></div>
+        </div>
+      </div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>ผู้ลงนาม</h3><span class="hint">ใช้ในเอกสารบันทึกข้อความทุกเมนู</span></div>
+        <div class="row g-3 p-3 pt-0">
+          <div class="col-sm-6"><label class="flabel" for="sfDirector">ผู้อำนวยการ</label><input class="inp" id="sfDirector"></div>
+          <div class="col-sm-6"><label class="flabel" for="sfDeputy">รองผู้อำนวยการ (กลุ่มบริหารงบประมาณ)</label><input class="inp" id="sfDeputy"></div>
+          <div class="col-sm-6"><label class="flabel" for="sfFinOfficer">เจ้าหน้าที่การเงิน</label><input class="inp" id="sfFinOfficer"></div>
+          <div class="col-sm-6"><label class="flabel" for="sfAccOfficer">เจ้าหน้าที่บัญชี</label><input class="inp" id="sfAccOfficer"></div>
+        </div>
+      </div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>เอกสาร / อัตราต่อหัว / กำหนดเวลา</h3></div>
+        <div class="row g-3 p-3 pt-0">
+          <div class="col-sm-6"><label class="flabel" for="sfDriveFolderId">ID โฟลเดอร์ Drive เก็บเอกสาร</label><input class="inp" id="sfDriveFolderId"></div>
+          <div class="col-sm-6"><label class="flabel" for="sfGarudaUrl">ลิงก์รูปตราครุฑ (ว่าง = ไม่แสดง)</label><input class="inp" id="sfGarudaUrl"></div>
+          <div class="col-sm-6"><label class="flabel" for="sfLegacySpreadsheetId">ID สเปรดชีตตารางเดิม (ว่าง = ไฟล์นี้)</label><input class="inp" id="sfLegacySpreadsheetId"></div>
+          <div class="col-sm-3"><label class="flabel" for="sfRateEquipLower">อุปกรณ์ ม.ต้น (บาท/คน/ภาค)</label><input class="inp num" type="number" step="0.01" min="0" id="sfRateEquipLower"></div>
+          <div class="col-sm-3"><label class="flabel" for="sfRateEquipUpper">อุปกรณ์ ม.ปลาย (บาท/คน/ภาค)</label><input class="inp num" type="number" step="0.01" min="0" id="sfRateEquipUpper"></div>
+          <div class="col-sm-3"><label class="flabel" for="sfRateUniformLower">เครื่องแบบ ม.ต้น (บาท/คน/ปี)</label><input class="inp num" type="number" step="0.01" min="0" id="sfRateUniformLower"></div>
+          <div class="col-sm-3"><label class="flabel" for="sfRateUniformUpper">เครื่องแบบ ม.ปลาย (บาท/คน/ปี)</label><input class="inp num" type="number" step="0.01" min="0" id="sfRateUniformUpper"></div>
+          <div class="col-sm-3"><label class="flabel" for="sfPerdiemRate">ค่าเบี้ยเลี้ยง (บาท/วัน/คน)</label><input class="inp num" type="number" step="0.01" min="0" id="sfPerdiemRate"></div>
+          <div class="col-sm-3"><label class="flabel" for="sfLodgeRate">ค่าที่พัก (บาท/วัน/คน)</label><input class="inp num" type="number" step="0.01" min="0" id="sfLodgeRate"></div>
+          <div class="col-sm-6"><label class="flabel" for="sfPayDeadlineEquip">วันสุดท้ายรับค่าอุปกรณ์ (ว่าง = ไม่กำหนด)</label><input class="inp" type="date" id="sfPayDeadlineEquip"></div>
+          <div class="col-sm-6"><label class="flabel" for="sfPayDeadlineUniform">วันสุดท้ายรับค่าเครื่องแบบ (ว่าง = ไม่กำหนด)</label><input class="inp" type="date" id="sfPayDeadlineUniform"></div>
+        </div>
+      </div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>ยอดยกมาต้นปีงบ</h3>
+          <select class="sel" id="sfOpenFy" aria-label="ปีงบประมาณ"></select></div>
+        <div class="row g-3 p-3 pt-0" id="sfOpenList"></div>
+        <div class="px-3 pb-3"><button class="btnx sec" id="btnSfOpenSave">บันทึกยอดยกมา</button></div>
+      </div>
+    </section>
+
+    <!-- ผู้ใช้และสิทธิ์ -->
+    <section class="page" id="page-users">
+      <div class="page-head">
+        <div>
+          <h1>ผู้ใช้และสิทธิ์</h1>
+          <div class="sub">กำหนดสิทธิ์ ผู้บริหาร / การเงิน / บัญชี / ครูที่ปรึกษา / แอดมิน ตรวจสิทธิ์ด้วยอีเมลผู้เข้าใช้งาน</div>
+        </div>
+        <div class="controls"><button class="btnx pri" id="btnUsAdd"></button></div>
+      </div>
+      <div class="cardx mb-grid">
+        <div class="table-responsive"><table class="tbl" id="usList"></table></div>
+      </div>
+    </section>
+
+    <!-- พิมพ์ / ส่งออกเอกสาร -->
+    <section class="page" id="page-print">
+      <div class="page-head">
+        <div>
+          <h1>พิมพ์ / ส่งออกเอกสาร</h1>
+          <div class="sub">รวมทางลัดเอกสารทุกชนิดในระบบไว้ที่เดียว · กด "บันทึก PDF ลง Drive" ที่แถบท้ายจอได้ทุกครั้งหลังพิมพ์เอกสารใดก็ได้</div>
+        </div>
+      </div>
+      <div id="prNotice"></div>
+      <div id="prCatalog"></div>
+      <div class="cardx mb-grid">
+        <div class="card-h"><h3>ประวัติการพิมพ์ / บันทึก PDF ล่าสุด</h3></div>
+        <div class="table-responsive"><table class="tbl" id="prHistory"></table></div>
+      </div>
+    </section>
+
+    <!-- หน้าเมนูอื่น (สร้างโดย JS) -->
+    <div id="otherPages"></div>
+  </main>
+
+  <!-- ===== หน้าต่างนำเข้าตารางเดิม ===== -->
+  <div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px">นำเข้าตารางจัดสรรเดิม</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <p class="muted small-x mb-2">อ่านตาราง "ครั้งที่ / โอน" ของแต่ละภาคเรียน แล้วบันทึกเป็นหนังสือจัดสรร เงินเข้าบัญชี และรายจ่ายที่โอนให้นักเรียนแล้ว
+            ถ้าเคยนำเข้าชีตเดียวกันมาก่อน ระบบจะแทนที่ข้อมูลชุดเดิม (ข้อมูลที่บันทึกเองไม่ถูกลบ)</p>
+          <label class="form-label small-x fw-semibold" for="impNames">ชื่อชีต (คั่นด้วยจุลภาค)</label>
+          <input class="form-control" id="impNames" value="ปีงบ68, ปีงบ69" style="min-height:44px">
+          <div class="form-text">ถ้าตารางอยู่คนละไฟล์ ให้ใส่ ID สเปรดชีตในชีต Settings → legacySpreadsheetId</div>
+          <div id="impResult" class="mt-3 small-x"></div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button class="btnx sec" data-bs-dismiss="modal">ปิด</button>
+          <button class="btnx pri" id="btnDoImport">นำเข้า</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== เพิ่ม/แก้ไขกิจกรรม ===== -->
+  <div class="modal fade" id="actModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px" id="actModalTitle">เพิ่มกิจกรรม/โครงการ</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="fActId">
+          <div class="row g-3">
+            <div class="col-sm-3"><label class="flabel" for="fActCode">รหัส</label><input class="inp" id="fActCode" placeholder="เช่น 1.2"></div>
+            <div class="col-sm-9"><label class="flabel" for="fActName">ชื่อกิจกรรม/โครงการ *</label><input class="inp" id="fActName"></div>
+            <div class="col-sm-6"><label class="flabel" for="fActDept">กลุ่มงาน / กลุ่มสาระ</label><input class="inp" id="fActDept" list="deptList"><datalist id="deptList"></datalist></div>
+            <div class="col-sm-6"><label class="flabel" for="fActOwner">ผู้รับผิดชอบ</label><input class="inp" id="fActOwner"></div>
+          </div>
+          <div class="flabel mt-3 mb-2">ใช้งบจากรายการเงินไหน เท่าไร (บาท)</div>
+          <div id="fActFunds" class="fund-inputs"></div>
+          <div class="d-flex justify-content-between align-items-center mt-2 small-x">
+            <span class="muted">ใส่เฉพาะรายการเงินที่ใช้ ใช้ได้หลายรายการ</span>
+            <span>รวม <b class="num" id="fActTotal">0.00</b> บาท</span>
+          </div>
+          <div class="row g-3 mt-1">
+            <div class="col-sm-4"><label class="flabel" for="fActStatus">สถานะ</label>
+              <select class="inp" id="fActStatus"><option value="active">ดำเนินการ</option><option value="done">เสร็จสิ้น</option><option value="cancelled">ยกเลิก</option></select></div>
+            <div class="col-sm-8"><label class="flabel" for="fActNote">หมายเหตุ</label><input class="inp" id="fActNote"></div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button class="btnx sec" data-bs-dismiss="modal">ยกเลิก</button>
+          <button class="btnx pri" id="btnSaveAct">บันทึก</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ตัดงบ ===== -->
+  <div class="modal fade" id="cutModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <div><h3 class="modal-title" style="font-size:18px">ตัดงบกิจกรรม</h3><div class="muted small-x" id="cutActName"></div></div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="fCutAct"><input type="hidden" id="fCutId">
+          <label class="flabel">ตัดจากรายการเงิน</label>
+          <div id="fCutFunds" class="cut-funds"></div>
+          <div class="row g-3 mt-1">
+            <div class="col-6"><label class="flabel" for="fCutDate">วันที่จ่าย *</label><input class="inp" type="date" id="fCutDate"></div>
+            <div class="col-6"><label class="flabel" for="fCutAmt">จำนวนเงิน (บาท) *</label><input class="inp num" type="number" step="0.01" min="0" id="fCutAmt"></div>
+            <div class="col-12"><label class="flabel" for="fCutDesc">รายการที่จ่าย *</label><input class="inp" id="fCutDesc" placeholder="เช่น ค่าวัสดุการเรียนการสอน"></div>
+            <div class="col-6"><label class="flabel" for="fCutVoucher">เลขที่ฎีกา / บจ.</label><input class="inp" id="fCutVoucher"></div>
+            <div class="col-6"><label class="flabel" for="fCutPayee">ผู้รับเงิน</label><input class="inp" id="fCutPayee"></div>
+            <div class="col-12"><label class="flabel" for="fCutNote">หมายเหตุ</label><input class="inp" id="fCutNote"></div>
+          </div>
+          <div class="small-x mt-2" id="fCutHint"></div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button class="btnx sec" data-bs-dismiss="modal">ยกเลิก</button>
+          <button class="btnx pri" id="btnSaveCut">บันทึกตัดงบ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== รายละเอียดกิจกรรม ===== -->
+  <div class="modal fade" id="actDetail" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <div><h3 class="modal-title" style="font-size:18px" id="dtTitle"></h3><div class="muted small-x" id="dtSub"></div></div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body" id="dtBody"></div>
+        <div class="modal-footer border-0 pt-0" id="dtFoot"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== นำเข้ารายชื่อนักเรียน ===== -->
+  <div class="modal fade" id="stImportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px">นำเข้ารายชื่อนักเรียนจาก DMC</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-sm-4"><label class="flabel" for="impYear">ปีการศึกษา</label><input class="inp" id="impYear" type="number"></div>
+            <div class="col-sm-8"><label class="flabel" for="impFile">ไฟล์จาก DMC (.xlsx / .csv)</label><input class="inp" id="impFile" type="file" accept=".xlsx,.xls,.csv,.txt" style="padding-top:9px"></div>
+          </div>
+          <label class="flabel mt-3" for="impUrl">หรือวางลิงก์ Google Sheet ที่มีรายชื่อ (อ่านทุกชีต เช่น รายชื่อ ม.1 … ม.6)</label>
+          <div class="d-flex gap-2"><input class="inp" id="impUrl" placeholder="https://docs.google.com/spreadsheets/d/..."><button class="btnx sec" id="btnImpUrl">นำเข้าจากลิงก์</button></div>
+          <label class="flabel mt-3" for="impPaste">หรือคัดลอกตารางจาก Excel แล้ววางที่นี่ (รวมแถวหัวตาราง)</label>
+          <textarea class="inp" id="impPaste" rows="4" style="padding:10px 12px" placeholder="เลขประจำตัวนักเรียน	คำนำหน้า	ชื่อ	นามสกุล	ชั้น	ห้อง	เลขที่"></textarea>
+          <div class="small-x muted mt-1">ระบบหาคอลัมน์ให้เองจากหัวตาราง: เลขประจำตัวนักเรียน, คำนำหน้า, ชื่อ, นามสกุล (หรือ ชื่อ-นามสกุล), ชั้น, ห้อง, เลขที่</div>
+          <div id="impPreview" class="mt-3"></div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button class="btnx sec" data-bs-dismiss="modal">ยกเลิก</button>
+          <button class="btnx pri" id="btnStDoImport" disabled>นำเข้า</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- ===== พิมพ์บันทึกข้อความ ขออนุมัติจ่ายเงิน / รายงานการจ่ายเงิน (ค่าอุปกรณ์การเรียนฯ) ===== -->
+  <div class="modal fade" id="stMemoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px" id="stMemoTitle">พิมพ์บันทึกข้อความ</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-sm-6"><label class="flabel" for="fStMemoDate">วันที่หนังสือ</label><input class="inp" type="date" id="fStMemoDate"></div>
+            <div class="col-sm-6" id="fStXferWrap"><label class="flabel" for="fStXferDate">วันที่จะโอนเงินเข้าบัญชี</label><input class="inp" type="date" id="fStXferDate"></div>
+            <div class="col-sm-6"><label class="flabel" for="fStAsOf">ข้อมูล ณ วันที่ (ท้ายตาราง)</label><input class="inp" type="date" id="fStAsOf"></div>
+            <div class="col-sm-6 d-flex align-items-end">
+              <label class="d-inline-flex align-items-center gap-2" style="min-height:44px"><input type="checkbox" id="fStThaiNum" checked style="width:18px;height:18px"> ใช้เลขไทยในบันทึกข้อความ</label>
+            </div>
+          </div>
+          <div class="small-x muted mt-3" id="stMemoHint"></div>
+        </div>
+        <div class="modal-footer border-0 pt-0 justify-content-between">
+          <button class="btnx sec" id="btnStMemoOld">ตารางสรุป (แบบเดิม)</button>
+          <button class="btnx pri" id="btnStMemoPrint">พิมพ์บันทึกข้อความ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="printDoc" class="print-doc"></div>
+  <div id="printSaveBar" class="print-save-bar no-print">
+    <span id="printSaveBarText"></span>
+    <button class="btnx sec sm" id="btnPrintSaveDrive">บันทึก PDF ลง Drive</button>
+    <button class="btnx icon sm" id="btnPrintSaveClose" title="ปิด" aria-label="ปิด">×</button>
+  </div>
+
+  <!-- ===== เพิ่ม/แก้ไขงวดจัดสรร ===== -->
+  <div class="modal fade" id="alModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px" id="alModalTitle">เพิ่มงวดจัดสรร</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="fAlId">
+          <div class="row g-3">
+            <div class="col-sm-3"><label class="flabel" for="fAlTerm">ภาคเรียน</label><select class="inp" id="fAlTerm"></select></div>
+            <div class="col-sm-2"><label class="flabel" for="fAlRound">ครั้งที่</label><input class="inp" type="number" min="1" id="fAlRound"></div>
+            <div class="col-sm-3"><label class="flabel" for="fAlDoc">เลขที่หนังสือ</label><input class="inp" id="fAlDoc" placeholder="เช่น ว5805"></div>
+            <div class="col-sm-4"><label class="flabel" for="fAlDate">วันที่หนังสือ</label><input class="inp" type="date" id="fAlDate"></div>
+            <div class="col-sm-4"><label class="flabel" for="fAlCount">จำนวนนักเรียน ณ วันที่</label><input class="inp" id="fAlCount" placeholder="เช่น 10 มิถุนายน 2569"></div>
+            <div class="col-sm-2"><label class="flabel" for="fAlLower">ม.ต้น (คน)</label><input class="inp num" type="number" min="0" id="fAlLower"></div>
+            <div class="col-sm-2"><label class="flabel" for="fAlUpper">ม.ปลาย (คน)</label><input class="inp num" type="number" min="0" id="fAlUpper"></div>
+            <div class="col-sm-2"><label class="flabel" for="fAlTranche">ร้อยละที่โอน</label><input class="inp" id="fAlTranche" placeholder="70 / 30"></div>
+            <div class="col-sm-2"><label class="flabel" for="fAlStatus">สถานะ</label><select class="inp" id="fAlStatus"><option value="ok">ตรวจแล้ว</option><option value="รอตรวจ">รอตรวจ</option></select></div>
+          </div>
+          <div class="flabel mt-3 mb-2">จำนวนเงินที่ได้รับจัดสรร (บาท)</div>
+          <div id="fAlFunds" class="fund-inputs"></div>
+          <div class="d-flex justify-content-between align-items-center mt-2 small-x">
+            <label class="d-inline-flex align-items-center gap-2"><input type="checkbox" id="fAlRec" checked style="width:18px;height:18px"> เงินเข้าบัญชีแล้วตามยอดนี้ วันที่
+              <input class="inp" type="date" id="fAlRecDate" style="width:auto;min-height:34px"></label>
+            <span>รวม <b class="num" id="fAlTotal">0.00</b> บาท</span>
+          </div>
+          <div class="mt-3"><label class="flabel" for="fAlNote">หมายเหตุ</label><input class="inp" id="fAlNote"></div>
+        </div>
+        <div class="modal-footer border-0 pt-0 justify-content-between">
+          <button class="btnx sec" id="btnAlDel" style="color:var(--bad);border-color:var(--bad)">ลบงวดนี้</button>
+          <div class="d-flex gap-2"><button class="btnx sec" data-bs-dismiss="modal">ยกเลิก</button><button class="btnx pri" id="btnAlSave">บันทึก</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="rfModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px" id="rfModalTitle">เพิ่มรายการเงินเหลือจ่าย</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="fRfId">
+          <div class="row g-3">
+            <div class="col-sm-7"><label class="flabel" for="fRfFund">ประเภทเงิน</label><select class="inp" id="fRfFund"></select></div>
+            <div class="col-sm-5"><label class="flabel" for="fRfAmt">จำนวนเงิน (บาท)</label><input class="inp num" type="number" step="0.01" min="0" id="fRfAmt"></div>
+            <div class="col-12"><label class="flabel" for="fRfNote">รายละเอียด / สาเหตุ</label><input class="inp" id="fRfNote" placeholder="เช่น เงินค่าหนังสือเหลือจากการจัดซื้อ"></div>
+            <div class="col-sm-5"><label class="flabel" for="fRfStatus">สถานะ</label><select class="inp" id="fRfStatus"></select></div>
+            <div class="col-sm-3"><label class="flabel" for="fRfDoc">เลขที่หนังสือ</label><input class="inp" id="fRfDoc"></div>
+            <div class="col-sm-4"><label class="flabel" for="fRfDate">วันที่ส่งคืน</label><input class="inp" type="date" id="fRfDate"></div>
+            <div class="col-12"><label class="flabel" for="fRfUrl">ลิงก์หลักฐาน (ใบนำส่ง/สลิป)</label><input class="inp" id="fRfUrl" placeholder="https://drive.google.com/..."></div>
+          </div>
+          <div class="small-x muted mt-2" id="fRfHint"></div>
+        </div>
+        <div class="modal-footer border-0 pt-0 justify-content-between">
+          <button class="btnx sec" id="btnRfDel" style="color:var(--bad);border-color:var(--bad)">ลบรายการ</button>
+          <div class="d-flex gap-2"><button class="btnx sec" data-bs-dismiss="modal">ยกเลิก</button><button class="btnx pri" id="btnRfSave">บันทึก</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== เพิ่ม/แก้ไขรายการบัญชี ===== -->
+  <div class="modal fade" id="acModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px" id="acModalTitle">เพิ่มรายการบัญชี</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="fAcId">
+          <div class="row g-3">
+            <div class="col-sm-6"><label class="flabel" for="fAcType">ประเภท</label>
+              <select class="inp" id="fAcType"><option value="receipt">เงินเข้า</option><option value="expense">รายจ่าย</option></select></div>
+            <div class="col-sm-6"><label class="flabel" for="fAcDate">วันที่ *</label><input class="inp" type="date" id="fAcDate"></div>
+            <div class="col-sm-7"><label class="flabel" for="fAcFund">รายการเงิน *</label><select class="inp" id="fAcFund"></select></div>
+            <div class="col-sm-5"><label class="flabel" for="fAcAmt">จำนวนเงิน (บาท) *</label><input class="inp num" type="number" step="0.01" min="0" id="fAcAmt"></div>
+            <div class="col-sm-6"><label class="flabel" for="fAcRef">เลขที่อ้างอิง</label><input class="inp" id="fAcRef" placeholder="เลขที่ทะเบียนคุมเงิน / เอกสาร"></div>
+            <div class="col-sm-6"><label class="flabel" for="fAcNote">หมายเหตุ</label><input class="inp" id="fAcNote"></div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0 justify-content-between">
+          <button class="btnx sec" id="btnAcDel" style="color:var(--bad);border-color:var(--bad)">ลบรายการ</button>
+          <div class="d-flex gap-2"><button class="btnx sec" data-bs-dismiss="modal">ยกเลิก</button><button class="btnx pri" id="btnAcSave">บันทึก</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== นำเข้ารายการบัญชี ===== -->
+  <div class="modal fade" id="acImportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px">นำเข้ารายการฝ่ายบัญชี</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-sm-6"><label class="flabel" for="acImpType">ประเภท</label>
+              <select class="inp" id="acImpType"><option value="receipt">เงินเข้า</option><option value="expense">รายจ่าย</option></select></div>
+            <div class="col-sm-6"><label class="flabel" for="acImpFile">ไฟล์ (.xlsx / .csv)</label><input class="inp" id="acImpFile" type="file" accept=".xlsx,.xls,.csv,.txt" style="padding-top:9px"></div>
+          </div>
+          <label class="flabel mt-3" for="acImpPaste">หรือคัดลอกตารางจาก Excel แล้ววางที่นี่ (รวมแถวหัวตาราง)</label>
+          <textarea class="inp" id="acImpPaste" rows="4" style="padding:10px 12px" placeholder="วันที่	รายการเงิน	จำนวนเงิน	เลขที่อ้างอิง	หมายเหตุ"></textarea>
+          <div class="small-x muted mt-1">ระบบหาคอลัมน์ให้เองจากหัวตาราง: วันที่, รายการเงิน (รหัสหรือชื่อ), จำนวนเงิน, เลขที่อ้างอิง, หมายเหตุ</div>
+          <div id="acImpPreview" class="mt-3"></div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button class="btnx sec" data-bs-dismiss="modal">ยกเลิก</button>
+          <button class="btnx pri" id="btnAcDoImport" disabled>นำเข้า</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== บันทึกเหตุผลผลต่าง (กระทบยอด) ===== -->
+  <div class="modal fade" id="rcModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px">บันทึกเหตุผลของผลต่าง</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <div class="small-x muted mb-2" id="rcModalSub"></div>
+          <div class="row g-3">
+            <div class="col-6"><label class="flabel">การเงิน</label><div class="num" id="rcModalFin" style="font-weight:700"></div></div>
+            <div class="col-6"><label class="flabel">บัญชี</label><div class="num" id="rcModalAcc" style="font-weight:700"></div></div>
+            <div class="col-12"><label class="flabel">ผลต่าง</label><div class="num" id="rcModalDiff" style="font-weight:700"></div></div>
+            <div class="col-12"><label class="flabel" for="fRcReason">เหตุผล</label>
+              <textarea class="inp" id="fRcReason" rows="3" style="padding:10px 12px" placeholder="เช่น รอโอนเงินเข้าบัญชี, บันทึกฝ่ายบัญชียังไม่ครบ"></textarea></div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button class="btnx sec" data-bs-dismiss="modal">ยกเลิก</button>
+          <button class="btnx pri" id="btnRcSave">บันทึก</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== เพิ่ม/แก้ไขผู้ใช้ ===== -->
+  <div class="modal fade" id="usModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px" id="usModalTitle">เพิ่มผู้ใช้</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="fUsIsNew">
+          <div class="row g-3">
+            <div class="col-12"><label class="flabel" for="fUsEmail">อีเมล *</label><input class="inp" type="email" id="fUsEmail" placeholder="name@school.ac.th"></div>
+            <div class="col-12"><label class="flabel" for="fUsName">ชื่อ-นามสกุล</label><input class="inp" id="fUsName"></div>
+            <div class="col-sm-7"><label class="flabel" for="fUsRole">บทบาท</label><select class="inp" id="fUsRole"></select></div>
+            <div class="col-sm-5 d-flex align-items-end">
+              <label class="d-inline-flex align-items-center gap-2" style="min-height:44px"><input type="checkbox" id="fUsActive" checked style="width:18px;height:18px"> ใช้งานอยู่</label>
+            </div>
+            <div class="col-12" id="fUsRoomsWrap"><label class="flabel" for="fUsRooms">ห้องที่รับผิดชอบ (ครูที่ปรึกษา, คั่นด้วยจุลภาค — ว่าง = ทุกห้อง)</label>
+              <input class="inp" id="fUsRooms" placeholder="เช่น ม.1/1, ม.1/2"></div>
+            <div class="col-12"><label class="flabel" for="fUsNote">หมายเหตุ</label><input class="inp" id="fUsNote"></div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0 justify-content-between">
+          <button class="btnx sec" id="btnUsDel" style="color:var(--bad);border-color:var(--bad)">ลบผู้ใช้</button>
+          <div class="d-flex gap-2"><button class="btnx sec" data-bs-dismiss="modal">ยกเลิก</button><button class="btnx pri" id="btnUsSave">บันทึก</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== เพิ่ม/แก้ไขเงินเข้าบัญชี ===== -->
+  <div class="modal fade" id="rpModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px" id="rpModalTitle">เพิ่มรายการเงินเข้า</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="fRpId">
+          <div class="row g-3">
+            <div class="col-12"><label class="flabel" for="fRpAlloc">อ้างอิงหนังสือจัดสรร (ไม่บังคับ)</label><select class="inp" id="fRpAlloc"></select></div>
+            <div class="col-sm-6" id="fRpTermWrap"><label class="flabel" for="fRpTerm">ภาคเรียน</label><select class="inp" id="fRpTerm"></select></div>
+            <div class="col-sm-6"><label class="flabel" for="fRpDate">วันที่เงินเข้า *</label><input class="inp" type="date" id="fRpDate"></div>
+            <div class="col-sm-7"><label class="flabel" for="fRpFund">รายการเงิน *</label><select class="inp" id="fRpFund"></select></div>
+            <div class="col-sm-5"><label class="flabel" for="fRpAmt">จำนวนเงิน (บาท) *</label><input class="inp num" type="number" step="0.01" min="0" id="fRpAmt"></div>
+            <div class="col-sm-6"><label class="flabel" for="fRpRef">เลขที่อ้างอิง</label><input class="inp" id="fRpRef" placeholder="เลขที่ใบนำฝาก/รายการธนาคาร"></div>
+            <div class="col-sm-6"><label class="flabel" for="fRpNote">หมายเหตุ</label><input class="inp" id="fRpNote"></div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0 justify-content-between">
+          <button class="btnx sec" id="btnRpDel" style="color:var(--bad);border-color:var(--bad)">ลบรายการ</button>
+          <div class="d-flex gap-2"><button class="btnx sec" data-bs-dismiss="modal">ยกเลิก</button><button class="btnx pri" id="btnRpSave">บันทึก</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== เพิ่ม/แก้ไขรายจ่าย ===== -->
+  <div class="modal fade" id="exModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px" id="exModalTitle">เพิ่มรายจ่าย</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="fExId">
+          <div class="row g-3">
+            <div class="col-sm-6"><label class="flabel" for="fExTerm">ภาคเรียน</label><select class="inp" id="fExTerm"></select></div>
+            <div class="col-sm-6"><label class="flabel" for="fExDate">วันที่จ่าย *</label><input class="inp" type="date" id="fExDate"></div>
+            <div class="col-sm-7"><label class="flabel" for="fExFund">รายการเงิน *</label><select class="inp" id="fExFund"></select></div>
+            <div class="col-sm-5"><label class="flabel" for="fExAmt">จำนวนเงิน (บาท) *</label><input class="inp num" type="number" step="0.01" min="0" id="fExAmt"></div>
+            <div class="col-12"><label class="flabel" for="fExDesc">รายการที่จ่าย *</label><input class="inp" id="fExDesc" placeholder="เช่น ค่าวัสดุการเรียนการสอน"></div>
+            <div class="col-sm-4"><label class="flabel" for="fExVoucher">เลขที่ฎีกา</label><input class="inp" id="fExVoucher"></div>
+            <div class="col-sm-4"><label class="flabel" for="fExCheque">เลขที่เช็ค</label><input class="inp" id="fExCheque"></div>
+            <div class="col-sm-4"><label class="flabel" for="fExProject">โครงการ/รายการ</label><input class="inp" id="fExProject"></div>
+            <div class="col-sm-6"><label class="flabel" for="fExPayee">ผู้รับเงิน</label><input class="inp" id="fExPayee"></div>
+            <div class="col-sm-6"><label class="flabel" for="fExNote">หมายเหตุ</label><input class="inp" id="fExNote"></div>
+          </div>
+          <div class="small-x mt-2" id="fExHint"></div>
+        </div>
+        <div class="modal-footer border-0 pt-0 justify-content-between">
+          <button class="btnx sec" id="btnExDel" style="color:var(--bad);border-color:var(--bad)">ลบรายการ</button>
+          <div class="d-flex gap-2"><button class="btnx sec" data-bs-dismiss="modal">ยกเลิก</button><button class="btnx pri" id="btnExSave">บันทึก</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== แก้ไขยอดคงเหลือ 25 รายการ (Hybrid) ===== -->
+  <div class="modal fade" id="b25Modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px" id="b25ModalTitle">ยอดคงเหลือประเภทเงิน</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body" id="b25Body"></div>
+        <div class="modal-footer border-0 pt-0">
+          <button class="btnx sec" data-bs-dismiss="modal">ปิด</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== แจ้งโอนเงิน KTB: เพิ่ม/แก้ไขรายการ ===== -->
+  <div class="modal fade" id="ktModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px" id="ktModalTitle">เพิ่มรายการโอนเงิน</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="fKtId"><input type="hidden" id="fKtBatchId">
+          <div class="row g-3">
+            <div class="col-sm-6"><label class="flabel" for="fKtBankAcc">บัญชีปลายทาง (ธนาคาร / เลขบัญชี) *</label>
+              <input class="inp" id="fKtBankAcc" list="ktBankList" placeholder="เช่น ธนาคารกรุงไทย"><datalist id="ktBankList"></datalist></div>
+            <div class="col-sm-6"><label class="flabel" for="fKtBal25">ตัดยอดจากประเภทเงิน (25 รายการ) *</label><select class="inp" id="fKtBal25"></select></div>
+            <div class="col-12"><label class="flabel" for="fKtAct">งบกิจกรรม/โครงการ (ถ้ามี)</label><select class="inp" id="fKtAct"></select></div>
+            <div class="col-sm-6"><label class="flabel" for="fKtCat">หมวดรายจ่ายนำหน้า</label><select class="inp" id="fKtCat"></select></div>
+            <div class="col-sm-6"><label class="flabel" for="fKtItemName">ชื่อกิจกรรม/รายการ (ต่อท้าย -)</label><input class="inp" id="fKtItemName"></div>
+            <div class="col-12"><label class="flabel" for="fKtItemPreview">รายการ (แสดงในตาราง)</label><input class="inp" id="fKtItemPreview" readonly></div>
+            <div class="col-sm-8"><label class="flabel" for="fKtName">ชื่อ-สกุล / หน่วยงาน</label>
+              <input class="inp" id="fKtName" list="ktNameList"><datalist id="ktNameList"></datalist></div>
+            <div class="col-sm-4"><label class="flabel" for="fKtAmt">จำนวนเงิน (บาท) *</label><input class="inp num" type="number" step="0.01" min="0" id="fKtAmt"></div>
+            <div class="col-12">
+              <label class="d-inline-flex align-items-center gap-2 small-x"><input type="checkbox" id="fKtGroup" style="width:18px;height:18px"> โอนแบบกลุ่ม (ระบุจำนวนราย + รายชื่อย่อย)</label>
+            </div>
+            <div class="col-12" id="fKtGroupWrap" style="display:none">
+              <label class="flabel" for="fKtGroupNames">รายชื่อย่อย (บรรทัดละ 1 ชื่อ — วางจาก Excel ได้)</label>
+              <textarea class="inp" id="fKtGroupNames" rows="4" style="padding:10px 12px"></textarea>
+            </div>
+            <div class="col-12" id="fKtLoanWrap" style="display:none">
+              <div class="badbox small-x">หมวด "ลูกหนี้เงินยืม" — จะขึ้นสถานะ "รอส่งใช้เงินยืม" นับถอยหลัง 30 วันจากวันโอน และเชื่อมกับเมนู ขอยืม-ขอเบิก/พิมพ์เอกสาร</div>
+            </div>
+            <div class="col-12"><label class="flabel" for="fKtNote">หมายเหตุ</label><input class="inp" id="fKtNote"></div>
+          </div>
+          <div id="fKtBatchPasteWrap">
+          <hr>
+          <div class="small-x muted mb-1">ใช้บัญชีปลายทางและประเภทเงินที่เลือกด้านบน</div>
+          <label class="flabel" for="fKtBatchPaste">วางข้อมูลจาก Excel หลายรายการพร้อมกัน (รายการ / ชื่อ-สกุล / จำนวนเงิน คั่นด้วย Tab ต่อบรรทัด)</label>
+          <textarea class="inp" id="fKtBatchPaste" rows="4" style="padding:10px 12px" placeholder="ค่าตอบแทน - อบรมครู	นายสมชาย ใจดี	1500"></textarea>
+          <button class="btnx sec sm mt-2" id="btnKtBatchAdd">เพิ่มจากที่วาง</button>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0 justify-content-between">
+          <button class="btnx sec" id="btnKtDel" style="color:var(--bad);border-color:var(--bad)">ลบรายการ</button>
+          <div class="d-flex gap-2"><button class="btnx sec" data-bs-dismiss="modal">ยกเลิก</button><button class="btnx pri" id="btnKtSave">บันทึก</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ดูรายชื่อย่อย (โอนแบบกลุ่ม) ===== -->
+  <div class="modal fade" id="ktGroupView" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px">รายชื่อย่อย</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body" id="ktGroupBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== สัญญายืมเงิน / ขอเบิกเงิน (กรอกข้อมูล → แสดงผลเป็นเอกสาร) ===== -->
+  <div class="modal fade dc2m" id="dcModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <div class="d-flex flex-column gap-1">
+            <button type="button" class="dc2-back" data-bs-dismiss="modal">‹ สัญญายืม ส่งคืน เบิก</button>
+            <h3 class="modal-title" id="dcModalTitle">สร้างสัญญายืมเงิน</h3>
+            <ol class="dc2-steps" aria-label="ขั้นตอน"><li class="on"><span>1</span>กรอกข้อมูล</li><li><span>2</span>ดูเอกสาร แล้วพิมพ์</li></ol>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="fDcId">
+          <datalist id="dcTeacherList"></datalist><datalist id="dcPosList"></datalist><datalist id="dcLevelList"></datalist>
+          <datalist id="dcDeptList"></datalist><datalist id="dcActList"></datalist>
+          <select id="fDcKind" hidden><option value="travel">ยืมเงิน (เดินทางไปราชการ)</option><option value="loanAct">ยืมเงิน (จัดกิจกรรม/โครงการ)</option><option value="advance">ขอเบิกเงิน (จัดกิจกรรม/จัดซื้อ ไม่ยืม)</option><option value="advTravel">ขอเบิกค่าเดินทางไปราชการ (ไม่ยืม)</option></select>
+          <fieldset class="dc2-kinds" id="dcKinds"><legend id="dcKindsLegend">ยืมเพื่ออะไร</legend></fieldset>
+
+          <div class="dc2-grid">
+            <div class="dc2-main">
+              <div class="dc2-form" id="dcForm">
+                <div class="dc2-form-h"><h4 id="dcFormTitle">กรอกข้อมูล</h4><span id="dcFormHint"></span></div>
+
+                <div class="fx c3 due dc-loan-only">
+                  <div class="fc fin"><label for="fDcLoanNo">เลขที่สัญญา</label><input class="fi" id="fDcLoanNo" placeholder="เจ้าหน้าที่การเงินกรอก"></div>
+                  <div class="fc"><label for="fDcLoanDate">วันที่ยืม</label><input class="fi" type="date" id="fDcLoanDate"></div>
+                  <div class="fc"><label for="fDcLoanDue">วันครบกำหนด <span class="fpill">ไม่บังคับ</span></label><input class="fi" type="date" id="fDcLoanDue" title="เว้นว่างได้ เจ้าหน้าที่การเงินจะกรอกให้">
+                    <div class="fchips"><button type="button" class="chipbtn" data-due="30">+30 วัน (กิจกรรม)</button><button type="button" class="chipbtn" data-due="15">+15 วันหลังกลับ (ไปราชการ)</button><button type="button" class="chipbtn" data-due="0">ล้าง</button></div></div>
+                </div>
+
+                <div class="fsec"><span class="no">1</span><span id="dcSecPerson">ผู้ยืม</span></div>
+                <div class="fx c2">
+                  <div class="fc need-chk"><label for="fDcTeacher">ชื่อ-สกุล</label><input class="fi" id="fDcTeacher" list="dcTeacherList" autocomplete="off" placeholder="เลือกจากรายชื่อ หรือพิมพ์เอง"></div>
+                  <div class="fc"><label for="fDcPos">ตำแหน่ง</label><input class="fi" id="fDcPos" list="dcPosList" autocomplete="off" placeholder="เช่น ครู"></div>
+                  <div class="fc"><label for="fDcLevel">วิทยฐานะ</label><input class="fi" id="fDcLevel" list="dcLevelList" autocomplete="off" placeholder="ถ้ามี"></div>
+                  <div class="fc"><label for="fDcDept">กลุ่มสาระ / ฝ่าย / งาน</label><input class="fi" id="fDcDept" list="dcDeptList" autocomplete="off" placeholder="เลือก หรือพิมพ์เอง"></div>
+                </div>
+
+                <div class="fsec"><span class="no">2</span><span id="dcPurposeHead">ยืมเงินเพื่อ</span></div>
+                <div class="fx c1">
+                  <div class="fc need-chk"><label for="fDcPurpose" id="dcPurposeLabel">เพื่อเป็นค่าใช้จ่ายในการ</label><input class="fi" id="fDcPurpose" placeholder="ชื่อกิจกรรม หรือวัตถุประสงค์"></div>
+                </div>
+                <div class="fx c2 nt">
+                  <div class="fc"><label for="fDcAct">งบกิจกรรม / โครงการ</label><input class="fi" id="fDcAct" list="dcActList" autocomplete="off" placeholder="เลือกจากรายการงบของโรงเรียน"></div>
+                  <div class="fc"><label for="fDcOrderRef">ตามคำสั่ง / บันทึกที่อนุมัติ</label><input class="fi" id="fDcOrderRef" placeholder="เช่น 412/2569 ลงวันที่ 19 พฤษภาคม 2569"></div>
+                </div>
+                <div class="fx c4 nt">
+                  <div class="fc"><label for="fDcProvince">ณ (สถานที่)</label><input class="fi" id="fDcProvince"></div>
+                  <div class="fc"><label for="fDcFrom">ระหว่างวันที่</label><input class="fi" type="date" id="fDcFrom"></div>
+                  <div class="fc"><label for="fDcTo">ถึงวันที่</label><input class="fi" type="date" id="fDcTo"></div>
+                  <div class="fc"><label for="fDcPeople" id="dcPeopleLabel">จำนวนผู้เข้าร่วม (คน)</label><input class="fi num" type="number" min="1" id="fDcPeople" value="1"></div>
+                </div>
+                <div class="fx c4 nt dc-travel-only">
+                  <div class="fc"><label for="fDcDepartPlace">ออกเดินทางจาก</label><select class="fi" id="fDcDepartPlace"><option>บ้านพัก</option><option>สำนักงาน</option><option>ประเทศไทย</option></select></div>
+                  <div class="fc"><label for="fDcDepartAt">วัน-เวลาออกเดินทาง</label><input class="fi" type="datetime-local" id="fDcDepartAt"></div>
+                  <div class="fc"><label for="fDcReturnPlace">กลับถึง</label><select class="fi" id="fDcReturnPlace"><option>บ้านพัก</option><option>สำนักงาน</option><option>ประเทศไทย</option></select></div>
+                  <div class="fc"><label for="fDcReturnAt">วัน-เวลากลับถึง</label><input class="fi" type="datetime-local" id="fDcReturnAt"></div>
+                </div>
+
+                <div class="fsec"><span class="no">3</span><span>รายละเอียดค่าใช้จ่าย</span><span class="hint">ไม่มีราคาต่อหน่วย กรอกช่อง "เป็นเงิน" เอง</span></div>
+                <div class="fx c4 dc-travel-only">
+                  <div class="fc"><label for="fDcPerdiem">ค่าเบี้ยเลี้ยง (บาท/วัน/คน)</label><input class="fi num" type="number" step="0.01" min="0" id="fDcPerdiem"></div>
+                  <div class="fc"><label for="fDcPerdiemDays">จำนวนวัน (เบี้ยเลี้ยง)</label><input class="fi num" type="number" step="0.5" min="0" id="fDcPerdiemDays" value="1"></div>
+                  <div class="fc"><label for="fDcLodge">ค่าที่พัก (บาท/คืน/คน)</label><input class="fi num" type="number" step="0.01" min="0" id="fDcLodge"></div>
+                  <div class="fc"><label for="fDcLodgeDays">จำนวนคืน (ที่พัก)</label><input class="fi num" type="number" step="1" min="0" id="fDcLodgeDays" value="0"></div>
+                </div>
+                <div class="fx c3 nt dc-travel-only">
+                  <div class="fc" style="grid-column:span 2"><label for="fDcTransportRoutes">ค่าพาหนะ (บรรทัดละเส้นทาง: จาก...ถึง... | จำนวนเงิน)</label><textarea class="fi" id="fDcTransportRoutes" rows="2" placeholder="โรงเรียน ถึง ศาลากลางจังหวัดสงขลา | 300"></textarea></div>
+                  <div class="fc"><label for="fDcTransport">ค่าพาหนะรวม (บาท)</label><input class="fi num" type="number" step="0.01" min="0" id="fDcTransport"></div>
+                  <div class="fc" style="grid-column:span 2"><label for="fDcOtherDesc">ค่าใช้จ่ายอื่น (ค่าลงทะเบียน / ค่าน้ำมันเชื้อเพลิง)</label><input class="fi" id="fDcOtherDesc"></div>
+                  <div class="fc"><label for="fDcOtherAmt">จำนวนเงิน (บาท)</label><input class="fi num" type="number" step="0.01" min="0" id="fDcOtherAmt"></div>
+                </div>
+                <div class="flabel mt-2" id="dcItemsLabel">รายการค่าใช้จ่าย</div>
+                <div id="dcItemsUI"></div><textarea id="fDcItems" hidden></textarea>
+                <div class="d-none"><select id="fDcFund"></select><input type="number" id="fDcAttach"><input id="fDcAmt"></div>
+
+                <div class="fx c3 mt-3">
+                  <div class="fc"><label for="fDcDocDate">วันที่ลงในเอกสาร</label><input class="fi" type="date" id="fDcDocDate"></div>
+                </div>
+                <details class="dc2-more"><summary>ข้อมูลเพิ่มเติม (ไม่บังคับ) — ที่อยู่ผู้รับเงิน, หมายเหตุ</summary>
+                  <div class="fx c1 mt-2">
+                    <div class="fc"><label for="fDcAddress">ที่อยู่ผู้รับเงิน</label><input class="fi" id="fDcAddress" placeholder="บ้านเลขที่ ถนน ตำบล อำเภอ จังหวัด"></div>
+                    <div class="fc"><label for="fDcNote">หมายเหตุ</label><input class="fi" id="fDcNote"></div>
+                  </div>
+                </details>
+                <div class="d-flex justify-content-end mt-3"><button type="button" class="btnx pri" id="btnDcToDocs"></button></div>
+              </div>
+
+              <div class="dc2-docs" id="dcDocs">
+                <div class="dc2-docs-h"><div><b>เอกสารที่จะพิมพ์</b><span class="hint"><span class="mvv-key">พื้นสีฟ้า</span> = ข้อมูลที่กรอก (ตอนพิมพ์ไม่มีสี)</span></div>
+                  <button type="button" class="btnx sec sm" id="btnDcBackForm">แก้ไขข้อมูล</button></div>
+                <div class="dc2-blank" id="dcBlank"></div>
+                <nav class="dc2-tabs" id="dcDocTabs" aria-label="เอกสารในชุดนี้"></nav>
+                <div class="dc2-prev-bar"><b id="dcPrevTitle"></b><div class="d-flex gap-2 flex-wrap"><button type="button" class="btnx sec sm" id="btnDcPrevBlank"></button><button type="button" class="btnx pri sm" id="btnDcPrevPrint"></button></div></div>
+                <div class="mv-prev" id="dcPrev"></div>
+                <div class="small-x muted mt-2" id="dcPrevNote"></div>
+              </div>
+            </div>
+
+            <aside class="dc2-side">
+              <div class="dc2-box"><span class="muted small-x" id="dcSideTotalLbl">ยอดยืมทั้งสิ้น</span><div class="dc2-total"><b id="dcTotalPreview">0.00</b> บาท</div><div class="dc2-kv" id="dcSideDue"></div></div>
+              <div class="dc2-box dc2-miss" id="dcMiss"></div>
+              <div class="dc2-box d-flex flex-column gap-2">
+                <button class="btnx pri w-100" id="btnDcSave"></button>
+                <button class="btnx sec w-100" id="btnDcPrintNow"></button>
+                <button class="btnx sec w-100" id="btnDcChecklist"></button>
+                <span id="dcSaveHint" class="small-x muted text-center"></span>
+                <button class="btnx sec w-100" id="btnDcDel" style="color:var(--bad);border-color:var(--bad)">ลบรายการ</button>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== เลือกแบบฟอร์มพิมพ์ (10 แบบฟอร์ม) ===== -->
+  <div class="modal fade" id="dcPrintModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px">เช็คลิสต์เอกสาร + พิมพ์</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body" id="dcPrintBody"></div>
+      </div>
+    </div>
+  </div>
+  <!-- ===== ส่งคืนเงินยืม (กรอก → แสดงผลเป็นบันทึกข้อความ) ===== -->
+  <div class="modal fade dc2m" id="dcReturnModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <div class="d-flex flex-column gap-1">
+            <button type="button" class="dc2-back" data-bs-dismiss="modal">‹ สัญญายืม ส่งคืน เบิก</button>
+            <h3 class="modal-title">ส่งคืนเงินยืม (ล้างหนี้)</h3>
+            <ol class="dc2-steps green" aria-label="ขั้นตอน"><li class="on"><span>1</span>กรอกข้อมูล</li><li><span>2</span>ดูบันทึกข้อความ แล้วพิมพ์</li></ol>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="fDrReqId"><input type="hidden" id="fDrReceiptNo">
+          <div class="dc2-contract" id="dcDrInfo"></div>
+          <div class="dc2-grid">
+            <div class="dc2-main">
+              <div class="dc2-form green">
+                <div class="dc2-form-h"><h4>กรอกข้อมูลการส่งคืน</h4></div>
+                <div class="dc2-hist" id="dcDrHistWrap">
+                  <div class="flabel">รายการส่งใช้ที่บันทึกแล้ว <span class="muted" style="font-weight:400">(ลบเพื่อแก้ไขได้ แม้ล้างหนี้แล้ว)</span></div>
+                  <div class="table-responsive"><table class="tbl" id="dcDrHist"></table></div>
+                </div>
+                <div class="fsec"><span class="no">1</span><span>วันที่ส่งคืน</span></div>
+                <div class="fx c2">
+                  <div class="fc"><label for="fDrDate">วันที่ส่งคืน (ลงวันที่ในบันทึกข้อความ)</label><input class="fi" type="date" id="fDrDate"></div>
+                  <div class="fc auto"><label>สถานะกำหนดส่ง <span class="fpill">คำนวณให้</span></label><div class="fi ro" id="dcDrDue"></div></div>
+                </div>
+                <div class="fsec"><span class="no">2</span><span>หลักฐานการจ่าย</span>
+                  <button type="button" class="chipbtn ms-auto" id="btnDrCopy">คัดลอกรายการจากที่ยืม</button></div>
+                <div id="dcDrItemsUI"></div>
+                <div class="fsec"><span class="no">3</span><span>เงินสดเหลือจ่ายคืน</span></div>
+                <div class="fx c2">
+                  <div class="fc"><label for="fDrCash">เงินสดคืน (บาท)</label><input class="fi num" type="number" step="0.01" min="0" id="fDrCash"></div>
+                  <div class="fc auto"><label>ที่ควรคืน <span class="fpill">คำนวณให้</span></label><div class="fi ro" id="dcDrShould"></div></div>
+                </div>
+                <div class="dc2-sum" id="dcDrSum"></div>
+                <div class="d-flex justify-content-end mt-3"><button type="button" class="btnx pri green" id="btnDrToDocs"></button></div>
+              </div>
+              <div class="dc2-docs" id="dcDrDocs">
+                <div class="dc2-docs-h"><div><b>เอกสารที่จะพิมพ์</b><span class="hint"><span class="mvv-key">พื้นสีฟ้า</span> = ข้อมูลที่กรอก (ตอนพิมพ์ไม่มีสี)</span></div></div>
+                <div class="dc2-blank" id="dcDrBlank"></div>
+                <nav class="dc2-tabs" id="dcDrTabs" aria-label="เอกสารในชุดนี้"></nav>
+                <div class="dc2-prev-bar"><b id="dcDrPrevTitle"></b><div class="d-flex gap-2 flex-wrap"><button type="button" class="btnx sec sm" id="btnDrPrevBlank"></button><button type="button" class="btnx pri sm" id="btnDrPrevPrint"></button></div></div>
+                <div class="mv-prev" id="dcDrPrev"></div>
+              </div>
+            </div>
+            <aside class="dc2-side">
+              <div class="dc2-box" id="dcDrSide"></div>
+              <div class="dc2-box dc-chk" id="dcDrChk"></div>
+              <div class="dc2-box d-flex flex-column gap-2">
+                <button class="btnx pri green w-100" id="btnDrSave"></button>
+                <button class="btnx sec w-100" id="btnDrSavePrint"></button>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- ===== เอกสารส่งใช้เงินยืม (ล้างหนี้) — สัญญาที่ทำไว้นอกระบบ พิมพ์อย่างเดียว ===== -->
+  <div class="modal fade" id="dcManRetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+      <div class="modal-content" style="border-radius:16px">
+        <div class="modal-header border-0 pb-0">
+          <h3 class="modal-title" style="font-size:18px">ส่งคืนเงินยืม — เลือกสัญญา</h3>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+        </div>
+        <div class="modal-body">
+          <div class="dc-note mb-3" id="dcMrPickWrap"><b>สัญญาที่ยังค้างส่งคืน</b> — เลือกสัญญาแล้วไปกรอกการส่งคืนได้เลย:
+            <select class="inp mt-1" id="fMrPick" style="max-width:100%"></select></div>
+          <div class="dc-sec blue">
+            <div class="dc-sec-h"><span class="n">1</span>ข้อมูลผู้ยืม</div>
+            <div class="row g-3">
+              <div class="col-md-6"><label class="flabel" for="fMrName">ชื่อ-สกุล ผู้ยืม *</label><input class="inp" id="fMrName" list="dcTeacherList" autocomplete="off"></div>
+              <div class="col-md-6"><label class="flabel" for="fMrPos">ตำแหน่ง <span class="muted">(เลือกหรือพิมพ์เอง)</span></label><input class="inp" id="fMrPos" list="dcPosList" autocomplete="off" placeholder="เช่น ครู"></div>
+            </div>
+          </div>
+          <div class="dc-sec purple">
+            <div class="dc-sec-h"><span class="n">2</span>สัญญายืมเงินเดิม</div>
+            <div class="row g-3">
+              <div class="col-md-3"><label class="flabel" for="fMrNo">เลขที่สัญญา</label><input class="inp" id="fMrNo" placeholder="ระบุโดยเจ้าหน้าที่การเงิน"></div>
+              <div class="col-md-3"><label class="flabel" for="fMrLoanDate">ลงวันที่ (วันที่ยืม)</label><input class="inp" type="date" id="fMrLoanDate"></div>
+              <div class="col-md-3"><label class="flabel" for="fMrDue">กำหนดใช้คืนภายในวันที่</label><input class="inp" type="date" id="fMrDue"></div>
+              <div class="col-md-3"><label class="flabel" for="fMrAmt">จำนวนเงินที่ยืม (บาท) *</label><input class="inp num" type="number" step="0.01" min="0" id="fMrAmt"></div>
+              <div class="col-12"><div class="dc-note">ไปราชการ ส่งใช้ภายใน <b>15 วัน</b> นับจากวันกลับมาถึง · จัดกิจกรรม/โครงการ ส่งใช้ภายใน <b>30 วัน</b> นับจากวันที่ได้รับเงินยืม</div></div>
+            </div>
+          </div>
+          <div class="dc-sec green">
+            <div class="dc-sec-h"><span class="n">3</span>กิจกรรม/โครงการ</div>
+            <div class="row g-3">
+              <div class="col-12"><label class="flabel" for="fMrPurpose">ยืมเงินเพื่อเป็นค่าใช้จ่ายในการ (ชื่อกิจกรรม/วัตถุประสงค์) *</label><input class="inp" id="fMrPurpose"></div>
+              <div class="col-md-8"><label class="flabel" for="fMrAct">งบกิจกรรม/โครงการ</label><input class="inp" id="fMrAct" list="dcActList" autocomplete="off" placeholder="เลือกจากรายการ หรือพิมพ์ชื่อโครงการ"></div>
+              <div class="col-md-4"><label class="flabel" for="fMrDate">วันที่ส่งใช้ (ลงวันที่ในบันทึก)</label><input class="inp" type="date" id="fMrDate"></div>
+            </div>
+          </div>
+          <div class="dc-sec orange">
+            <div class="dc-sec-h"><span class="n">4</span>หลักฐานการจ่าย / เงินสดคืน</div>
+            <div class="row g-3">
+              <div class="col-12"><div class="flabel">หลักฐานการจ่าย (ตารางรายการ คำนวณอัตโนมัติ)</div>
+                <div id="dcMrItemsUI"></div><textarea id="fMrItems" hidden></textarea></div>
+              <div class="col-md-4"><label class="flabel" for="fMrCash">เงินสดเหลือจ่ายคืน (บาท)</label><input class="inp num" type="number" step="0.01" min="0" id="fMrCash"></div>
+              <input type="hidden" id="fMrReceiptNo">
+              <div class="col-12"><div class="dc-mr-sum" id="dcMrSum"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button class="btnx sec" data-bs-dismiss="modal">ปิด</button>
+          <button class="btnx sec" id="btnMrBack"></button>
+          <button class="btnx pri" id="btnMrMemo"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading" id="loading"><div class="spin" role="status" aria-label="กำลังโหลด"></div></div>
+  <div class="toastx" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <?!= include('JS'); ?>
+  <?!= include('LedgerUI'); ?>
+</body>
+</html>
