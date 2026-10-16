@@ -1,0 +1,121 @@
+/*******************************************************************
+ * Settings.gs — ตั้งค่า (เมนู 11) + ผู้ใช้และสิทธิ์ (เมนู 12)
+ * ----------------------------------------------------------------
+ * ทั้งสองเมนูจำกัดเฉพาะ admin (WRITE_ROLES.settings) และมองเห็นได้เฉพาะ admin
+ * (เพราะ 'settings'/'users' ไม่อยู่ใน pages ของบทบาทอื่นใน ROLES)
+ *******************************************************************/
+const SETTINGS_FIELDS = [
+  'schoolName', 'area', 'docPrefix',
+  'director', 'deputy', 'finOfficer', 'accOfficer',
+  'driveFolderId', 'garudaUrl', 'legacySpreadsheetId',
+  'rateEquipLower', 'rateEquipUpper', 'rateUniformLower', 'rateUniformUpper',
+  'payDeadline_EQUIP', 'payDeadline_UNIFORM'
+];
+ 
+/* ---------- ตั้งค่า ---------- */
+function getSettingsData(fy) {
+  const u = requirePage_('settings');
+  const s = getSettingsMap_();
+  fy = Number(fy) || fyOf_(todayIso_());
+  const funds = getFunds_();
+  const openings = funds.map(f => ({ code: f.code, name: f.name, short: f.short, color: f.color, value: num_(s['open_' + fy + '_' + f.code]) }));
+  const fields = {};
+  SETTINGS_FIELDS.forEach(k => { fields[k] = /^rate/.test(k) ? num_(s[k]) : String(s[k] || ''); });
+  return {
+    fy: fy, funds: funds, fields: fields, openings: openings,
+    canEdit: WRITE_ROLES.settings.indexOf(u.role) >= 0
+  };
+}
+ 
+/** บันทึกค่าตั้งค่าทั่วไป obj = { schoolName, area, docPrefix, director, ... } (อัปเดตเฉพาะคีย์ที่ส่งมา) */
+function saveSettings(obj) {
+  requireWrite_('settings');
+  obj = obj || {};
+  return withLock_(() => {
+    SETTINGS_FIELDS.forEach(k => {
+      if (!Object.prototype.hasOwnProperty.call(obj, k)) return;
+      const v = /^rate/.test(k) ? round2_(num_(obj[k])) : String(obj[k] == null ? '' : obj[k]).trim();
+      if (!updateObject_('Settings', k, { value: v })) appendObject_('Settings', { key: k, label: k, value: v });
+    });
+    audit_('update', 'Settings', '', obj);
+    return true;
+  });
+}
+ 
+/** บันทึกยอดยกมาต้นปีงบของรายการเงิน 1 รายการ */
+function saveOpeningBalance(fy, code, amount) {
+  requireWrite_('settings');
+  fy = Number(fy);
+  if (!fy) throw new Error('ไม่ระบุปีงบประมาณ');
+  if (!getFunds_().some(f => f.code === code)) throw new Error('รายการเงินไม่ถูกต้อง');
+  const key = 'open_' + fy + '_' + code;
+  const v = round2_(num_(amount));
+  return withLock_(() => {
+    if (!updateObject_('Settings', key, { value: v }))
+      appendObject_('Settings', { key: key, label: 'ยอดยกมาต้นปีงบ ' + fy + ' – ' + fundName_(code), value: v });
+    audit_('update', 'Settings', key, { value: v });
+    return v;
+  });
+}
+ 
+/* ---------- ผู้ใช้และสิทธิ์ ---------- */
+function getUsersData() {
+  const u = requirePage_('users');
+  const raw = readObjects_('Users');
+  const list = raw.map(r => ({
+    email: String(r.email || ''), name: String(r.name || ''), role: String(r.role || ''),
+    active: isTrue_(r.active), rooms: String(r.rooms || ''), note: String(r.note || '')
+  })).sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email, 'th'));
+  return {
+    list: list, roles: Object.keys(ROLES).map(k => ({ code: k, label: ROLES[k].label })),
+    me: u.email, canEdit: WRITE_ROLES.settings.indexOf(u.role) >= 0
+  };
+}
+ 
+/** เพิ่ม/แก้ไขผู้ใช้ obj:{email, isNew, name, role, active, rooms, note} */
+function saveUser(obj) {
+  const u = requireWrite_('settings');
+  obj = obj || {};
+  const email = String(obj.email || '').trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('อีเมลไม่ถูกต้อง');
+  if (!ROLES[obj.role]) throw new Error('บทบาทไม่ถูกต้อง');
+  const raw = readObjects_('Users');
+  const cur = raw.find(r => String(r.email).toLowerCase() === email);
+  if (obj.isNew && cur) throw new Error('มีอีเมลนี้อยู่แล้ว');
+  if (!obj.isNew && !cur) throw new Error('ไม่พบผู้ใช้นี้');
+  // กันไม่ให้ระบบไม่มี admin ที่ใช้งานอยู่เหลือเลย
+  if (cur && String(cur.role) === 'admin' && (obj.role !== 'admin' || !obj.active)) {
+    const otherAdmins = raw.filter(r => String(r.email).toLowerCase() !== email && String(r.role) === 'admin' && isTrue_(r.active));
+    if (!otherAdmins.length) throw new Error('ต้องมีผู้ดูแลระบบ (admin) ที่ใช้งานอยู่อย่างน้อย 1 คน');
+  }
+  const rec = {
+    email: email, name: String(obj.name || '').trim(), role: obj.role, active: !!obj.active,
+    rooms: String(obj.rooms || '').trim(), note: String(obj.note || '').trim()
+  };
+  return withLock_(() => {
+    if (cur) { updateObject_('Users', cur.email, rec); audit_('update', 'Users', email, rec); }
+    else { appendObject_('Users', rec); audit_('create', 'Users', email, rec); }
+    return true;
+  });
+}
+ 
+/** ลบผู้ใช้ (ลบตัวเอง หรือ admin คนสุดท้ายที่ใช้งานอยู่ไม่ได้) */
+function deleteUser(email) {
+  const u = requireWrite_('settings');
+  email = String(email || '').trim().toLowerCase();
+  if (email === u.email) throw new Error('ลบบัญชีตัวเองไม่ได้');
+  const raw = readObjects_('Users');
+  const cur = raw.find(r => String(r.email).toLowerCase() === email);
+  if (!cur) throw new Error('ไม่พบผู้ใช้นี้');
+  if (String(cur.role) === 'admin') {
+    const otherAdmins = raw.filter(r => String(r.email).toLowerCase() !== email && String(r.role) === 'admin' && isTrue_(r.active));
+    if (!otherAdmins.length) throw new Error('ต้องมีผู้ดูแลระบบ (admin) ที่ใช้งานอยู่อย่างน้อย 1 คน');
+  }
+  return withLock_(() => {
+    const n = deleteWhere_('Users', o => String(o.email).toLowerCase() === email);
+    if (!n) throw new Error('ไม่พบผู้ใช้นี้');
+    audit_('delete', 'Users', email, {});
+    return true;
+  });
+}
+ 
