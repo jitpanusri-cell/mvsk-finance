@@ -1,0 +1,92 @@
+/*******************************************************************
+ * Print.gs — ศูนย์รวมพิมพ์ / ส่งออกเอกสาร (เมนู "พิมพ์ / ส่งออกเอกสาร")
+ * ----------------------------------------------------------------
+ * ไม่ได้สร้างระบบพิมพ์ใหม่ซ้อนของเดิม — เอกสารทุกชนิดยังพิมพ์แบบ HTML จัดหน้าเหมือน
+ * แบบฟอร์มราชการจริงเหมือนเดิม (เร็ว แม่นยำ ไม่ต้องพึ่ง Google Docs Template ภายนอก)
+ * ไฟล์นี้เพิ่ม 3 อย่างที่ยังขาดตามสเปกเดิม (ข้อ 10):
+ *   1) แคตตาล็อกรวมทุกเอกสารในระบบไว้หน้าเดียว (getPrintCatalog) — จะได้ไม่ต้องจำว่า
+ *      เอกสารแต่ละชนิดอยู่เมนูไหน
+ *   2) บันทึกสำเนา PDF ของเอกสารที่เพิ่งพิมพ์ลง Google Drive อัตโนมัติได้ในคลิกเดียว
+ *      (ปุ่ม "บันทึก PDF ลง Drive" ที่ขึ้นทุกครั้งหลังกดพิมพ์ ทุกเมนูในระบบ)
+ *      เก็บในโฟลเดอร์ย่อย "เอกสารที่พิมพ์" ใต้ Settings.driveFolderId
+ *   3) ประวัติการพิมพ์/บันทึกทั้งหมดของทุกเมนู รวมไว้ที่เดียว (getPrintHistory)
+ *******************************************************************/
+
+/** แคตตาล็อกเอกสารทั้งหมดในระบบ — ทางลัดไปหน้าเมนูต้นทางที่มีปุ่มพิมพ์อยู่แล้ว */
+const PRINT_CATALOG = [
+  { group: 'หนังสือจัดสรร', page: 'allocation', items: [
+    { label: 'บันทึกข้อความ ขออนุมัติหนังสือจัดสรร', hint: 'เลือกงวดในตาราง แล้วกดปุ่ม "บันทึกข้อความ"' },
+    { label: 'รายงานการจัดสรรงบประมาณ ในปีงบประมาณ (A4 แนวนอน)', hint: 'กดปุ่ม "รายงานการจัดสรร"' }
+  ]},
+  { group: 'เงินคงเหลือ ณ วันที่', page: 'balance', items: [
+    { label: 'บันทึกข้อความ รายงานเงินคงเหลือ ณ วันที่...', hint: 'เลือกปีงบ/วันที่ แล้วกดปุ่ม "พิมพ์บันทึกข้อความ"' }
+  ]},
+  { group: 'เงินเหลือจ่าย / ส่งคืน', page: 'refund', items: [
+    { label: 'บันทึกข้อความ ขออนุมัติดำเนินการเงินเหลือจ่าย', hint: 'กดปุ่ม "บันทึกขออนุมัติ" (ทุกรายการ) หรือเลือกบางรายการแล้วกด "พิมพ์เฉพาะที่เลือก"' }
+  ]},
+  { group: 'ติดตามรับเงินนักเรียน (ค่าอุปกรณ์ / เครื่องแบบ)', page: 'students', items: [
+    { label: 'บันทึกข้อความ ขออนุมัติเบิกจ่าย (ก่อนโอนเงินแต่ละรอบ)', hint: 'แท็บ "ขออนุมัติ (ยังไม่จ่าย)" แล้วกดปุ่ม "พิมพ์" — ทำได้หลายรอบ ระบบนับครั้งที่ให้อัตโนมัติ' },
+    { label: 'รายงานการโอนเงิน (ของแต่ละรอบที่โอนแล้ว)', hint: 'แท็บ "รายงานโอน ครั้งที่ N" แล้วกดปุ่ม "พิมพ์"' },
+    { label: 'แบบหลักฐานยืนยันการจัดหา (เอกสารหมายเลข 2)', hint: 'เลือกห้องในตาราง แล้วกดปุ่ม "แบบหลักฐาน (เอกสาร 2)"' },
+    { label: 'ใบลงชื่อรับเงินรายห้อง / รายชื่อที่ยังไม่รับ', hint: 'เลือกห้องหรือชั้น แล้วกดปุ่มพิมพ์ที่มุมตาราง' }
+  ]},
+  { group: 'ขอยืม-ขอเบิก / พิมพ์เอกสาร (10 แบบฟอร์ม)', page: 'docs', items: [
+    { label: 'ใบประมาณการเดินทาง + สัญญายืมเงิน (หน้า-หลัง)', hint: 'เปิดรายการ แล้วเลือกแบบฟอร์มจากกริดปุ่มพิมพ์' },
+    { label: 'บันทึกขออนุมัติเบิกเงิน / ขออนุมัติส่งใช้เงินยืม', hint: 'เปิดรายการ แล้วเลือกแบบฟอร์มจากกริดปุ่มพิมพ์' },
+    { label: 'แบบ 8708 ส่วนที่ 1/2 (ครู/นักเรียน), ใบสำคัญรับเงิน, บก.111', hint: 'เปิดรายการ แล้วเลือกแบบฟอร์มจากกริดปุ่มพิมพ์' }
+  ]},
+  { group: 'แจ้งโอนเงิน KTB รายวัน', page: 'ktb', items: [
+    { label: 'ส่งออกรายการโอน PNG / PDF สำหรับแชร์กลุ่ม LINE', hint: 'เลือกวันที่ แล้วกดปุ่ม "ส่งออก PNG" หรือ "ส่งออก PDF"' }
+  ]}
+];
+
+/** ข้อมูลหน้าศูนย์รวมพิมพ์เอกสาร */
+function getPrintCatalog() {
+  requirePage_('print');
+  return { catalog: PRINT_CATALOG, folderLinked: !!getSettingsMap_().driveFolderId };
+}
+
+/**
+ * บันทึกสำเนา PDF ของเอกสารที่พิมพ์ล่าสุด ลงโฟลเดอร์ "เอกสารที่พิมพ์" ใต้ Settings.driveFolderId
+ * (ถ้ายังไม่ได้ตั้งค่าโฟลเดอร์ จะเก็บไว้ที่ไดรฟ์ของบัญชีที่ Deploy เว็บแอปแทน)
+ * ไม่จำกัดสิทธิ์ตามเมนู "print" เพราะทุกคนที่มีปุ่มพิมพ์อยู่แล้วควรบันทึกสำเนาของตัวเองได้
+ */
+function savePrintPdf(title, page, base64Pdf) {
+  const u = currentUser_();
+  if (!u.role) throw new Error('ไม่มีสิทธิ์ใช้งาน');
+  if (!base64Pdf) throw new Error('ไม่มีข้อมูล PDF ส่งมา');
+  return withLock_(() => {
+    const s = getSettingsMap_();
+    const bytes = Utilities.base64Decode(base64Pdf);
+    const safe = String(title || 'เอกสาร').replace(/[\\\/:*?"<>|]/g, '-').trim().slice(0, 120) || 'เอกสาร';
+    const stamp = Utilities.formatDate(new Date(), 'GMT+7', 'yyyyMMdd-HHmmss');
+    const blob = Utilities.newBlob(bytes, 'application/pdf', safe + ' ' + stamp + '.pdf');
+    let file, folderUrl = '';
+    if (s.driveFolderId) {
+      let root;
+      try { root = DriveApp.getFolderById(String(s.driveFolderId).trim()); }
+      catch (e) { throw new Error('ไม่พบโฟลเดอร์ Drive ตาม ID ที่ตั้งค่าไว้ — ตรวจสอบ "ID โฟลเดอร์ Drive เก็บเอกสาร" ในหน้าตั้งค่า'); }
+      const it = root.getFoldersByName('เอกสารที่พิมพ์');
+      const sub = it.hasNext() ? it.next() : root.createFolder('เอกสารที่พิมพ์');
+      file = sub.createFile(blob);
+      folderUrl = sub.getUrl();
+    } else {
+      file = DriveApp.createFile(blob);
+    }
+    file.setDescription('พิมพ์โดย ' + u.email + (page ? ' · หน้า ' + page : ''));
+    const rec = { id: newId_('PL'), title: safe, page: String(page || ''), fileUrl: file.getUrl(),
+      createdBy: u.email, createdAt: new Date() };
+    appendObject_('PrintLog', rec);
+    audit_('print', 'PrintLog', rec.id, { title: safe, page: page });
+    return { fileUrl: file.getUrl(), folderUrl: folderUrl, hasFolder: !!s.driveFolderId };
+  });
+}
+
+/** ประวัติการพิมพ์ / บันทึก PDF ล่าสุด ของทุกเมนูรวมกัน */
+function getPrintHistory(limit) {
+  requirePage_('print');
+  const rows = readObjects_('PrintLog').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  return rows.slice(0, Number(limit) || 30).map(r => ({
+    id: r.id, title: r.title, page: r.page, fileUrl: r.fileUrl, createdBy: r.createdBy, createdAt: r.createdAt
+  }));
+}
