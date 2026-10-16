@@ -1,0 +1,146 @@
+/*******************************************************************
+ * Account.gs — ข้อมูลฝ่ายบัญชี (ทะเบียนคุมเงิน แยก 5 รายการ)
+ * ----------------------------------------------------------------
+ * ฝ่ายบัญชีบันทึกยอดรับ/จ่ายตามทะเบียนคุมเงินของตัวเอง แยกจากฝ่ายการเงิน
+ * (Receipts_Account / Expenses_Account) เพื่อนำไป "กระทบยอด" กับฝ่ายการเงิน
+ * (Receipts_Finance / Expenses_Finance) — ดูผลกระทบยอดที่แดชบอร์ดและเมนูนี้
+ * บันทึกเป็นรายปีงบประมาณ (ไม่แยกภาคเรียน) ตามที่ทะเบียนคุมเงินของโรงเรียนบันทึกจริง
+ *******************************************************************/
+const ACCOUNT_SHEETS = { receipt: 'Receipts_Account', expense: 'Expenses_Account' };
+const ACCOUNT_PREFIX = { receipt: 'AR', expense: 'AE' };
+const ACCOUNT_LABEL = { receipt: 'เงินเข้า', expense: 'รายจ่าย' };
+ 
+/** ข้อมูลหน้าข้อมูลฝ่ายบัญชี: เปรียบเทียบยอดบัญชี ↔ การเงิน แยกรายการเงิน + รายการที่บันทึกไว้ */
+function getAccountData(fy) {
+  const u = requirePage_('account');
+  fy = Number(fy);
+  const funds = getFunds_();
+  const finR = readObjects_('Receipts_Finance').filter(r => Number(r.fy) === fy);
+  const finE = readExpenses_().filter(r => Number(r.fy) === fy);
+  const accR = readObjects_('Receipts_Account').filter(r => Number(r.fy) === fy);
+  const accE = readObjects_('Expenses_Account').filter(r => Number(r.fy) === fy);
+  const sumBy = (rows, code) => round2_(rows.filter(r => r.fund === code).reduce((x, r) => x + num_(r.amount), 0));
+ 
+  const rows = funds.map(f => {
+    const finIn = sumBy(finR, f.code), finOut = sumBy(finE, f.code);
+    const accIn = sumBy(accR, f.code), accOut = sumBy(accE, f.code);
+    const hasAcc = accR.some(r => r.fund === f.code) || accE.some(r => r.fund === f.code);
+    let match = 'nodata';
+    if (hasAcc) match = (same_(finIn, accIn) && same_(finOut, accOut)) ? 'match' : 'diff';
+    return {
+      code: f.code, name: f.name, short: f.short, color: f.color,
+      finIn: finIn, finOut: finOut, accIn: accIn, accOut: accOut,
+      diffIn: round2_(finIn - accIn), diffOut: round2_(finOut - accOut), match: match
+    };
+  });
+ 
+  const mapEntry = type => r => ({
+    id: String(r.id), type: type, date: r.date || '', fund: String(r.fund), amount: round2_(num_(r.amount)),
+    refNo: String(r.refNo || ''), note: String(r.note || ''), createdAt: r.createdAt || ''
+  });
+  const receipts = accR.map(mapEntry('receipt')).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const expenses = accE.map(mapEntry('expense')).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+ 
+  return {
+    fy: fy, funds: funds, rows: rows, receipts: receipts, expenses: expenses,
+    totalIn: round2_(rows.reduce((x, r) => x + r.accIn, 0)), totalOut: round2_(rows.reduce((x, r) => x + r.accOut, 0)),
+    matchCount: rows.filter(r => r.match === 'match').length, diffCount: rows.filter(r => r.match === 'diff').length,
+    canEdit: WRITE_ROLES.account.indexOf(u.role) >= 0, today: todayIso_()
+  };
+}
+ 
+/** เพิ่ม/แก้ไขรายการบัญชี obj:{id?, type:'receipt'|'expense', fy, fund, date, amount, refNo, note} */
+function saveAccountEntry(obj) {
+  const u = requireWrite_('account');
+  obj = obj || {};
+  const sheet = ACCOUNT_SHEETS[obj.type];
+  if (!sheet) throw new Error('ประเภทรายการไม่ถูกต้อง');
+  const fy = Number(obj.fy);
+  if (!fy) throw new Error('ไม่ระบุปีงบประมาณ');
+  if (!getFunds_().some(f => f.code === obj.fund)) throw new Error('รายการเงินไม่ถูกต้อง');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(obj.date || ''))) throw new Error('กรุณาระบุวันที่');
+  const amt = round2_(num_(obj.amount));
+  if (!(amt > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
+  const rec = { date: obj.date, fy: fy, fund: obj.fund, amount: amt, refNo: String(obj.refNo || '').trim(), note: String(obj.note || '').trim() };
+  return withLock_(() => {
+    if (obj.id) {
+      if (!updateObject_(sheet, obj.id, rec)) throw new Error('ไม่พบรายการ');
+      audit_('update', sheet, obj.id, rec);
+      return obj.id;
+    }
+    rec.id = newId_(ACCOUNT_PREFIX[obj.type]); rec.createdBy = u.email; rec.createdAt = new Date();
+    appendObject_(sheet, rec);
+    audit_('create', sheet, rec.id, rec);
+    return rec.id;
+  });
+}
+ 
+/** ลบรายการบัญชี */
+function deleteAccountEntry(type, id) {
+  requireWrite_('account');
+  const sheet = ACCOUNT_SHEETS[type];
+  if (!sheet) throw new Error('ประเภทรายการไม่ถูกต้อง');
+  return withLock_(() => {
+    const cur = readObjects_(sheet).find(r => String(r.id) === String(id));
+    if (!cur) throw new Error('ไม่พบรายการ');
+    deleteWhere_(sheet, o => String(o.id) === String(id));
+    audit_('delete', sheet, id, cur);
+    return true;
+  });
+}
+ 
+/**
+ * นำเข้าหลายรายการพร้อมกัน (จากไฟล์ Excel/CSV หรือวางตาราง — หน้าเว็บแปลงเป็นแถวให้แล้ว)
+ * @param {string} type 'receipt' | 'expense'
+ * @param {number} fy
+ * @param {Array<{fund,date,amount,refNo,note}>} rows fund = รหัส (EQUIP) หรือชื่อ/ชื่อย่อรายการเงิน
+ */
+function importAccountEntries(type, fy, rows) {
+  const u = requireWrite_('account');
+  const sheet = ACCOUNT_SHEETS[type];
+  if (!sheet) throw new Error('ประเภทรายการไม่ถูกต้อง');
+  fy = Number(fy);
+  if (!fy) throw new Error('ไม่ระบุปีงบประมาณ');
+  if (!rows || !rows.length) throw new Error('ไม่มีข้อมูลนำเข้า');
+  const funds = getFunds_();
+  const findFund = s => {
+    s = String(s || '').trim();
+    if (!s) return '';
+    const f = funds.find(f => f.code === s || f.short === s || f.name === s) ||
+      funds.find(f => s.indexOf(f.short) >= 0 || s.indexOf(f.name) >= 0 || f.name.indexOf(s) >= 0);
+    return f ? f.code : '';
+  };
+  const now = new Date(), out = [], errs = [];
+  rows.forEach((r, i) => {
+    const fund = findFund(r.fund);
+    const date = normDate_(r.date);
+    const amount = round2_(num_(r.amount));
+    if (!fund) { errs.push('แถว ' + (i + 1) + ': ไม่พบรายการเงิน "' + r.fund + '"'); return; }
+    if (!date) { errs.push('แถว ' + (i + 1) + ': วันที่ไม่ถูกต้อง (' + r.date + ')'); return; }
+    if (!(amount > 0)) { errs.push('แถว ' + (i + 1) + ': จำนวนเงินไม่ถูกต้อง'); return; }
+    out.push({ id: newId_(ACCOUNT_PREFIX[type]), date: date, fy: fy, fund: fund, amount: amount,
+      refNo: String(r.refNo || '').trim(), note: String(r.note || '').trim(), createdBy: u.email, createdAt: now });
+  });
+  if (!out.length) throw new Error('นำเข้าไม่ได้: ' + errs.slice(0, 5).join(' · '));
+  return withLock_(() => {
+    appendObjects_(sheet, out);
+    audit_('import', sheet, '', { count: out.length, errors: errs.length });
+    return { imported: out.length, errors: errs.slice(0, 20), errorCount: errs.length };
+  });
+}
+ 
+/** แปลงวันที่หลายรูปแบบ → 'yyyy-MM-dd' (รองรับ 25/9/2569, 2569-09-25, Date object จาก Excel) */
+function normDate_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const s = String(v == null ? '' : v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if (m) {
+    let d = Number(m[1]), mo = Number(m[2]), y = Number(m[3]);
+    if (y < 100) y += 2500;
+    if (y > 2400) y -= 543;                                   // พ.ศ. → ค.ศ.
+    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) return y + '-' + pad2_(mo) + '-' + pad2_(d);
+  }
+  return '';
+}
+ 
