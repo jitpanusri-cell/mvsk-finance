@@ -1,0 +1,310 @@
+/*******************************************************************
+ * Documents.gs — ขอยืม / ขอเบิก / พิมพ์เอกสารราชการ (10 แบบฟอร์ม)
+ * ----------------------------------------------------------------
+ * บันทึกข้อมูลครั้งเดียวต่อ 1 รายการยืม/เบิก (Doc_Requests) แล้วพิมพ์ได้ครบ 10 แบบฟอร์ม
+ * โดยไม่ต้องกรอกซ้ำ (การจัดหน้า/คำนวณตัวอักษรไทย ทำที่ฝั่งหน้าเว็บ เหมือนเอกสารอื่นในระบบ
+ * — ไฟล์นี้เตรียมข้อมูลตัวเลขให้ครบ ไม่ยุ่งกับการจัดหน้า)
+ * กลุ่ม ก: ใบประมาณการเดินทาง + สัญญายืมเงิน (หน้า-หลัง)
+ * กลุ่ม ข: บันทึกข้อความขออนุมัติเบิกเงิน / ขออนุมัติส่งใช้เงินยืม
+ * กลุ่ม ค: ใบเบิกค่าใช้จ่ายเดินทาง (แบบ 8708 ส่วนที่ 1) + ใบขวางครู/นักเรียน (ส่วนที่ 2)
+ * กลุ่ม ง: ใบสำคัญรับเงิน (ทั่วไป/วิทยากร) + ใบรับรองแทนใบเสร็จ (แบบ บก.111)
+ * หน้าเว็บแยก 3 แท็บ: ยืมเงิน / ส่งใช้เงินยืม / ขอเบิกเงิน และพิมพ์ได้ทันทีโดยไม่ต้องบันทึก
+ * (ครูที่ทำเอกสารเองนอกระบบ) — ติ๊ก "บันทึกเข้าระบบ" จึงจะเก็บเป็นลูกหนี้/ทะเบียนคุม
+ *******************************************************************/
+
+/* ประเภทเอกสาร: ยืม (2 แบบ) / ขอเบิกไม่ยืม (2 แบบ) — แยกกิจกรรม/โครงการ กับ เดินทางไปราชการ เพราะชุดเอกสารต่างกัน
+ * (travel / advance เป็นค่าเดิม ข้อมูลเก่ายังใช้ได้) */
+const DOC_KINDS = {
+  travel: 'ยืมเงิน (เดินทางไปราชการ)', loanAct: 'ยืมเงิน (จัดกิจกรรม/โครงการ)',
+  advance: 'ขอเบิกเงิน (จัดกิจกรรม/จัดซื้อ ไม่ยืม)', advTravel: 'ขอเบิกค่าเดินทางไปราชการ (ไม่ยืม)'
+};
+const DOC_LOAN_KINDS = ['travel', 'loanAct'];
+function isLoanKind_(k) { return DOC_LOAN_KINDS.indexOf(String(k)) >= 0; }
+/**
+ * วันครบกำหนดส่งใช้เงินยืม (ระเบียบการเบิกเงินจากคลังฯ พ.ศ. 2562 ข้อ 57)
+ * - เดินทางไปราชการ: ภายใน 15 วัน นับจากวันกลับมาถึง
+ * - อื่น ๆ (จัดกิจกรรม/โครงการ): ภายใน 30 วัน นับจากวันที่ได้รับเงินยืม
+ */
+function docLoanDue_(kind, loanDate, dateTo) {
+  if (kind === 'travel' && /^\d{4}-\d{2}-\d{2}$/.test(String(dateTo || ''))) return addDays_(String(dateTo), 15);
+  return addDays_(String(loanDate || todayIso_()), 30);
+}
+
+/** ข้อมูลตั้งต้นของหน้า (dropdown ครู/ตำแหน่ง, กิจกรรม, รายการเงิน, ลูกหนี้เงินยืมค้าง) */
+function getDocsFormData(fy) {
+  requirePage_('docs');
+  fy = Number(fy);
+  const s = getSettingsMap_();
+  return {
+    fy: fy, kinds: DOC_KINDS,
+    teachers: readObjects_('Users').filter(u => isTrue_(u.active)).map(u => ({ name: u.name || u.email, dept: '' })),
+    activities: readObjects_('Activities').filter(a => Number(a.fy) === fy && a.status === 'active')
+      .map(a => ({ id: a.id, name: (a.code ? a.code + ' ' : '') + a.name })),
+    funds: getFunds_(),
+    rates: { perdiem: num_(s.perdiemRate) || 240, lodge: num_(s.lodgeRate) || 800 },
+    pendingLoans: getKtbPendingLoans(fy),
+    canEdit: WRITE_ROLES.docs.indexOf(currentUser_().role) >= 0
+  };
+}
+
+function docCalcTotal_(o) {
+  const people = Math.max(1, num_(o.people));
+  const perdiem = num_(o.perdiemRate) * num_(o.perdiemDays) * people;
+  const lodge = num_(o.lodgeRate) * num_(o.lodgeDays) * people;
+  return round2_(perdiem + lodge + num_(o.transportAmount) + num_(o.otherAmount) + docItemsSum_(o.itemsText));
+}
+
+/**
+ * รวมจำนวนเงินจากช่อง "รายการค่าใช้จ่าย"
+ * - แบบใหม่ (ตารางกรอกในหน้าเว็บ): JSON [{n, p, q1, u1, q2, u2, a}] — a = จำนวนเงินของรายการ
+ * - แบบเดิม: บรรทัดละรายการ "รายการ | จำนวนเงิน"
+ */
+function docItemsSum_(text) {
+  const t = String(text || '').trim();
+  if (t.charAt(0) === '[') {
+    try { return JSON.parse(t).reduce((x, it) => x + (num_(it && it.a) || 0), 0); } catch (e) { /* ไม่ใช่ JSON ใช้แบบเดิม */ }
+  }
+  return String(text || '').split('\n').reduce((x, line) => {
+    const p = line.trim().split(/\s*[|\t]\s*/);
+    const v = p.length > 1 ? Number(String(p[p.length - 1]).replace(/,/g, '')) : NaN;
+    return x + (isNaN(v) ? 0 : v);
+  }, 0);
+}
+const DOC_EXTRA_FIELDS = ['teacherLevel', 'orderRef', 'departPlace', 'departAt', 'returnPlace', 'returnAt', 'address', 'itemsText', 'docDate'];
+
+/** รายการขอยืม/ขอเบิกทั้งหมดของปีงบ (สำหรับตารางในหน้าเว็บ) */
+function getDocsData(fy) {
+  requirePage_('docs');
+  fy = Number(fy);
+  const s = getSettingsMap_(), u = currentUser_();
+  const allRet = readObjects_('Doc_LoanReturns');   // อ่านครั้งเดียว (เดิมอ่านซ้ำทุกรายการ)
+  // ครู: เห็นเฉพาะ "รายการของฉัน" (ที่ตัวเองสร้าง หรือชื่อผู้ยืม/ผู้ขอเบิกเป็นตัวเอง) — การเงิน/ผู้ดูแลระบบ เห็นทั้งหมด
+  const list = readObjects_('Doc_Requests').filter(r => Number(r.fy) === fy && docIsMine_(u, r)).map(r => {
+    const returns = allRet.filter(x => x.requestId === r.id);
+    const returned = round2_(returns.reduce((x, t) => x + num_(t.amount), 0));
+    return {
+      id: r.id, kind: r.kind, kindLabel: DOC_KINDS[r.kind] || r.kind,
+      teacherName: String(r.teacherName || ''), teacherPos: String(r.teacherPos || ''), teacherDept: String(r.teacherDept || ''),
+      activityId: String(r.activityId || ''), activityName: String(r.activityName || ''),
+      purpose: String(r.purpose || ''), province: String(r.province || ''), dateFrom: r.dateFrom || '', dateTo: r.dateTo || '',
+      people: num_(r.people) || 1, perdiemRate: num_(r.perdiemRate), perdiemDays: num_(r.perdiemDays),
+      lodgeRate: num_(r.lodgeRate), lodgeDays: num_(r.lodgeDays), transportRoutes: String(r.transportRoutes || ''),
+      transportAmount: num_(r.transportAmount), otherDesc: String(r.otherDesc || ''), otherAmount: num_(r.otherAmount),
+      total: round2_(num_(r.total)), fund: String(r.fund || ''),
+      loanContractNo: String(r.loanContractNo || ''), loanDate: r.loanDate || '', loanDueDate: r.loanDueDate || '',
+      status: String(r.status || 'draft'), note: String(r.note || ''), attachCount: num_(r.attachCount),
+      teacherLevel: String(r.teacherLevel || ''), orderRef: String(r.orderRef || ''),
+      departPlace: String(r.departPlace || ''), departAt: docDt_(r.departAt), returnPlace: String(r.returnPlace || ''), returnAt: docDt_(r.returnAt),
+      address: String(r.address || ''), itemsText: String(r.itemsText || ''), docDate: r.docDate || '',
+      returned: returned, remain: round2_(num_(r.total) - returned),
+      createdBy: String(r.createdBy || ''), createdAt: docDt_(r.createdAt),
+      returns: returns.map(t => ({ id: t.id, seq: num_(t.seq), date: t.date, kind: t.kind, amount: round2_(num_(t.amount)),
+        remain: round2_(num_(t.remain)), receiptNo: String(t.receiptNo || ''), note: String(t.note || '') }))
+    };
+  });
+  return {
+    fy: fy, me: u.email, myName: u.name || '', role: u.role, seeAll: u.role !== 'teacher',
+    list: list.sort((a, b) => String(b.createdAt || b.dateFrom || '').localeCompare(String(a.createdAt || a.dateFrom || ''))),
+    signers: { director: s.director || '', deputy: s.deputy || '', finOfficer: s.finOfficer || '', accOfficer: s.accOfficer || '' },
+    school: { name: s.schoolName || '', area: s.area || '', garudaUrl: s.garudaUrl || '', docPrefix: s.docPrefix || '' },
+    canEdit: WRITE_ROLES.docs.indexOf(currentUser_().role) >= 0
+  };
+}
+
+/** รายการนี้เป็นของผู้ใช้หรือไม่ — ครูเห็น/แก้ได้เฉพาะของตัวเอง, บทบาทอื่นเห็นทั้งหมด */
+function docIsMine_(u, r) {
+  if (!r || u.role !== 'teacher') return true;
+  const by = String(r.createdBy || '').toLowerCase();
+  return by === String(u.email || '').toLowerCase() || (!!u.name && String(r.teacherName || '').trim() === String(u.name).trim());
+}
+function docRequireMine_(u, r) {
+  if (!docIsMine_(u, r)) throw new Error('แก้ไขได้เฉพาะรายการของตัวเอง');
+}
+
+/**
+ * รวม getDocsFormData + getDocsData เป็นการเรียกเซิร์ฟเวอร์ครั้งเดียว
+ * (เดิมหน้าเว็บ (loadDocs) เรียกแยก 2 คำสั่งเรียงกัน รอให้เสร็จทีละรอบ)
+ */
+function getDocsPageData(fy) {
+  return { form: getDocsFormData(fy), data: getDocsData(fy) };
+}
+
+/** เพิ่ม/แก้ไขรายการขอยืม/ขอเบิก */
+function saveDocRequest(obj) {
+  const u = requireWrite_('docs');
+  obj = obj || {};
+  const fy = Number(obj.fy) || fyOf_(todayIso_());
+  if (!String(obj.teacherName || '').trim()) throw new Error('กรุณาระบุชื่อผู้ยืม/ผู้ขอเบิก');
+  if (!String(obj.purpose || '').trim()) throw new Error('กรุณาระบุเรื่อง/วัตถุประสงค์');
+  const rec = {
+    fy: fy, kind: DOC_KINDS[obj.kind] ? String(obj.kind) : 'travel',
+    teacherName: String(obj.teacherName).trim(), teacherPos: String(obj.teacherPos || '').trim(), teacherDept: String(obj.teacherDept || '').trim(),
+    activityId: String(obj.activityId || ''), activityName: String(obj.activityName || ''),
+    purpose: String(obj.purpose).trim(), province: String(obj.province || '').trim(),
+    dateFrom: obj.dateFrom || '', dateTo: obj.dateTo || '', people: Math.max(1, num_(obj.people) || 1),
+    perdiemRate: num_(obj.perdiemRate), perdiemDays: num_(obj.perdiemDays), lodgeRate: num_(obj.lodgeRate), lodgeDays: num_(obj.lodgeDays),
+    transportRoutes: String(obj.transportRoutes || ''), transportAmount: num_(obj.transportAmount),
+    otherDesc: String(obj.otherDesc || ''), otherAmount: num_(obj.otherAmount),
+    fund: String(obj.fund || ''), note: String(obj.note || '').trim(), attachCount: num_(obj.attachCount)
+  };
+  DOC_EXTRA_FIELDS.forEach(k => { rec[k] = String(obj[k] == null ? '' : obj[k]).trim(); });
+  rec.total = docCalcTotal_(rec);
+  rec.amount = rec.total;
+
+  // เลขที่สัญญา/วันที่ยืม/วันครบกำหนด กรอกเองได้ (เช่น สัญญาที่ทำไว้นอกระบบ) — ว่าง = ระบบกำหนดให้
+  const isoOk = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+  const inNo = String(obj.loanContractNo || '').trim(), inDate = isoOk(obj.loanDate) ? String(obj.loanDate) : '', inDue = isoOk(obj.loanDueDate) ? String(obj.loanDueDate) : '';
+
+  return withLock_(() => {
+    if (obj.id) {
+      const cur = readObjects_('Doc_Requests').find(r => r.id === obj.id);
+      if (!cur) throw new Error('ไม่พบรายการ');
+      docRequireMine_(u, cur);
+      rec.status = cur.status;
+      if (isLoanKind_(rec.kind)) {
+        // เลขที่สัญญา / วันครบกำหนด: ผู้ใช้กรอกเอง ว่าง = เว้นเส้นประในเอกสาร (ไม่รันเลขให้)
+        rec.loanContractNo = inNo;
+        rec.loanDate = inDate || cur.loanDate || todayIso_();
+        rec.loanDueDate = inDue;
+      } else { rec.loanContractNo = ''; rec.loanDate = ''; rec.loanDueDate = ''; }
+      updateObject_('Doc_Requests', obj.id, rec);
+      audit_('update', 'Doc_Requests', obj.id, rec);
+      return obj.id;
+    }
+    rec.id = newId_('DR'); rec.status = 'draft'; rec.createdBy = u.email; rec.createdAt = new Date();
+    if (isLoanKind_(rec.kind)) {
+      rec.loanContractNo = inNo;
+      rec.loanDate = inDate || todayIso_();
+      rec.loanDueDate = inDue;
+    }
+    appendObject_('Doc_Requests', rec);
+    audit_('create', 'Doc_Requests', rec.id, rec);
+    return rec.id;
+  });
+}
+
+/** เลขที่สัญญายืมถัดไปของปีงบ (ปีงบ/ลำดับ) — นับทุกประเภทการยืม */
+function nextLoanNo_(fy) {
+  const n = readObjects_('Doc_Requests').filter(r => Number(r.fy) === Number(fy) && isLoanKind_(r.kind)).length + 1;
+  return fy + '/' + pad2_(n);
+}
+
+function deleteDocRequest(id) {
+  const u = requireWrite_('docs');
+  return withLock_(() => {
+    const cur = readObjects_('Doc_Requests').find(r => r.id === id);
+    if (!cur) throw new Error('ไม่พบรายการ');
+    docRequireMine_(u, cur);
+    deleteWhere_('Doc_Requests', o => o.id === id);
+    deleteWhere_('Doc_LoanReturns', o => o.requestId === id);
+    audit_('delete', 'Doc_Requests', id, cur);
+    return true;
+  });
+}
+
+/** ทำเครื่องหมายว่าโอนเงินแล้ว (เชื่อมกับรายการแจ้งโอน KTB) */
+function markDocTransferred(id, ktbItemId) {
+  const u = requireWrite_('docs');
+  if (u.role === 'teacher') throw new Error('เฉพาะเจ้าหน้าที่การเงินบันทึกการโอนเงินได้');
+  return withLock_(() => {
+    const rec = { status: 'transferred', transferredAt: new Date(), ktbItemId: String(ktbItemId || '') };
+    if (!updateObject_('Doc_Requests', id, rec)) throw new Error('ไม่พบรายการ');
+    audit_('update', 'Doc_Requests', id, rec);
+    return true;
+  });
+}
+
+/** บันทึกรายการส่งใช้เงินยืม (ครั้งที่ ลำดับอัตโนมัติ) */
+function saveLoanReturn(obj) {
+  const u = requireWrite_('docs');
+  obj = obj || {};
+  const req = readObjects_('Doc_Requests').find(r => r.id === obj.requestId);
+  if (!req) throw new Error('ไม่พบสัญญายืมเงิน');
+  docRequireMine_(u, req);
+  if (!isLoanKind_(req.kind)) throw new Error('รายการนี้เป็นการขอเบิก ไม่ใช่สัญญายืมเงิน');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(obj.date || ''))) throw new Error('กรุณาระบุวันที่');
+  const amount = round2_(num_(obj.amount));
+  if (!(amount > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
+  return withLock_(() => {
+    const prior = readObjects_('Doc_LoanReturns').filter(x => x.requestId === req.id);
+    const returnedBefore = prior.reduce((x, t) => x + num_(t.amount), 0);
+    const remain = round2_(num_(req.total) - returnedBefore - amount);
+    const rec = { id: newId_('DL'), requestId: req.id, seq: prior.length + 1, date: obj.date, kind: obj.kind || 'receipt',
+      amount: amount, remain: remain, receiptNo: String(obj.receiptNo || ''), note: String(obj.note || ''),
+      createdBy: u.email, createdAt: new Date() };
+    appendObject_('Doc_LoanReturns', rec);
+    audit_('create', 'Doc_LoanReturns', rec.id, rec);
+    if (remain <= 0.004) {
+      updateObject_('Doc_Requests', req.id, { status: 'closed' });
+      if (req.ktbItemId) setKtbLoanStatus(req.ktbItemId, 'ส่งใช้แล้ว');
+    }
+    return rec.id;
+  });
+}
+
+/**
+ * บันทึกส่งใช้เงินยืมหลายรายการในครั้งเดียว (ตารางหลักฐานการจ่าย + เงินสดคืน) — ครั้งที่เดียวกัน
+ * @param {{requestId, date, receiptNo, items:[{t, amt}], cash}} obj
+ */
+function saveLoanReturnBatch(obj) {
+  const u = requireWrite_('docs');
+  obj = obj || {};
+  const req = readObjects_('Doc_Requests').find(r => r.id === obj.requestId);
+  if (!req) throw new Error('ไม่พบสัญญายืมเงิน');
+  docRequireMine_(u, req);
+  if (!isLoanKind_(req.kind)) throw new Error('รายการนี้เป็นการขอเบิก ไม่ใช่สัญญายืมเงิน');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(obj.date || ''))) throw new Error('กรุณาระบุวันที่ส่งใช้');
+  const items = (obj.items || []).map(it => ({ t: String(it.t || '').trim(), amt: round2_(num_(it.amt)) })).filter(it => it.amt > 0);
+  const cash = round2_(num_(obj.cash));
+  if (!items.length && !(cash > 0)) throw new Error('กรุณากรอกรายการหลักฐานการจ่าย หรือเงินสดคืน');
+  return withLock_(() => {
+    const prior = readObjects_('Doc_LoanReturns').filter(x => x.requestId === req.id);
+    const seq = prior.reduce((m, t) => Math.max(m, num_(t.seq)), 0) + 1;
+    let left = round2_(num_(req.total) - prior.reduce((x, t) => x + num_(t.amount), 0));
+    const now = new Date(), rows = [];
+    items.forEach(it => { left = round2_(left - it.amt); rows.push({ id: newId_('DL'), requestId: req.id, seq: seq, date: obj.date, kind: 'receipt',
+      amount: it.amt, remain: left, receiptNo: String(obj.receiptNo || ''), note: it.t, createdBy: u.email, createdAt: now }); });
+    if (cash > 0) { left = round2_(left - cash); rows.push({ id: newId_('DL'), requestId: req.id, seq: seq, date: obj.date, kind: 'cash',
+      amount: cash, remain: left, receiptNo: String(obj.receiptNo || ''), note: 'เงินสดเหลือจ่าย', createdBy: u.email, createdAt: now }); }
+    appendObjects_('Doc_LoanReturns', rows);
+    audit_('create', 'Doc_LoanReturns', req.id, { seq: seq, count: rows.length });
+    docSyncLoanStatus_(req, left);
+    return { seq: seq, remain: left };
+  });
+}
+
+/** ลบรายการส่งใช้ (แก้ไขหลังล้างหนี้แล้วได้ — สถานะสัญญากลับเป็นยังไม่ล้างหนี้ถ้ามียอดคงค้าง) */
+function deleteLoanReturn(returnId) {
+  const u = requireWrite_('docs');
+  return withLock_(() => {
+    const t = readObjects_('Doc_LoanReturns').find(x => x.id === returnId);
+    if (!t) throw new Error('ไม่พบรายการส่งใช้');
+    const req = readObjects_('Doc_Requests').find(r => r.id === t.requestId);
+    docRequireMine_(u, req);
+    deleteWhere_('Doc_LoanReturns', o => o.id === returnId);
+    audit_('delete', 'Doc_LoanReturns', returnId, t);
+    if (req) {
+      const left = round2_(num_(req.total) - readObjects_('Doc_LoanReturns').filter(x => x.requestId === req.id).reduce((x, r) => x + num_(r.amount), 0));
+      docSyncLoanStatus_(req, left);
+    }
+    return true;
+  });
+}
+
+/** ปรับสถานะสัญญาตามยอดคงค้าง: ครบ = ปิด (ล้างหนี้), ยังค้าง = กลับเป็นโอนเงินแล้ว/ร่าง */
+function docSyncLoanStatus_(req, left) {
+  if (left <= 0.004) {
+    if (req.status !== 'closed') updateObject_('Doc_Requests', req.id, { status: 'closed' });
+    if (req.ktbItemId) { try { setKtbLoanStatus(req.ktbItemId, 'ส่งใช้แล้ว'); } catch (e) { /* ไม่มีสิทธิ์เมนู KTB — ข้าม */ } }
+  } else if (req.status === 'closed') {
+    updateObject_('Doc_Requests', req.id, { status: req.transferredAt || req.ktbItemId ? 'transferred' : 'draft' });
+    if (req.ktbItemId) { try { setKtbLoanStatus(req.ktbItemId, 'รอส่งใช้เงินยืม'); } catch (e) { /* ข้าม */ } }
+  }
+}
+
+/** วัน-เวลา (datetime-local) → 'yyyy-MM-ddTHH:mm' (ชีตอาจแปลงเป็น Date ให้เอง) */
+function docDt_(v) {
+  if (!v) return '';
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm");
+  return String(v).slice(0, 16);
+}
