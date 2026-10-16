@@ -1,0 +1,147 @@
+/**
+ * Refund.gs — เงินเหลือจ่าย / ส่งคืน
+ * ----------------------------------------------------------------
+ * แหล่งที่มาของรายการ (คอลัมน์ source ในชีต Refunds)
+ *   studentpay:<term>:<fund> — นักเรียนไม่มารับ/ย้าย/ลาออก (สร้างจากเมนูค่าอุปกรณ์/เครื่องแบบ ปุ่ม "ปิดยอด")
+ *   balance:<fy>:<fund>      — ยอดคงเหลือปลายปีงบที่ยังไม่ได้ลงรายการ (กดสร้างจากหน้านี้)
+ *   manual                   — บันทึกเอง
+ * สถานะ: รอดำเนินการ → กันเงินไว้ใช้ต่อ / ส่งคืนแล้ว
+ * ยอด "ส่งคืนแล้ว" คือเงินที่ออกจากบัญชีโรงเรียน → หักออกจากคงเหลือในหน้านี้
+ * ================================================================ */
+const REFUND_STATUS = ['รอดำเนินการ', 'กันเงินไว้ใช้ต่อ', 'ส่งคืนแล้ว'];
+ 
+function refundKind_(src) {
+  src = String(src || '');
+  if (src.indexOf('studentpay:') === 0) return 'student';
+  if (src.indexOf('balance:') === 0) return 'balance';
+  return 'manual';
+}
+ 
+function getRefundData(fy) {
+  requirePage_('refund');
+  fy = Number(fy);
+  const rep = getAllocationReport(fy);
+  const u = currentUser_();
+  const list = readObjects_('Refunds').filter(r => Number(r.fy) === fy).map(r => {
+    const src = String(r.source || ''), kind = refundKind_(src);
+    const st = REFUND_STATUS.indexOf(String(r.status)) >= 0 ? String(r.status) : 'รอดำเนินการ';
+    return {
+      id: String(r.id), fy: fy, fund: String(r.fund), source: src, kind: kind,
+      term: kind === 'student' ? src.split(':')[1] : '',
+      amount: round2_(num_(r.amount)), docNo: String(r.docNo || ''), status: st,
+      refundDate: r.refundDate || '', evidenceUrl: String(r.evidenceUrl || ''), note: String(r.note || ''),
+      createdAt: r.createdAt || ''
+    };
+  });
+  const S = (code, st) => round2_(list.filter(r => r.fund === code && (!st || r.status === st)).reduce((x, r) => x + r.amount, 0));
+  const fundRows = rep.fundRows.map(f => {
+    const listed = S(f.code), refunded = S(f.code, 'ส่งคืนแล้ว');
+    return {
+      code: f.code, name: f.name, short: f.short, color: f.color,
+      balance: f.balance, listed: listed, pending: S(f.code, 'รอดำเนินการ'), kept: S(f.code, 'กันเงินไว้ใช้ต่อ'),
+      refunded: refunded, unlisted: round2_(Math.max(0, f.balance - listed)),
+      after: round2_(f.balance - refunded)
+    };
+  });
+  return {
+    fy: fy, funds: rep.funds, fundRows: fundRows, list: list, status: REFUND_STATUS,
+    asOf: todayIso_(), signers: rep.signers, docPrefix: rep.docPrefix, garudaUrl: rep.garudaUrl,
+    fyEnd: (fy - 543) + '-09-30',
+    canEdit: WRITE_ROLES.finance.indexOf(u.role) >= 0
+  };
+}
+ 
+/** เพิ่ม/แก้ไขรายการ (studentpay แก้ได้เฉพาะสถานะ เลขที่ วันที่ หลักฐาน หมายเหตุ) */
+function saveRefund(obj) {
+  const u = requireWrite_('finance');
+  obj = obj || {};
+  const fy = Number(obj.fy);
+  if (!fy) throw new Error('ไม่ระบุปีงบประมาณ');
+  const status = REFUND_STATUS.indexOf(obj.status) >= 0 ? obj.status : 'รอดำเนินการ';
+  if (status === 'ส่งคืนแล้ว' && !obj.refundDate) throw new Error('กรุณาระบุวันที่ส่งคืน');
+  const base = {
+    docNo: String(obj.docNo || '').trim(), status: status, refundDate: obj.refundDate || '',
+    evidenceUrl: String(obj.evidenceUrl || '').trim(), note: String(obj.note || '').trim()
+  };
+  return withLock_(() => {
+    if (obj.id) {
+      const cur = readObjects_('Refunds').find(r => String(r.id) === String(obj.id));
+      if (!cur) throw new Error('ไม่พบรายการ');
+      if (refundKind_(cur.source) !== 'student') {
+        const amt = round2_(num_(obj.amount));
+        if (!(amt > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
+        base.amount = amt;
+      }
+      updateObject_('Refunds', obj.id, base);
+      audit_('update', 'Refunds', obj.id, base);
+      return obj.id;
+    }
+    const fund = String(obj.fund || '');
+    if (!getFunds_().some(f => f.code === fund)) throw new Error('ประเภทเงินไม่ถูกต้อง');
+    const amt = round2_(num_(obj.amount));
+    if (!(amt > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
+    const row = Object.assign({ id: newId_('RF'), fy: fy, fund: fund, source: 'manual', amount: amt,
+      createdBy: u.email, createdAt: new Date() }, base);
+    appendObject_('Refunds', row);
+    audit_('create', 'Refunds', row.id, row);
+    return row.id;
+  });
+}
+ 
+/** สร้าง/ปรับรายการจากยอดคงเหลือที่ยังไม่ได้ลงรายการของประเภทเงินนั้น */
+function refundFromBalance(fy, fund) {
+  const u = requireWrite_('finance');
+  fy = Number(fy);
+  return withLock_(() => {
+    const D = getRefundData(fy);
+    const f = D.fundRows.find(r => r.code === fund);
+    if (!f) throw new Error('ประเภทเงินไม่ถูกต้อง');
+    const src = 'balance:' + fy + ':' + fund;
+    const ex = D.list.find(r => r.source === src && r.status === 'รอดำเนินการ');
+    if (ex) {
+      const amt = round2_(ex.amount + f.unlisted);
+      if (!(f.unlisted > 0)) throw new Error('ไม่มียอดคงเหลือที่ยังไม่ได้ลงรายการ');
+      updateObject_('Refunds', ex.id, { amount: amt });
+      audit_('update', 'Refunds', ex.id, { amount: amt });
+      return amt;
+    }
+    if (!(f.unlisted > 0)) throw new Error('ไม่มียอดคงเหลือที่ยังไม่ได้ลงรายการ');
+    const row = { id: newId_('RF'), fy: fy, fund: fund, source: src, amount: f.unlisted, docNo: '', status: 'รอดำเนินการ',
+      refundDate: '', evidenceUrl: '', note: 'ยอดคงเหลือ ' + f.name + ' ปีงบประมาณ ' + fy, createdBy: u.email, createdAt: new Date() };
+    appendObject_('Refunds', row);
+    audit_('create', 'Refunds', row.id, row);
+    return f.unlisted;
+  });
+}
+ 
+/** เปลี่ยนสถานะหลายรายการพร้อมกัน */
+function setRefundStatus(ids, status, docNo, refundDate) {
+  requireWrite_('finance');
+  if (REFUND_STATUS.indexOf(status) < 0) throw new Error('สถานะไม่ถูกต้อง');
+  if (status === 'ส่งคืนแล้ว' && !refundDate) throw new Error('กรุณาระบุวันที่ส่งคืน');
+  ids = [].concat(ids || []);
+  if (!ids.length) throw new Error('ยังไม่ได้เลือกรายการ');
+  return withLock_(() => {
+    const patch = { status: status };
+    if (docNo) patch.docNo = String(docNo).trim();
+    if (status === 'ส่งคืนแล้ว') patch.refundDate = refundDate;
+    if (status === 'รอดำเนินการ') patch.refundDate = '';
+    let n = 0;
+    ids.forEach(id => { if (updateObject_('Refunds', id, patch)) n++; });
+    audit_('status', 'Refunds', ids.join(','), patch);
+    return n;
+  });
+}
+ 
+function deleteRefund(id) {
+  requireWrite_('finance');
+  return withLock_(() => {
+    const cur = readObjects_('Refunds').find(r => String(r.id) === String(id));
+    if (!cur) throw new Error('ไม่พบรายการ');
+    if (refundKind_(cur.source) === 'student') throw new Error('รายการนี้มาจากเมนูค่าอุปกรณ์/เครื่องแบบ แก้ไขได้ที่ปุ่ม "ปิดยอด" ของเมนูนั้น');
+    if (String(cur.status) === 'ส่งคืนแล้ว') throw new Error('รายการที่ส่งคืนแล้วลบไม่ได้ เปลี่ยนสถานะกลับเป็น "รอดำเนินการ" ก่อน');
+    deleteWhere_('Refunds', o => String(o.id) === String(id));
+    audit_('delete', 'Refunds', id, cur);
+    return true;
+  });
+}
