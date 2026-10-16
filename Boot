@@ -1,0 +1,14 @@
+/*******************************************************************
+ * Boot.gs — ฝังข้อมูลเริ่มต้น (ผู้ใช้/เมนู/ปีงบ) มากับหน้าเว็บตั้งแต่ doGet
+ * หน้าเว็บจึงไม่ต้องเรียก getBootstrapFy อีกรอบหลังเปิด (เร็วขึ้น 1 รอบ)
+ * และ JS.html ใช้อีเมลนี้แยกแคชข้อมูลในเบราว์เซอร์ของแต่ละผู้ใช้ (window.__ME)
+ * ใช้ใน Code.gs → doGet(): return withBoot_(HtmlService.createTemplateFromFile('Index').evaluate())
+ *******************************************************************/
+function withBoot_(out) {
+  let boot = null;
+  try { boot = getBootstrapFy(); } catch (e) { boot = null; }
+  const json = JSON.stringify(boot).split('<').join('\\u003c')
+    .split(String.fromCharCode(8232)).join('\\u2028').split(String.fromCharCode(8233)).join('\\u2029');
+  return out.append('<script>window.__BOOT=' + json +
+    ';window.__ME=(window.__BOOT&&window.__BOOT.user&&window.__BOOT.user.email)||"";</script>');
+}
