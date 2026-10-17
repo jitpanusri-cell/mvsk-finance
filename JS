@@ -3197,7 +3197,19 @@ table.kt-grid{border-collapse:collapse;width:100%;min-width:1330px;font-size:14p
 .kt-grid td.x button{border:0;background:none;color:var(--ink3);width:100%;height:34px;cursor:pointer;font-size:17px}
 .kt-grid td.x button:hover{color:var(--bad)}
 .kt-grid tfoot td{background:#F7F8FC;font-weight:700;padding:0 8px;height:38px;font-variant-numeric:tabular-nums}
-.kt-sheet-f{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-top:10px}
+.kt-sheet-f{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-top:12px}
+/* ตารางกรอกแบบอ่านง่าย (ตัวใหญ่ แถวสูง) */
+table.kt-grid{font-size:16px}
+.kt-grid th{font-size:15px;padding:10px 10px;color:#1F2E5A}
+.kt-grid th.rn,.kt-grid td.rn{font-size:15px}
+.kt-grid td{height:46px}
+.kt-grid td input,.kt-grid td select{height:46px;font-size:16px;padding:0 10px}
+.kt-grid td.x button{height:46px;font-size:22px}
+.kt-grid tfoot td{height:48px;font-size:16px}
+.kt-sheet-f .btnx{min-height:48px;font-size:16px;padding:0 22px}
+/* ลายเซ็นท้ายเอกสาร (แสดงเฉพาะตอนบันทึกเป็น PDF) */
+.kd-sig{display:none}
+.kd-pdf .kd-sig{display:flex;justify-content:space-around;gap:20px;margin-top:28px;text-align:center;line-height:1.9;font-size:16px;break-inside:avoid}
 .kt-sheet-f .st{font-size:13px}
 .kt-busy{opacity:.5;transition:opacity .15s}
 .ktb-doc2{--kb:#00A6E6;--kn:#0B3B66;--kl:#EAF7FD;background:#fff;border:1px solid #D5E9F4;border-radius:14px;overflow:hidden;color:#13293D;font-family:var(--f-body)}
@@ -3406,10 +3418,7 @@ function renderKtb() {
   const allRows = B.flatMap(b => b.rows);
   const total = D.grandTotal || 0;
   const loanCount = allRows.filter(ktIsPendingLoan).length;
-  $('ktKpi').innerHTML = `
-    <div class="kpi dark"><div class="l">${ic('ktb','sm')}รายการสั่งจ่าย</div><div class="v">${allRows.length}<small>รายการ</small></div><div class="f">${thDate(KT.date)}</div></div>
-    <div class="kpi"><div class="l">${ic('expense','sm')}จำนวนเงินรวม</div><div class="v">${moneyKpi(total)}<small>บาท</small></div><div class="f">${B.length} กลุ่ม (บัญชีปลายทาง/แหล่งเงิน)</div></div>
-    <div class="kpi ${loanCount ? 'alert' : 'cream'}"><div class="l">${ic('warn','sm')}ลูกหนี้เงินยืมค้าง</div><div class="v ${loanCount ? 'neg' : ''}">${loanCount}<small>รายการ</small></div><div class="f">รอส่งใช้ภายใน 30 วัน</div></div>`;
+  $('ktKpi').innerHTML = ''; $('ktKpi').style.display = 'none';
   ktSheetRender(canEdit);
   $('ktDoc').innerHTML = B.length ? ktDocHtml(B, canEdit) : `<div class="empty"><div class="ic">${ic('ktb')}</div><h3 style="font-size:16px">ยังไม่มีรายการแจ้งโอนวันที่ ${thDate(KT.date)}</h3><p class="muted">${canEdit ? 'กรอกในตารางด้านบนแล้วกด "บันทึก" หรือกด ‹ › เพื่อดูวันอื่น' : 'กด ‹ › หรือคลิกวันที่เพื่อเปิดปฏิทินดูวันอื่น'}</p></div>`;
 
@@ -3559,9 +3568,7 @@ function ktSheetRender(canEdit) {
         <td class="x"><button type="button" data-del="${ri}" title="${r.id ? 'ลบรายการนี้ (มีผลเมื่อกดบันทึก)' : 'ลบแถวนี้'}" aria-label="ลบแถวที่ ${ri + 1}">×</button></td></tr>`).join('')}</tbody>
       <tfoot><tr><td></td><td colspan="6" id="ktShCount"></td><td class="num" id="ktShTotal"></td><td colspan="2"></td></tr></tfoot>
     </table></div>
-    <div class="kt-sheet-f"><div class="d-flex gap-2 flex-wrap align-items-center"><button class="btnx sec sm" id="btnKtShAdd">${ic('plus', 'sm')}<span>เพิ่มแถว</span></button>
-      <button class="btnx sec sm" id="btnKtShClear">ยกเลิกที่ยังไม่บันทึก</button>
-      <span class="kt-lg"><i class="chg"></i>แก้ไขแล้ว รอบันทึก</span><span class="kt-lg"><i class="new"></i>แถวใหม่</span></div>
+    <div class="kt-sheet-f"><div class="d-flex gap-2 flex-wrap align-items-center"><button class="btnx sec" id="btnKtShAdd">+ เพิ่มข้อมูล</button></div>
       <button class="btnx pri" id="btnKtShSave"></button></div>`;
   ktSheetTotals();
   const grid = $('ktGrid');
@@ -3578,13 +3585,6 @@ function ktSheetRender(canEdit) {
     ktSaveDraftSoon(); ktSheetRender(true); ktFocus(Math.min(ri, rows.length - 1), KT_COLS.findIndex(c => c.k === 'customName'));
   });
   $('btnKtShAdd').onclick = () => ktAddRowAndFocus(KT_COLS.findIndex(c => c.k === 'customName'));
-  $('btnKtShClear').onclick = () => {
-    if (!ktPending().n) return;
-    const b = $('btnKtShClear');
-    if (b.dataset.armed) { KT.drafts[KT.date] = null; KT.dels[KT.date] = []; try { localStorage.removeItem(ktDraftKey()); } catch (e) {} ktSheetRender(true); return; }
-    b.dataset.armed = '1'; b.textContent = 'กดอีกครั้งเพื่อยืนยัน'; b.style.color = 'var(--bad)';
-    setTimeout(() => { if (b.isConnected) { delete b.dataset.armed; b.textContent = 'ยกเลิกที่ยังไม่บันทึก'; b.style.color = ''; } }, 3000);
-  };
   $('btnKtShSave').onclick = ktSheetSave;
 }
 
@@ -3748,7 +3748,8 @@ function ktDocHtml(B, canEdit) {
     <div class="kd-in"><table class="kd">
     <colgroup><col style="width:7%"><col><col style="width:27%"><col style="width:17%"></colgroup>
     ${body}${grand}</table>
-    <div class="kd-baht">(${bahtText(gT)})</div></div></div></div>`;
+    <div class="kd-baht">(${bahtText(gT)})</div>
+    <div class="kd-sig">${ktSigHtml()}</div></div></div></div>`;
 }
 
 /* ===== ส่งออก Excel รายเดือน (ExcelJS) ===== */
@@ -4023,7 +4024,9 @@ async function exportKtb(kind) {
       const a = document.createElement('a'); a.download = `KTB-${KT.date}.png`; a.href = canvas.toDataURL('image/png'); a.click();
     } else {
       await loadHtml2Pdf();
-      await html2pdf().set({ margin: 8, filename: `KTB-${KT.date}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from($('ktDocInner')).save();
+      $('ktDocInner').classList.add('kd-pdf');
+      try { await html2pdf().set({ margin: 8, filename: `KTB-${KT.date}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from($('ktDocInner')).save(); }
+      finally { $('ktDocInner').classList.remove('kd-pdf'); }
     }
   } catch (e) { fail(e); }
   loading(false);
@@ -6625,5 +6628,11 @@ function initSideMini() {
     const b = e.target.closest('.nav-item'); if (!b || !document.body.classList.contains('side-mini')) return;
     b.classList.remove('bounce'); void b.offsetWidth; b.classList.add('bounce');
   });
+}
+/* ลายเซ็นท้ายรายการโอนเงิน (PDF): เจ้าหน้าที่การเงิน + รองผู้อำนวยการกลุ่มบริหารงบประมาณ */
+function ktSigHtml() {
+  const sg = (KT.day && KT.day.signers) || {}, dots = '..........................................';
+  return `<div>ลงชื่อ${dots}<br>(${esc(sg.finOfficer) || dots})<br>เจ้าหน้าที่การเงิน</div>
+    <div>ลงชื่อ${dots}<br>(${esc(sg.deputy) || dots})<br>รองผู้อำนวยการกลุ่มบริหารงบประมาณ</div>`;
 }
 </script>

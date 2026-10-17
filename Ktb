@@ -88,6 +88,7 @@ function getKtbDay(fy, date) {
     fy: fy, date: date, batches: shown, arriveOther: ktbArriveDate_(date, school), arriveOtherAuto: !ktbArriveSetting_(date, school),
     grandTotal: round2_(shown.reduce((x, b) => x + b.total, 0)),
     school: { name: school.schoolName || '', logoUrl: school.garudaUrl || '' },
+    signers: { finOfficer: school.finOfficer || '', deputy: school.deputy || '' },
     canEdit: WRITE_ROLES.ktb.indexOf(currentUser_().role) >= 0
   };
 }
