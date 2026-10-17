@@ -128,13 +128,14 @@ function getKtbMonth(ym) {
  * dels: [id] รายการที่ลบออกจากตาราง (คืนยอดคงเหลือให้อัตโนมัติ)
  * ตรวจทุกแถวก่อน ถ้ามีแถวผิดจะไม่บันทึกเลย
  */
-function saveKtbRows(fy, date, rows, dels) {
+function saveKtbRows(fy, date, rows, dels, order) {
   requireWrite_('ktb');
   fy = Number(fy);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) throw new Error('กรุณาระบุวันที่โอน');
   rows = (rows || []).filter(r => r);
   dels = (dels || []).map(String).filter(Boolean);
-  if (!rows.length && !dels.length) throw new Error('ไม่มีรายการที่ต้องบันทึก');
+  order = (order || []).map(String).filter(Boolean);
+  if (!rows.length && !dels.length && !order.length) throw new Error('ไม่มีรายการที่ต้องบันทึก');
   rows.forEach(r => {
     const at = 'แถวที่ ' + (r.rowNo || '?') + ': ';
     if (!(num_(r.amount) > 0)) throw new Error(at + 'จำนวนเงินต้องมากกว่า 0');
@@ -143,18 +144,25 @@ function saveKtbRows(fy, date, rows, dels) {
   });
   const out = { added: 0, updated: 0, deleted: 0 };
   dels.forEach(id => { deleteKtbItem(id); out.deleted++; });
+  const newIds = {};
   rows.forEach(r => {
     try {
-      saveKtbItem({
+      const id = saveKtbItem({
         id: r.id ? String(r.id) : '', fy: fy, date: date, bankAccount: String(r.bankAccount).trim(), fundSource: String(r.fundSource),
         budgetType: String(r.budgetType || ''), expenseCat: String(r.expenseCat || ''), activityId: String(r.activityId || ''), customName: String(r.customName || ''),
         name: String(r.name || ''), isGroup: !!r.isGroup, groupNames: String(r.groupNames || ''),
         amount: num_(r.amount), note: String(r.note || '')
       });
+      if (!r.id) newIds['r' + r.rowNo] = id;
       if (r.id) out.updated++; else out.added++;
     } catch (e) {
       throw new Error('แถวที่ ' + (r.rowNo || '?') + ': ' + e.message);
     }
+  });
+  // เรียงลำดับรายการทั้งวันตามตาราง (เลข no ต่อเนื่องทั้งวัน)
+  if (order.length) withLock_(() => {
+    const cur = {}; readObjects_('KTB_Items').forEach(x => { cur[String(x.id)] = num_(x.no); });
+    order.map(t => newIds[t] || t).forEach((id, i) => { if (cur[id] !== undefined && cur[id] !== i + 1) updateObject_('KTB_Items', id, { no: i + 1 }); });
   });
   return out;
 }

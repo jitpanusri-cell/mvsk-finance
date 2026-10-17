@@ -3198,6 +3198,30 @@ table.kt-grid{border-collapse:collapse;width:100%;min-width:1330px;font-size:14p
 .kt-grid td.x button:hover{color:var(--bad)}
 .kt-grid tfoot td{background:#F7F8FC;font-weight:700;padding:0 8px;height:38px;font-variant-numeric:tabular-nums}
 .kt-sheet-f{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-top:12px}
+/* แถบเลื่อนแนวนอนแสดงตลอด */
+.kt-wrap{overflow-x:scroll;scrollbar-width:auto;scrollbar-color:#8A9BC4 #EEF1F8}
+.kt-wrap::-webkit-scrollbar{height:14px;-webkit-appearance:none}
+.kt-wrap::-webkit-scrollbar-track{background:#EEF1F8;border-top:1px solid #D9E0EE}
+.kt-wrap::-webkit-scrollbar-thumb{background:#8A9BC4;border-radius:8px;border:3px solid #EEF1F8}
+.kt-wrap::-webkit-scrollbar-thumb:hover{background:#5D73A8}
+/* เลือกแถว (กดตัวเลขหน้าแถว) */
+.kt-grid td.rn{cursor:pointer;user-select:none}
+.kt-grid td.rn:hover{background:#DCE6FF;color:#1D4ED8}
+.kt-grid tr.sel td{background:#E8EFFF!important}
+.kt-grid tr.sel td.rn{background:#1D4ED8!important;color:#fff!important;font-weight:700}
+.kt-grid td.kt-bad{box-shadow:inset 0 0 0 2px #DC2626}
+.kt-grid td input[data-dd]{cursor:pointer;padding-right:26px;background:url("data:image/svg+xml,%3Csvg xmlns='http:%2F%2Fwww.w3.org%2F2000%2Fsvg' viewBox='0 0 24 24' fill='none' stroke='%238A93A3' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center/14px}
+.kt-grid td input[data-dd]:focus{cursor:text}
+.btnx.kt-mv{width:48px;padding:0}
+.btnx.kt-mv svg.i{width:22px;height:22px;stroke-width:2.4}
+.btnx.kt-mv:disabled{opacity:.35;cursor:not-allowed}
+.kt-mv-h{font-size:14px;color:var(--ink2);margin-left:4px}
+/* ดรอปดาวน์ในตาราง */
+.kt-dd{position:fixed;z-index:1600;display:none;background:#fff;border:1px solid #B7C3DD;border-radius:10px;box-shadow:0 12px 30px rgba(20,30,80,.18);overflow-y:auto;max-width:460px;padding:4px 0;font-size:16px}
+.kt-dd .h{padding:8px 14px 4px;font-size:13px;font-weight:700;color:#5B6474;position:sticky;top:-4px;background:#fff}
+.kt-dd .o{padding:9px 14px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kt-dd .o:hover,.kt-dd .o.on{background:#E8EFFF;color:#1D4ED8}
+.kt-dd .o.cur{font-weight:700}
 /* ตารางกรอกแบบอ่านง่าย (ตัวใหญ่ แถวสูง) */
 table.kt-grid{font-size:16px}
 .kt-grid th{font-size:15px;padding:10px 10px;color:#1F2E5A}
@@ -3492,15 +3516,8 @@ const ktSig = r => JSON.stringify([String(r.bankAccount || '').trim(), r.budgetT
 const ktRowChanged = r => !!r.id && !!r.orig && ktSig(r) !== r.orig;
 const ktDraftKey = () => 'ktDraft|' + swrUser() + '|' + KT.date;
 KT.dels = {};
-function ktNewRow(prev) {
-  const F = KT.form || {}, bal = F.bal25 || [], cats = F.cats || [];
-  return {
-    bankAccount: prev ? prev.bankAccount : (KT.lastBank || (F.banks || [])[0] || ''),
-    fundSource: prev ? prev.fundSource : (KT.lastFund || (bal[0] ? String(bal[0].id) : '')),
-    budgetType: prev ? prev.budgetType : (KT.lastBt || ''),
-    expenseCat: prev ? prev.expenseCat : (cats[0] || ''),
-    customName: '', name: '', amount: '', note: ''
-  };
+function ktNewRow() {
+  return { bankAccount: '', fundSource: '', budgetType: '', expenseCat: '', customName: '', name: '', amount: '', note: '' };
 }
 /* รายการที่บันทึกแล้วของวันนั้น (จากเซิร์ฟเวอร์) → แถวในตาราง */
 function ktSavedRows() {
@@ -3510,12 +3527,18 @@ function ktSavedRows() {
       customName: it.customName || '', name: it.isGroup ? '' : it.name, amount: it.amount, note: it.note || '',
       isGroup: it.isGroup, groupCount: it.groupCount, groupNames: (it.groupNames || []).join('\n'),
       activityId: it.activityId || '', activityName: it.activityName || '' };
-    r.orig = ktSig(r); return r;
-  }));
+    r.no = Number(it.no) || 0; r.orig = ktSig(r); return r;
+  })).map((r, i) => (r._i = i, r)).sort((a, b) => ktGlobalNo(D) ? a.no - b.no || a._i - b._i : a._i - b._i);
+}
+/* ลำดับรายการทั้งวัน: ใช้เลข no เมื่อเป็นลำดับรวมทั้งวัน (ไม่ซ้ำกัน) ไม่งั้นเรียงตามกลุ่มเดิม */
+function ktGlobalNo(D) {
+  const n = (D.batches || []).flatMap(g => g.rows.map(it => Number(it.no) || 0));
+  return n.length > 0 && new Set(n).size === n.length;
 }
 /* ตาราง = รายการที่บันทึกแล้ว (+ที่แก้ค้างไว้) + แถวใหม่ที่ยังไม่บันทึก */
 function ktDraft() {
   let cur = KT.drafts[KT.date], dels = KT.dels[KT.date];
+  const fromMem = !!cur;
   if (!cur) {
     try {
       const o = JSON.parse(localStorage.getItem(ktDraftKey()) || 'null');
@@ -3526,13 +3549,20 @@ function ktDraft() {
   const saved = ktSavedRows();
   let rows;
   if (saved) {
-    const edited = {}; (cur || []).forEach(r => { if (r.id && (!r.orig || ktSig(r) !== r.orig)) edited[r.id] = r; });
-    rows = saved.filter(s => dels.indexOf(s.id) < 0).map(s => edited[s.id] ? Object.assign({}, s, edited[s.id], { orig: s.orig }) : s);
-    const ids = saved.map(s => s.id);
+    const edited = {}, map = {}, used = {};
+    (cur || []).forEach(r => { if (r.id && (!r.orig || ktSig(r) !== r.orig)) edited[r.id] = r; });
+    saved.forEach(x => { map[x.id] = x; });
+    const take = x => edited[x.id] ? Object.assign({}, x, edited[x.id], { orig: x.orig }) : x;
+    rows = [];
+    (cur || []).forEach(r => {
+      if (r.id) { const x = map[r.id]; if (!x || used[r.id] || dels.indexOf(r.id) >= 0) return; used[r.id] = 1; rows.push(take(x)); }
+      else if (fromMem || !ktRowEmpty(r)) rows.push(r);
+    });
+    saved.forEach(x => { if (!used[x.id] && dels.indexOf(x.id) < 0) rows.push(take(x)); });
+    const ids = saved.map(x => x.id);
     KT.dels[KT.date] = dels.filter(id => ids.indexOf(id) >= 0);
-    (cur || []).forEach(r => { if (!r.id && !ktRowEmpty(r)) rows.push(r); });
   } else rows = (cur || []).slice();
-  if (!rows.some(ktRowEmpty)) rows.push(ktNewRow(rows[rows.length - 1]));
+  if (!rows.some(ktRowEmpty)) rows.push(ktNewRow());
   return (KT.drafts[KT.date] = rows);
 }
 function ktSaveDraft() {
@@ -3557,17 +3587,35 @@ function ktFundOpts(v) {
   return KT_FUND_GRP.map(([cats, t]) => { const l = bal.filter(o => cats.includes(Number(o.category))); return l.length ? `<optgroup label="${t}">${l.map(opt).join('')}</optgroup>` : ''; }).join('') + rest.map(opt).join('');
 }
 const KT_EX = { customName: 'เช่น ค่าตอบแทน - อบรมครู', name: 'เช่น นายสมชาย ใจดี', amount: '1,500.00', note: 'ถ้ามี' };
-function ktCellHtml(col, r, ri, ci, ex) {
-  const F = KT.form || {}, v = r[col.k] ?? '';
-  let ph = ex && KT_EX[col.k] ? KT_EX[col.k] : '';
-  if (col.k === 'customName' && r.activityName && !v) ph = r.activityName;
-  const a = `data-r="${ri}" data-c="${ci}" aria-label="${esc(col.t)} แถวที่ ${ri + 1}"${ph ? ` placeholder="${esc(ph)}"` : ''}`;
-  if (col.type === 'fund') return `<select ${a}>${ktFundOpts(v)}</select>`;
-  if (col.type === 'bt') return `<select ${a}>${KT_BT.map(([k, t]) => `<option value="${k}"${k === (v || ktFundBt(r.fundSource)) ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
-  if (col.type === 'cat') return `<select ${a}><option value=""${!v ? ' selected' : ''}>—</option>${(F.cats || []).map(c => `<option${c === v ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select>`;
-  if (col.type === 'num') return `<input ${a} inputmode="decimal" autocomplete="off" value="${esc(ktNum(v) ? money(ktNum(v)) : v)}">`;
+function ktCellHtml(col, r, ri, ci) {
+  const v = r[col.k] ?? '';
+  const ph = col.k === 'customName' && r.activityName && !v ? r.activityName : '';
+  const a = `data-r="${ri}" data-c="${ci}" aria-label="${esc(col.t)} แถวที่ ${ri + 1}"${ph ? ` placeholder="${esc(ph)}"` : ''} autocomplete="off"`;
+  if (col.type === 'num') return `<input ${a} inputmode="decimal" value="${esc(ktNum(v) ? money(ktNum(v)) : v)}">`;
   if (col.k === 'name' && r.isGroup) return `<input ${a} value="${esc(r.groupCount + ' ราย (โอนแบบกลุ่ม)')}" disabled title="แก้รายชื่อย่อยได้จากปุ่มแก้ไขในเอกสารด้านล่าง">`;
-  return `<input ${a} autocomplete="off"${col.list ? ` list="${col.list}"` : ''} value="${esc(v)}">`;
+  return `<input ${a}${ktDdOpts(col) ? ' data-dd="1"' : ''} value="${esc(ktCellText(col, v))}">`;
+}
+/* ค่าที่แสดงในช่อง (ประเภทเงิน/งบ เก็บเป็นรหัส แสดงเป็นชื่อ) */
+function ktCellText(col, v) {
+  if (v === '' || v == null) return '';
+  if (col.type === 'fund') { const o = ((KT.form || {}).bal25 || []).find(x => String(x.id) === String(v)); return o ? `${o.id}. ${o.name}` : String(v); }
+  if (col.type === 'bt') { const h = KT_BT.find(([k]) => k === v); return h ? h[1] : String(v); }
+  return String(v);
+}
+/* ตัวเลือกในดรอปดาวน์ของแต่ละคอลัมน์ ({t: ข้อความ, h: หัวกลุ่ม}) */
+function ktDdOpts(col) {
+  const F = KT.form || {};
+  if (col.k === 'bankAccount') return (F.banks || []).map(t => ({ t }));
+  if (col.k === 'name') return (F.names || []).map(t => ({ t }));
+  if (col.type === 'cat') return (F.cats || []).map(t => ({ t }));
+  if (col.type === 'bt') return KT_BT.map(([, t]) => ({ t }));
+  if (col.type === 'fund') {
+    const bal = F.bal25 || [], out = [];
+    KT_FUND_GRP.forEach(([cats, h]) => { const l = bal.filter(o => cats.includes(Number(o.category))); if (l.length) { out.push({ h }); l.forEach(o => out.push({ t: `${o.id}. ${o.name}` })); } });
+    bal.filter(o => !KT_FUND_GRP.some(g => g[0].includes(Number(o.category)))).forEach(o => out.push({ t: `${o.id}. ${o.name}` }));
+    return out;
+  }
+  return null;
 }
 const ktRowCls = r => r.id ? (ktRowChanged(r) ? 'chg' : 'saved') : (ktRowEmpty(r) ? '' : 'fill');
 
@@ -3575,19 +3623,21 @@ function ktSheetRender(canEdit) {
   const el = $('ktSheet'); if (!el) return;
   el.hidden = !canEdit; if (!canEdit) return;
   const F = KT.form || {}, rows = ktDraft();
-  const exAt = rows.findIndex(r => !r.id && ktRowEmpty(r)), hasSaved = rows.some(r => r.id);
   el.innerHTML = `<div class="card-h"><h3>โอนเงิน KTB รายวัน วันที่ ${thDate(KT.date)}</h3></div>
     <datalist id="ktSheetBanks">${(F.banks || []).map(b => `<option value="${esc(b)}">`).join('')}</datalist>
     <datalist id="ktSheetNames">${(F.names || []).map(n => `<option value="${esc(n)}">`).join('')}</datalist>
     <div class="kt-wrap"><table class="kt-grid" id="ktGrid">
       <colgroup><col style="width:42px">${KT_COLS.map(c => `<col style="width:${c.w}px">`).join('')}<col style="width:38px"></colgroup>
       <thead><tr><th class="rn">ที่</th>${KT_COLS.map(c => `<th class="${c.type === 'num' ? 'n' : ''}">${esc(c.t)}</th>`).join('')}<th></th></tr></thead>
-      <tbody>${rows.map((r, ri) => `<tr data-r="${ri}" class="${ktRowCls(r)}"><td class="rn">${ri + 1}</td>
-        ${KT_COLS.map((c, ci) => `<td class="${c.type === 'num' ? 'n' : ''}">${ktCellHtml(c, r, ri, ci, ri === exAt && !hasSaved)}</td>`).join('')}
+      <tbody>${rows.map((r, ri) => `<tr data-r="${ri}" class="${ktRowCls(r)}${KT.selRow === ri ? ' sel' : ''}"><td class="rn" title="กดเพื่อเลือกแถวนี้ แล้วใช้ปุ่มเลื่อนขึ้น/ลง">${ri + 1}</td>
+        ${KT_COLS.map((c, ci) => `<td class="${c.type === 'num' ? 'n' : ''}">${ktCellHtml(c, r, ri, ci)}</td>`).join('')}
         <td class="x"><button type="button" data-del="${ri}" title="${r.id ? 'ลบรายการนี้ (มีผลเมื่อกดบันทึก)' : 'ลบแถวนี้'}" aria-label="ลบแถวที่ ${ri + 1}">×</button></td></tr>`).join('')}</tbody>
       <tfoot><tr><td></td><td colspan="6" id="ktShCount"></td><td class="num" id="ktShTotal"></td><td colspan="2"></td></tr></tfoot>
     </table></div>
-    <div class="kt-sheet-f"><div class="d-flex gap-2 flex-wrap align-items-center"><button class="btnx sec" id="btnKtShAdd">+ เพิ่มข้อมูล</button></div>
+    <div class="kt-sheet-f"><div class="d-flex gap-2 flex-wrap align-items-center"><button class="btnx sec" id="btnKtShAdd">+ เพิ่มข้อมูล</button>
+      <button class="btnx sec kt-mv" id="btnKtUp" title="เลื่อนแถวที่เลือกขึ้น" aria-label="เลื่อนแถวที่เลือกขึ้น"><svg viewBox="0 0 24 24" class="i"><path d="m6 15 6-6 6 6"/></svg></button>
+      <button class="btnx sec kt-mv" id="btnKtDown" title="เลื่อนแถวที่เลือกลง" aria-label="เลื่อนแถวที่เลือกลง"><svg viewBox="0 0 24 24" class="i"><path d="m6 9 6 6 6-6"/></svg></button>
+      <span class="kt-mv-h" id="ktMvHint"></span></div>
       <button class="btnx pri" id="btnKtShSave"></button></div>`;
   ktSheetTotals();
   const grid = $('ktGrid');
@@ -3600,32 +3650,60 @@ function ktSheetRender(canEdit) {
   grid.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
     const ri = +b.dataset.del, r = rows[ri];
     if (r.id) KT.dels[KT.date].push(r.id);
-    rows.splice(ri, 1);
+    rows.splice(ri, 1); KT.selRow = null;
     ktSaveDraftSoon(); ktSheetRender(true); ktFocus(Math.min(ri, rows.length - 1), KT_COLS.findIndex(c => c.k === 'customName'));
   });
-  $('btnKtShAdd').onclick = () => ktAddRowAndFocus(KT_COLS.findIndex(c => c.k === 'customName'));
+  $('btnKtShAdd').onclick = () => ktAddRowAndFocus(0);
+  grid.querySelectorAll('td.rn').forEach(td => td.onclick = () => {
+    const ri = +td.parentNode.dataset.r; KT.selRow = KT.selRow === ri ? null : ri;
+    grid.querySelectorAll('tbody tr').forEach(tr => tr.classList.toggle('sel', +tr.dataset.r === KT.selRow)); ktMvState();
+  });
+  $('btnKtUp').onclick = () => ktMoveRow(-1);
+  $('btnKtDown').onclick = () => ktMoveRow(1);
+  ktMvState();
+  grid.addEventListener('focusin', e => { if (e.target.dataset && e.target.dataset.dd) ktDdOpen(e.target); });
+  grid.addEventListener('click', e => { if (e.target.dataset && e.target.dataset.dd) ktDdOpen(e.target); });
+  grid.addEventListener('focusout', () => setTimeout(() => { const a = document.activeElement; if (!a || !a.dataset || !a.dataset.dd) ktDdClose(); }, 120));
+  grid.parentNode.addEventListener('scroll', ktDdClose);
   $('btnKtShSave').onclick = ktSheetSave;
 }
 
 function ktPending() {
   const rows = KT.drafts[KT.date] || [], add = rows.filter(r => !r.id && !ktRowEmpty(r)).length, chg = rows.filter(ktRowChanged).length, del = (KT.dels[KT.date] || []).length;
-  return { add, chg, del, n: add + chg + del };
+  return { add, chg, del, ord: ktOrderChanged() ? 1 : 0, n: add + chg + del + (ktOrderChanged() ? 1 : 0) };
+}
+/* ย้ายลำดับแล้วหรือยัง (เทียบรายการที่บันทึกแล้ว) */
+function ktOrderChanged() {
+  const rows = KT.drafts[KT.date] || [], saved = ktSavedRows() || [], dels = KT.dels[KT.date] || [];
+  const a = rows.filter(r => r.id).map(r => r.id).join('|'), b = saved.filter(x => dels.indexOf(x.id) < 0).map(x => x.id).join('|');
+  const newIdx = rows.map((r, i) => !r.id && !ktRowEmpty(r) ? i : -1).filter(i => i >= 0), lastSaved = rows.map(r => !!r.id).lastIndexOf(true);
+  return a !== b || newIdx.some(i => i < lastSaved);
 }
 function ktSheetTotals() {
   const rows = KT.drafts[KT.date] || [], live = rows.filter(r => !ktRowEmpty(r)), tot = live.reduce((s, r) => s + ktNum(r.amount), 0);
   const p = ktPending(), saved = rows.filter(r => r.id).length;
-  const parts = [p.add && `เพิ่ม ${p.add}`, p.chg && `แก้ ${p.chg}`, p.del && `ลบ ${p.del}`].filter(Boolean);
+  const parts = [p.add && `เพิ่ม ${p.add}`, p.chg && `แก้ ${p.chg}`, p.del && `ลบ ${p.del}`, p.ord && 'ย้ายลำดับ'].filter(Boolean);
   $('ktShCount').textContent = `ทั้งหมด ${live.length} รายการ` + (saved ? ` (บันทึกแล้ว ${saved})` : '') + (parts.length ? ` · รอบันทึก: ${parts.join(', ')}` : '');
   $('ktShTotal').textContent = money(tot);
   const b = $('btnKtShSave');
-  b.innerHTML = ic('check', 'sm') + `<span>${p.n ? 'บันทึก ' + p.n + ' รายการ' : 'บันทึกแล้ว'}</span>`; b.disabled = !p.n;
+  b.innerHTML = ic('check', 'sm') + `<span>${p.n ? 'บันทึก' : 'บันทึกแล้ว'}</span>`; b.disabled = !p.n;
 }
 function ktSheetOnInput(e) {
   const t = e.target, ri = +t.dataset.r, ci = +t.dataset.c; if (isNaN(ri) || isNaN(ci)) return;
-  const rows = KT.drafts[KT.date], col = KT_COLS[ci]; rows[ri][col.k] = t.value;
-  if (col.k === 'fundSource' && e.type === 'change') {
-    rows[ri].budgetType = ktFundBt(t.value);
-    const bt = document.querySelector(`#ktGrid [data-r="${ri}"][data-c="${KT_COLS.findIndex(c => c.k === 'budgetType')}"]`); if (bt) bt.value = rows[ri].budgetType;
+  const rows = KT.drafts[KT.date], col = KT_COLS[ci];
+  if (col.type === 'fund' || col.type === 'bt') {
+    if (e.type === 'input') { ktDdFilter(t); return; }
+    const m = ktMatchOpt(col, t.value);
+    rows[ri][col.k] = m || t.value.trim();
+    t.value = ktCellText(col, rows[ri][col.k]);
+    t.parentNode.classList.toggle('kt-bad', !!t.value && !m);
+    if (col.k === 'fundSource' && m) {
+      rows[ri].budgetType = ktFundBt(m);
+      const bt = document.querySelector(`#ktGrid [data-r="${ri}"][data-c="${KT_COLS.findIndex(c => c.k === 'budgetType')}"]`); if (bt) { bt.value = ktCellText(KT_COLS.find(c => c.k === 'budgetType'), rows[ri].budgetType); bt.parentNode.classList.remove('kt-bad'); }
+    }
+  } else {
+    rows[ri][col.k] = t.value;
+    if (e.type === 'input' && t.dataset.dd) ktDdFilter(t);
   }
   const tr = t.closest('tr'); tr.className = ktRowCls(rows[ri]);
   ktSheetTotals(); ktSaveDraftSoon();
@@ -3635,11 +3713,12 @@ function ktFocus(ri, ci) {
   if (el) { el.focus(); if (el.select && el.tagName === 'INPUT') el.select(); }
 }
 function ktAddRowAndFocus(ci) {
-  const rows = KT.drafts[KT.date] || ktDraft(); rows.push(ktNewRow(rows[rows.length - 1]));
+  const rows = KT.drafts[KT.date] || ktDraft(); rows.push(ktNewRow());
   ktSheetRender(true); ktFocus(rows.length - 1, ci);
 }
 function ktSheetOnKey(e) {
   const t = e.target, ri = +t.dataset.r, ci = +t.dataset.c; if (isNaN(ri) || isNaN(ci)) return;
+  if (ktDdKey(e)) return;
   const rows = KT.drafts[KT.date], isSel = t.tagName === 'SELECT', last = rows.length - 1;
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
@@ -3679,7 +3758,7 @@ function ktSheetOnPaste(e) {
   const rows = KT.drafts[KT.date]; let miss = 0;
   lines.forEach((cells, i) => {
     const ri = ri0 + i;
-    while (rows.length <= ri) rows.push(ktNewRow(rows[rows.length - 1]));
+    while (rows.length <= ri) rows.push(ktNewRow());
     cells.forEach((v, j) => {
       const col = KT_COLS[ci0 + j]; if (!col) return;
       if (col.k === 'name' && rows[ri].isGroup) return;
@@ -3698,18 +3777,21 @@ async function ktSheetSave() {
     if (ktRowEmpty(r) || (r.id && !ktRowChanged(r))) return;
     const amt = ktNum(r.amount);
     const why = !(amt > 0) ? 'ยังไม่ได้กรอกจำนวนเงิน' : !String(r.bankAccount || '').trim() ? 'ยังไม่ได้ระบุบัญชีปลายทาง' : !String(r.fundSource || '').trim() ? 'ยังไม่ได้เลือกประเภทเงิน' : '';
-    if (why) bad.push({ i, why });
-    else payload.push({ rowNo: i + 1, id: r.id || '', bankAccount: String(r.bankAccount).trim(), fundSource: String(r.fundSource), budgetType: r.budgetType || ktFundBt(r.fundSource), expenseCat: r.expenseCat || '',
+    const okFund = ((KT.form || {}).bal25 || []).some(o => String(o.id) === String(r.fundSource));
+    const why2 = why || (!okFund ? 'ประเภทเงินไม่ตรงกับรายการ (เลือกจากรายการที่แสดง)' : '');
+    if (why2) bad.push({ i, why: why2 });
+    if (!why2) payload.push({ rowNo: i + 1, id: r.id || '', bankAccount: String(r.bankAccount).trim(), fundSource: String(r.fundSource), budgetType: r.budgetType || ktFundBt(r.fundSource), expenseCat: r.expenseCat || '',
       customName: String(r.customName || '').trim(), name: String(r.name || '').trim(), amount: amt, note: String(r.note || '').trim(),
       activityId: r.activityId || '', isGroup: !!r.isGroup, groupNames: r.groupNames || '' });
   });
   document.querySelectorAll('#ktGrid tbody tr').forEach(tr => tr.classList.toggle('bad', bad.some(b => b.i === +tr.dataset.r)));
   if (bad.length) { toast(`แถวที่ ${bad[0].i + 1}: ${bad[0].why}` + (bad.length > 1 ? ` (และอีก ${bad.length - 1} แถว)` : ''), true); ktFocus(bad[0].i, bad[0].why.includes('จำนวนเงิน') ? KT_COLS.findIndex(c => c.k === 'amount') : bad[0].why.includes('บัญชี') ? 0 : KT_COLS.findIndex(c => c.k === 'fundSource')); return; }
-  const dels = (KT.dels[KT.date] || []).slice();
-  if (!payload.length && !dels.length) return toast('ไม่มีรายการที่ต้องบันทึก', true);
+  const dels = (KT.dels[KT.date] || []).slice(), ordChg = ktOrderChanged();
+  if (!payload.length && !dels.length && !ordChg) return toast('ไม่มีรายการที่ต้องบันทึก', true);
+  const order = rows.map((r, i) => r.id ? r.id : (!ktRowEmpty(r) ? 'r' + (i + 1) : '')).filter(Boolean);
   const btn = $('btnKtShSave'); btn.disabled = true; btn.querySelector('span').textContent = 'กำลังบันทึก…';
   try {
-    const r = await api('saveKtbRows', KT.fy, KT.date, payload, dels);
+    const r = await api('saveKtbRows', KT.fy, KT.date, payload, dels, order);
     const lastRow = payload[payload.length - 1];
     if (lastRow) { KT.lastBank = lastRow.bankAccount; KT.lastFund = lastRow.fundSource; KT.lastBt = lastRow.budgetType; }
     KT.drafts[KT.date] = null; KT.dels[KT.date] = []; try { localStorage.removeItem(ktDraftKey()); } catch (e) {}
@@ -6653,5 +6735,58 @@ function ktSigHtml() {
   const sg = (KT.day && KT.day.signers) || {}, dots = '..........................................';
   return `<div>ลงชื่อ${dots}<br>(${esc(sg.finOfficer) || dots})<br>เจ้าหน้าที่การเงิน</div>
     <div>ลงชื่อ${dots}<br>(${esc(sg.deputy) || dots})<br>รองผู้อำนวยการกลุ่มบริหารงบประมาณ</div>`;
+}
+/* ===== ตารางโอนเงิน: ดรอปดาวน์ (กดที่ช่องจึงแสดง พิมพ์เองได้) + เลือกแถว/ย้ายขึ้นลง ===== */
+const KTDD = { el: null, inp: null, hi: -1, typed: false };
+function ktDdOpen(inp) {
+  const col = KT_COLS[+inp.dataset.c], opts = col && ktDdOpts(col); if (!opts || !opts.length) return ktDdClose();
+  if (KTDD.inp !== inp) { KTDD.inp = inp; KTDD.typed = false; }
+  if (!KTDD.el) { KTDD.el = document.createElement('div'); KTDD.el.className = 'kt-dd'; KTDD.el.setAttribute('role', 'listbox'); document.body.appendChild(KTDD.el);
+    KTDD.el.addEventListener('mousedown', e => { e.preventDefault(); const o = e.target.closest('[data-v]'); if (o) ktDdPick(o.dataset.v); }); }
+  ktDdDraw();
+}
+function ktDdFilter(inp) { if (KTDD.inp !== inp) return ktDdOpen(inp); KTDD.typed = true; KTDD.hi = -1; ktDdDraw(); }
+function ktDdDraw() {
+  const inp = KTDD.inp, el = KTDD.el; if (!inp || !el || !inp.isConnected) return ktDdClose();
+  const opts = ktDdOpts(KT_COLS[+inp.dataset.c]) || [], q = KTDD.typed ? inp.value.trim().toLowerCase() : '';
+  const list = []; let head = null;
+  opts.forEach(o => { if (o.h) { head = o; return; } if (q && o.t.toLowerCase().indexOf(q) < 0) return; if (head) { list.push(head); head = null; } list.push(o); });
+  const items = list.filter(o => !o.h);
+  if (!items.length) { el.style.display = 'none'; return; }
+  let n = -1;
+  el.innerHTML = list.map(o => o.h ? `<div class="h">${esc(o.h)}</div>` : `<div class="o${++n === KTDD.hi ? ' on' : ''}${o.t === inp.value ? ' cur' : ''}" data-v="${esc(o.t)}" data-n="${n}" role="option">${esc(o.t)}</div>`).join('');
+  const r = inp.getBoundingClientRect(), below = window.innerHeight - r.bottom;
+  el.style.display = 'block'; el.style.left = Math.max(4, r.left) + 'px'; el.style.minWidth = r.width + 'px';
+  el.style.maxHeight = Math.max(160, Math.min(320, below > 200 ? below - 12 : r.top - 12)) + 'px';
+  if (below > 200 || below > r.top) { el.style.top = r.bottom + 2 + 'px'; el.style.bottom = ''; } else { el.style.top = ''; el.style.bottom = window.innerHeight - r.top + 2 + 'px'; }
+  const on = el.querySelector('.o.on') || (!KTDD.typed && el.querySelector('.o.cur')); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
+}
+function ktDdClose() { if (KTDD.el) KTDD.el.style.display = 'none'; KTDD.inp = null; KTDD.hi = -1; }
+function ktDdPick(v) {
+  const inp = KTDD.inp; if (!inp) return;
+  inp.value = v; ktSheetOnInput({ type: 'change', target: inp }); ktDdClose(); inp.focus();
+}
+function ktDdKey(e) {
+  if (!KTDD.el || KTDD.el.style.display !== 'block' || KTDD.inp !== e.target) return false;
+  const n = KTDD.el.querySelectorAll('.o').length;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); KTDD.hi = (KTDD.hi + (e.key === 'ArrowDown' ? 1 : n - 1) + (KTDD.hi < 0 && e.key === 'ArrowUp' ? 1 : 0)) % n; ktDdDraw(); return true; }
+  if (e.key === 'Enter' && KTDD.hi >= 0) { e.preventDefault(); const o = KTDD.el.querySelector(`.o[data-n="${KTDD.hi}"]`); if (o) ktDdPick(o.dataset.v); return true; }
+  if (e.key === 'Escape') { e.preventDefault(); ktDdClose(); return true; }
+  return false;
+}
+window.addEventListener('scroll', () => { if (KTDD.inp) ktDdDraw(); }, true);
+window.addEventListener('resize', ktDdClose);
+function ktMvState() {
+  const rows = KT.drafts[KT.date] || [], s = KT.selRow, ok = s != null && s < rows.length;
+  if (!ok) KT.selRow = null;
+  if ($('btnKtUp')) $('btnKtUp').disabled = !ok || s === 0;
+  if ($('btnKtDown')) $('btnKtDown').disabled = !ok || s === rows.length - 1;
+  if ($('ktMvHint')) $('ktMvHint').textContent = ok ? `เลือกแถวที่ ${s + 1} แล้ว` : 'กดตัวเลขหน้าแถวเพื่อเลือกแถว';
+}
+function ktMoveRow(d) {
+  const rows = KT.drafts[KT.date], s = KT.selRow; if (!rows || s == null) return;
+  const t = s + d; if (t < 0 || t >= rows.length) return;
+  const x = rows[s]; rows[s] = rows[t]; rows[t] = x; KT.selRow = t;
+  ktSaveDraftSoon(); ktSheetRender(true);
 }
 </script>
