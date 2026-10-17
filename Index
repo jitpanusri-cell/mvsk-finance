@@ -1185,5 +1185,6 @@
   <?!= include('JS'); ?>
   <?!= include('LedgerUI'); ?>
   <?!= include('ElectricUI'); ?>
+  <?!= include('IncomingUI'); ?>
 </body>
 </html>

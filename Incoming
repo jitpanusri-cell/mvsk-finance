@@ -1,0 +1,254 @@
+/*******************************************************************
+ * Incoming.gs — หนังสือเข้า (ทะเบียนหนังสือรับ) + รับไฟล์ PDF ผ่าน LINE OA
+ * ----------------------------------------------------------------
+ * ทางเข้า 2 ทาง
+ *   1) LINE OA : ส่งไฟล์ PDF เข้าแชต OA → doPost (webhook) บันทึกไฟล์ลงโฟลเดอร์ "หนังสือเข้า"
+ *      ออกเลขรับอัตโนมัติ แล้วตอบกลับเลขรับ · พิมพ์ข้อความตามหลังภายใน 15 นาที = ใช้เป็น "เรื่อง"
+ *   2) หน้าเว็บ : เมนู "หนังสือเข้า" อัปโหลด PDF เอง / แก้รายละเอียด / พิมพ์ทะเบียนรับ
+ * ชีต IncomingDocs (สร้างเองครั้งแรก) · เลขรับนับใหม่ทุกปีปฏิทิน (พ.ศ.) เช่น 12/2569
+ *
+ * ตั้งค่า (Script Properties — ตั้งจากหน้าเว็บ ปุ่ม "ตั้งค่า LINE" ได้)
+ *   LINE_TOKEN          Channel access token (long-lived) ของ LINE OA
+ *   LINE_HOOK_KEY       รหัสต่อท้าย webhook URL (?k=...) กันคนอื่นยิงเข้ามา
+ *   LINE_ALLOWED_USERS  userId ที่อนุญาตให้ส่งหนังสือ คั่นด้วยจุลภาค (ว่าง = ทุกคนที่แอด OA)
+ * โฟลเดอร์ปลายทาง: Settings คีย์ incomingFolderId (ว่าง = INC_FOLDER_DEFAULT)
+ *
+ * การ deploy webhook: Deploy > New deployment > Web app
+ *   Execute as: Me · Who has access: Anyone  (เป็น deployment แยกจากหน้าเว็บเดิม)
+ *   Webhook URL ใน LINE Developers = ลิงก์ /exec ของ deployment นี้ + ?k=<LINE_HOOK_KEY>
+ * รัน incomingSetupCheck() ใน editor 1 ครั้งเพื่ออนุญาตสิทธิ์ Drive/UrlFetch
+ *******************************************************************/
+
+const INC_SHEET = 'IncomingDocs';
+const INC_HEAD = ['id', 'recvYear', 'recvSeq', 'recvDate', 'recvAt', 'docNo', 'docDate', 'fromOrg', 'toWhom', 'subject',
+  'action', 'status', 'fileId', 'fileName', 'fileUrl', 'source', 'lineUser', 'senderName', 'lineMsgId', 'note',
+  'createdBy', 'updatedAt'];
+const INC_TEXT = ['recvAt', 'docNo', 'lineUser', 'lineMsgId'];
+const INC_FOLDER_DEFAULT = '1znhpmmLuuPF8sxm4mPpttWQ36chc2drB';
+const INC_VIEW_ROLES = ['admin', 'finance', 'exec', 'account'];
+const INC_EDIT_ROLES = ['admin', 'finance'];
+const INC_STATUS = ['ใหม่', 'กำลังดำเนินการ', 'เสร็จสิ้น'];
+const INC_SUBJECT_WINDOW_MS = 15 * 60 * 1000;
+
+function incEnsure_() {
+  if (_findSheet_(INC_SHEET)) return;
+  const sh = ss_().insertSheet(INC_SHEET);
+  sh.getRange(1, 1, 1, INC_HEAD.length).setValues([INC_HEAD])
+    .setFontWeight('bold').setBackground('#16263D').setFontColor('#FFFFFF');
+  sh.setFrozenRows(1);
+}
+function incCell_(o) {
+  const out = Object.assign({}, o);
+  INC_TEXT.forEach(k => { if (out[k] !== undefined && out[k] !== '') out[k] = "'" + String(out[k]).replace(/^'/, ''); });
+  return out;
+}
+function incProps_() { return PropertiesService.getScriptProperties(); }
+function incFolder_() { return DriveApp.getFolderById(String(getSetting_('incomingFolderId') || INC_FOLDER_DEFAULT).trim()); }
+function incNowParts_() {
+  const tz = Session.getScriptTimeZone(), d = new Date();
+  return { date: Utilities.formatDate(d, tz, 'yyyy-MM-dd'), at: Utilities.formatDate(d, tz, "yyyy-MM-dd'T'HH:mm"), yearBE: Number(Utilities.formatDate(d, tz, 'yyyy')) + 543 };
+}
+function incSafeName_(s) { return String(s || 'หนังสือ.pdf').replace(/[\\\/:*?"<>|\r\n]+/g, ' ').trim().slice(0, 150) || 'หนังสือ.pdf'; }
+
+/** บันทึกไฟล์ + ออกเลขรับ (เรียกภายใน withLock_) */
+function incCreate_(blob, meta) {
+  incEnsure_();
+  const now = incNowParts_();
+  const rows = readObjects_(INC_SHEET);
+  const seq = rows.filter(r => Number(r.recvYear) === now.yearBE).reduce((m, r) => Math.max(m, Number(r.recvSeq) || 0), 0) + 1;
+  let name = incSafeName_(meta.fileName);
+  if (!/\.pdf$/i.test(name)) name += '.pdf';
+  const file = incFolder_().createFile(blob.setName(seq + '-' + now.yearBE + ' ' + name));
+  const o = {
+    id: newId_('IN'), recvYear: now.yearBE, recvSeq: seq, recvDate: now.date, recvAt: now.at,
+    docNo: meta.docNo || '', docDate: meta.docDate || '', fromOrg: meta.fromOrg || '', toWhom: meta.toWhom || 'ผู้อำนวยการโรงเรียน',
+    subject: meta.subject || '', action: meta.action || '', status: 'ใหม่',
+    fileId: file.getId(), fileName: name, fileUrl: file.getUrl(), source: meta.source || 'web',
+    lineUser: meta.lineUser || '', senderName: meta.senderName || '', lineMsgId: meta.lineMsgId || '',
+    note: meta.note || '', createdBy: meta.createdBy || '', updatedAt: new Date()
+  };
+  appendObject_(INC_SHEET, incCell_(o));
+  return o;
+}
+
+/* ================================================================
+ * LINE webhook
+ * ================================================================ */
+function doPost(e) {
+  const out = ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+  try {
+    const P = incProps_();
+    const key = P.getProperty('LINE_HOOK_KEY') || '';
+    if (key && String((e && e.parameter && e.parameter.k) || '') !== key) return out;
+    const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    (body.events || []).forEach(ev => { try { incHandleEvent_(ev); } catch (err) { console.error('incoming event', err); } });
+  } catch (err) { console.error('doPost', err); }
+  return out;
+}
+
+function incHandleEvent_(ev) {
+  if (ev.type !== 'message' || !ev.message) return;
+  const P = incProps_(), token = P.getProperty('LINE_TOKEN');
+  if (!token) return;
+  const uid = (ev.source && ev.source.userId) || '';
+  const allowed = String(P.getProperty('LINE_ALLOWED_USERS') || '').split(/[,\s]+/).filter(String);
+  const m = ev.message;
+  if (allowed.length && allowed.indexOf(uid) < 0) {
+    if (m.type === 'file') incReply_(ev.replyToken, 'ยังไม่ได้รับสิทธิ์ส่งหนังสือเข้าระบบ\nแจ้งรหัสนี้ให้ผู้ดูแลระบบ:\n' + uid);
+    return;
+  }
+  if (m.type === 'file') {
+    if (!/\.pdf$/i.test(m.fileName || '')) return incReply_(ev.replyToken, 'ระบบรับเฉพาะไฟล์ PDF');
+    const res = withLock_(() => {
+      incEnsure_();
+      const dup = readObjects_(INC_SHEET).find(r => String(r.lineMsgId) === String(m.id));
+      if (dup) return dup;
+      const blob = UrlFetchApp.fetch('https://api-data.line.me/v2/bot/message/' + m.id + '/content',
+        { headers: { Authorization: 'Bearer ' + token } }).getBlob().setContentType('application/pdf');
+      return incCreate_(blob, { fileName: m.fileName, source: 'line', lineUser: uid, senderName: incLineName_(uid, token), lineMsgId: m.id, createdBy: 'LINE' });
+    });
+    return incReply_(ev.replyToken, 'รับหนังสือแล้ว ✓\nเลขรับ ' + res.recvSeq + '/' + res.recvYear + '\nไฟล์ ' + res.fileName +
+      '\n\nพิมพ์ "เรื่อง" ของหนังสือส่งตามมาได้ภายใน 15 นาที');
+  }
+  if (m.type === 'text') {
+    const text = String(m.text || '').trim();
+    incEnsure_();
+    const now = Date.now();
+    const last = readObjects_(INC_SHEET).filter(r => r.lineUser === uid && r.source === 'line')
+      .sort((a, b) => String(b.recvAt).localeCompare(String(a.recvAt)))[0];
+    const age = last ? now - new Date(String(last.recvAt) + ':00+07:00').getTime() : Infinity;
+    if (last && !last.subject && age < INC_SUBJECT_WINDOW_MS && text) {
+      withLock_(() => updateObject_(INC_SHEET, last.id, { subject: text.replace(/^เรื่อง\s*[:：]?\s*/, ''), updatedAt: new Date() }));
+      return incReply_(ev.replyToken, 'บันทึกเรื่องของเลขรับ ' + last.recvSeq + '/' + last.recvYear + ' แล้ว ✓');
+    }
+    return incReply_(ev.replyToken, 'ส่งหนังสือเข้า: แนบไฟล์ PDF ในแชตนี้\nระบบจะออกเลขรับให้ แล้วพิมพ์ "เรื่อง" ส่งตามมาได้');
+  }
+  if (m.type === 'image') return incReply_(ev.replyToken, 'ระบบรับเฉพาะไฟล์ PDF — สแกนเป็น PDF แล้วส่งเป็นไฟล์');
+}
+
+function incLineName_(uid, token) {
+  try {
+    const r = UrlFetchApp.fetch('https://api.line.me/v2/bot/profile/' + uid, { headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true });
+    return r.getResponseCode() === 200 ? JSON.parse(r.getContentText()).displayName || '' : '';
+  } catch (e) { return ''; }
+}
+function incReply_(replyToken, text) {
+  const token = incProps_().getProperty('LINE_TOKEN');
+  if (!token || !replyToken) return;
+  UrlFetchApp.fetch('https://api.line.me/v2/bot/message/reply', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify({ replyToken: replyToken, messages: [{ type: 'text', text: text }] })
+  });
+}
+
+/** รันใน editor 1 ครั้ง: อนุญาตสิทธิ์ + ตรวจโฟลเดอร์/โทเคน */
+function incomingSetupCheck() {
+  incEnsure_();
+  const f = incFolder_();
+  Logger.log('โฟลเดอร์: ' + f.getName());
+  const t = incProps_().getProperty('LINE_TOKEN');
+  if (!t) return Logger.log('ยังไม่ได้ใส่ LINE_TOKEN');
+  const r = UrlFetchApp.fetch('https://api.line.me/v2/bot/info', { headers: { Authorization: 'Bearer ' + t }, muteHttpExceptions: true });
+  Logger.log('LINE: ' + r.getResponseCode() + ' ' + r.getContentText());
+}
+
+/* ================================================================
+ * หน้าเว็บ
+ * ================================================================ */
+function incView_() {
+  const u = currentUser_();
+  if (INC_VIEW_ROLES.indexOf(u.role) < 0) throw new Error('ไม่มีสิทธิ์เข้าถึงเมนูหนังสือเข้า');
+  incEnsure_();
+  return u;
+}
+function incEdit_() {
+  const u = incView_();
+  if (INC_EDIT_ROLES.indexOf(u.role) < 0) throw new Error('บทบาท "' + (u.roleLabel || '-') + '" ไม่มีสิทธิ์บันทึกหนังสือเข้า');
+  return u;
+}
+
+function getIncomingData(year) {
+  const u = incView_();
+  const all = readObjects_(INC_SHEET);
+  const now = incNowParts_();
+  year = Number(year) || now.yearBE;
+  const ys = {}; ys[now.yearBE] = 1;
+  all.forEach(r => { if (r.recvYear) ys[Number(r.recvYear)] = 1; });
+  const rows = all.filter(r => Number(r.recvYear) === year).map(r => ({
+    id: r.id, recvYear: Number(r.recvYear), recvSeq: Number(r.recvSeq), recvDate: r.recvDate, recvAt: String(r.recvAt || ''),
+    docNo: String(r.docNo || ''), docDate: r.docDate || '', fromOrg: String(r.fromOrg || ''), toWhom: String(r.toWhom || ''),
+    subject: String(r.subject || ''), action: String(r.action || ''), status: String(r.status || 'ใหม่'),
+    fileId: String(r.fileId || ''), fileName: String(r.fileName || ''), fileUrl: String(r.fileUrl || ''),
+    previewUrl: r.fileId ? 'https://drive.google.com/file/d/' + r.fileId + '/preview' : '',
+    source: String(r.source || ''), senderName: String(r.senderName || ''), lineUser: String(r.lineUser || ''), note: String(r.note || '')
+  })).sort((a, b) => b.recvSeq - a.recvSeq);
+  const P = incProps_();
+  const canEdit = INC_EDIT_ROLES.indexOf(u.role) >= 0;
+  const senders = {};
+  all.filter(r => r.lineUser).forEach(r => { senders[r.lineUser] = String(r.senderName || ''); });
+  return {
+    year: year, years: Object.keys(ys).map(Number).sort((a, b) => b - a), today: now.date,
+    canEdit: canEdit, isAdmin: u.role === 'admin', school: getSetting_('schoolName') || '',
+    statuses: INC_STATUS, rows: rows,
+    folderUrl: 'https://drive.google.com/drive/folders/' + String(getSetting_('incomingFolderId') || INC_FOLDER_DEFAULT),
+    line: canEdit ? {
+      tokenSet: !!P.getProperty('LINE_TOKEN'), key: u.role === 'admin' ? (P.getProperty('LINE_HOOK_KEY') || '') : '',
+      allowed: String(P.getProperty('LINE_ALLOWED_USERS') || '').split(/[,\s]+/).filter(String),
+      senders: Object.keys(senders).map(k => ({ id: k, name: senders[k] }))
+    } : null
+  };
+}
+
+/** แก้รายละเอียดหนังสือ */
+function saveIncoming(o) {
+  const u = incEdit_();
+  if (!o || !o.id) throw new Error('ไม่พบรายการ');
+  const allow = ['docNo', 'docDate', 'fromOrg', 'toWhom', 'subject', 'action', 'status', 'note'];
+  const upd = { updatedAt: new Date() };
+  allow.forEach(k => { if (o[k] !== undefined) upd[k] = String(o[k] || '').trim(); });
+  if (upd.status && INC_STATUS.indexOf(upd.status) < 0) throw new Error('สถานะไม่ถูกต้อง');
+  if (upd.docDate && !/^\d{4}-\d{2}-\d{2}$/.test(upd.docDate)) throw new Error('วันที่ลงในหนังสือไม่ถูกต้อง');
+  return withLock_(() => {
+    if (!updateObject_(INC_SHEET, o.id, incCell_(upd))) throw new Error('ไม่พบรายการ (อาจถูกลบแล้ว)');
+    audit_('update', INC_SHEET, o.id, upd);
+    return getIncomingData(o.year);
+  });
+}
+
+/** อัปโหลด PDF จากหน้าเว็บ: p = {name, b64, ...รายละเอียด} */
+function uploadIncoming(p) {
+  const u = incEdit_();
+  if (!p || !p.b64) throw new Error('ไม่พบไฟล์');
+  const blob = Utilities.newBlob(Utilities.base64Decode(p.b64), 'application/pdf', p.name || 'หนังสือ.pdf');
+  const o = withLock_(() => incCreate_(blob, Object.assign({}, p, { source: 'web', createdBy: u.name || u.email })));
+  audit_('create', INC_SHEET, o.id, { recv: o.recvSeq + '/' + o.recvYear, file: o.fileName });
+  return Object.assign(getIncomingData(o.recvYear), { created: { id: o.id, recvSeq: o.recvSeq, recvYear: o.recvYear } });
+}
+
+/** ลบรายการ (ย้ายไฟล์ไปถังขยะ Drive ถ้ามีสิทธิ์) */
+function deleteIncoming(id, year) {
+  incEdit_();
+  return withLock_(() => {
+    const r = readObjects_(INC_SHEET).find(x => x.id === id);
+    if (!r) throw new Error('ไม่พบรายการ');
+    let warn = '';
+    try { if (r.fileId) DriveApp.getFileById(String(r.fileId)).setTrashed(true); } catch (e) { warn = 'ลบรายการแล้ว แต่ย้ายไฟล์ไปถังขยะไม่ได้ (ไม่มีสิทธิ์ในโฟลเดอร์)'; }
+    deleteWhere_(INC_SHEET, x => x.id === id);
+    audit_('delete', INC_SHEET, id, { recv: r.recvSeq + '/' + r.recvYear, subject: r.subject });
+    return Object.assign(getIncomingData(year), { warn: warn });
+  });
+}
+
+/** ตั้งค่า LINE (ผู้ดูแลระบบ): token ว่าง = ไม่เปลี่ยน */
+function saveIncomingLine(p) {
+  const u = incView_();
+  if (u.role !== 'admin') throw new Error('เฉพาะผู้ดูแลระบบ');
+  const P = incProps_();
+  if (p.token) P.setProperty('LINE_TOKEN', String(p.token).trim());
+  if (p.clearToken) P.deleteProperty('LINE_TOKEN');
+  if (p.newKey || !P.getProperty('LINE_HOOK_KEY')) P.setProperty('LINE_HOOK_KEY', Utilities.getUuid().replace(/-/g, '').slice(0, 16));
+  if (p.allowed !== undefined) P.setProperty('LINE_ALLOWED_USERS', (p.allowed || []).filter(String).join(','));
+  audit_('update', 'ScriptProperties', 'LINE', { tokenChanged: !!p.token, newKey: !!p.newKey, allowed: (p.allowed || []).length });
+  return getIncomingData(p.year);
+}

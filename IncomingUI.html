@@ -1,0 +1,395 @@
+<!-- =========================================================
+  IncomingUI.html — เมนู "หนังสือเข้า" (ทะเบียนหนังสือรับ + ไฟล์ PDF จาก LINE OA)
+  ใส่ใน Index.html หนึ่งบรรทัด ต่อจาก include('ElectricUI') :  include('IncomingUI')
+  ฝั่งเซิร์ฟเวอร์: Incoming.gs
+  ห้ามเขียนเครื่องหมายทับสองตัวติดกันในสคริปต์ไฟล์นี้ (Apps Script ย่อโค้ดแล้วตัดทิ้ง)
+========================================================= -->
+<style>
+a.btnx{text-decoration:none}
+.in-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.in-tbl td{vertical-align:top}
+.in-tbl .no{white-space:nowrap;font-weight:700;font-variant-numeric:tabular-nums}
+.in-tbl .in-subj{font-weight:600;line-height:1.35}
+.in-tbl .in-subj.empty{color:var(--bad);font-weight:500;font-style:italic}
+.in-tbl .meta{font-size:12px;color:var(--ink2);margin-top:2px}
+.in-tbl tr:hover td{background:#FAFBFE}
+.in-act{white-space:nowrap;text-align:right}
+.in-act .btnx.icon.sm{width:32px}
+.in-st{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;white-space:nowrap}
+.in-st.s0{background:#FFF4DB;color:#6B4A0E}
+.in-st.s1{background:#E6EEFF;color:#2447A8}
+.in-st.s2{background:var(--ok-bg);color:var(--ok)}
+.in-src{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--ink3)}
+.in-src.line{color:#06893A}
+.in-detail{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,1fr);gap:16px}
+.in-pdf{background:#EEF1F6;border-radius:12px;min-height:70vh;overflow:hidden;display:flex}
+.in-pdf iframe{border:0;width:100%;min-height:70vh;flex:1}
+.in-pdf .none{margin:auto;color:var(--ink2)}
+.in-drop{border:2px dashed #9DB4E8;background:#F5F8FF;border-radius:14px;padding:22px;text-align:center;cursor:pointer;color:#2447A8}
+.in-drop.over{background:#EAF1FF}
+.in-drop b{display:block;font-size:15px}
+.in-line-ok{color:var(--ok);font-weight:600}
+.in-line-bad{color:var(--bad);font-weight:600}
+.in-code{font-family:ui-monospace,monospace;font-size:12.5px;background:#F2F4F8;border-radius:6px;padding:2px 6px;word-break:break-all}
+.in-sender{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:14px}
+@media (max-width:900px){.in-detail{grid-template-columns:1fr}.in-pdf,.in-pdf iframe{min-height:55vh}}
+</style>
+
+<script>
+/* ---------- ลงทะเบียนเมนู ---------- */
+const IN_ROLES = ['admin', 'finance', 'exec', 'account'];
+const IN = { year: null, data: null, inited: false, q: '', st: '', cur: null };
+(function () {
+  ICON.incoming = '<path d="M4 13V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8"/><path d="M2 13h6l2 3h4l2-3h6v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/><path d="M12 6v6M9.5 9.5 12 12l2.5-2.5"/>';
+  ICON.eye = ICON.eye || '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>';
+  ICON.folder = '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>';
+  ICON.chat = '<path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4V6a1 1 0 0 1 1-1z"/>';
+  const at = MENU.findIndex(g => g.group === 'ตรวจสอบและรายงาน');
+  MENU.splice(at >= 0 ? at : MENU.length - 1, 0, { group: 'งานสารบรรณ', items: [{ id: 'incoming', label: 'หนังสือเข้า' }] });
+  IMPLEMENTED.push('incoming');
+  SWR_PAGE.getIncomingData = 'incoming';
+  SWR_LOADER.incoming = 'loadIncoming';
+})();
+const _inRenderShell = renderShell;
+renderShell = function () {
+  const u = S.boot && S.boot.user;
+  if (u && IN_ROLES.includes(u.role) && !u.pages.includes('incoming')) u.pages.push('incoming');
+  _inRenderShell();
+};
+const _inGo = go;
+go = function (page) {
+  _inGo(page);
+  if (page === 'incoming') loadPageIfStale('incoming', loadIncoming);
+};
+
+/* ---------- หน้าเมนู + หน้าต่าง ---------- */
+document.querySelector('main.main').insertAdjacentHTML('beforeend', `
+<section class="page" id="page-incoming">
+  <div class="page-head">
+    <div>
+      <h1 id="inTitle">หนังสือเข้า</h1>
+      <div class="sub" id="inSub">ทะเบียนหนังสือรับ · รับไฟล์ PDF ผ่าน LINE OA หรืออัปโหลดเอง</div>
+    </div>
+    <div class="controls">
+      <select class="sel" id="inYear" aria-label="ปี"></select>
+      <a class="btnx sec" id="btnInFolder" target="_blank" rel="noopener"></a>
+      <button class="btnx sec" id="btnInPrint"></button>
+      <button class="btnx sec" id="btnInLine"></button>
+      <button class="btnx pri" id="btnInUpload"></button>
+    </div>
+  </div>
+  <div class="grid-kpi" id="inKpi"></div>
+  <div class="cardx mb-grid">
+    <div class="card-h in-tools">
+      <div class="seg" id="inSeg"></div>
+      <input class="inp" id="inQ" placeholder="ค้นหา เลขรับ / ที่ / จาก / เรื่อง" aria-label="ค้นหา" style="max-width:320px">
+    </div>
+    <div class="table-responsive"><table class="tbl in-tbl" id="inList"></table></div>
+  </div>
+</section>`);
+
+document.body.insertAdjacentHTML('beforeend', `
+<div class="modal fade" id="inDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:16px">
+      <div class="modal-header border-0 pb-0">
+        <div><h3 class="modal-title" style="font-size:18px" id="inDTitle">หนังสือเข้า</h3><div class="muted small-x" id="inDSub"></div></div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+      </div>
+      <div class="modal-body">
+        <div class="in-detail">
+          <div class="in-pdf" id="inPdf"></div>
+          <div>
+            <div class="row g-2">
+              <div class="col-7"><label class="flabel" for="inDocNo">ที่ (เลขที่หนังสือ)</label><input class="inp" id="inDocNo" placeholder="เช่น ศธ 04xxx/ว 123"></div>
+              <div class="col-5"><label class="flabel" for="inDocDate">ลงวันที่</label><input class="inp" type="date" id="inDocDate"></div>
+              <div class="col-12"><label class="flabel" for="inFrom">จาก</label><input class="inp" id="inFrom" list="inFromList" placeholder="หน่วยงานที่ส่ง"></div>
+              <div class="col-12"><label class="flabel" for="inTo">ถึง</label><input class="inp" id="inTo" list="inToList"></div>
+              <div class="col-12"><label class="flabel" for="inSubject">เรื่อง</label><textarea class="inp" id="inSubject" rows="2"></textarea></div>
+              <div class="col-12"><label class="flabel" for="inAction">การปฏิบัติ / มอบหมาย</label><input class="inp" id="inAction" placeholder="เช่น มอบงานการเงิน / แจ้งครูทุกคน"></div>
+              <div class="col-6"><label class="flabel" for="inStatus">สถานะ</label><select class="sel w-100" id="inStatus"></select></div>
+              <div class="col-6"><label class="flabel" for="inNote">หมายเหตุ</label><input class="inp" id="inNote"></div>
+            </div>
+            <div class="small-x muted mt-3" id="inDMeta"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0 justify-content-between">
+        <button class="btnx sec" id="btnInDel" style="color:var(--bad);border-color:var(--bad)">ลบ</button>
+        <div class="d-flex gap-2"><button class="btnx sec" data-bs-dismiss="modal" id="btnInDClose">ปิด</button><button class="btnx pri" id="btnInDSave">บันทึก</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+<datalist id="inFromList"></datalist><datalist id="inToList"></datalist>
+<div class="modal fade" id="inUpModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px">
+      <div class="modal-header border-0 pb-0">
+        <h3 class="modal-title" style="font-size:18px">รับหนังสือ (อัปโหลด PDF)</h3>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+      </div>
+      <div class="modal-body">
+        <label class="in-drop" id="inDrop" for="inFile"><b id="inDropTxt">เลือกไฟล์ PDF หรือลากมาวางที่นี่</b><span class="small-x">ไฟล์จะถูกเก็บในโฟลเดอร์หนังสือเข้า และออกเลขรับอัตโนมัติ</span></label>
+        <input type="file" id="inFile" accept="application/pdf,.pdf" style="display:none">
+        <div class="row g-2 mt-2">
+          <div class="col-7"><label class="flabel" for="inUpDocNo">ที่</label><input class="inp" id="inUpDocNo"></div>
+          <div class="col-5"><label class="flabel" for="inUpDocDate">ลงวันที่</label><input class="inp" type="date" id="inUpDocDate"></div>
+          <div class="col-12"><label class="flabel" for="inUpFrom">จาก</label><input class="inp" id="inUpFrom" list="inFromList"></div>
+          <div class="col-12"><label class="flabel" for="inUpSubject">เรื่อง</label><input class="inp" id="inUpSubject"></div>
+        </div>
+        <div class="small-x muted mt-2">กรอกรายละเอียดภายหลังได้</div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button class="btnx sec" data-bs-dismiss="modal">ยกเลิก</button>
+        <button class="btnx pri" id="btnInUpSave">รับหนังสือ</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="inLineModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:16px">
+      <div class="modal-header border-0 pb-0">
+        <h3 class="modal-title" style="font-size:18px">ตั้งค่า LINE OA</h3>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+      </div>
+      <div class="modal-body" id="inLineBody"></div>
+      <div class="modal-footer border-0 pt-0" id="inLineFoot">
+        <button class="btnx sec" data-bs-dismiss="modal">ปิด</button>
+        <button class="btnx pri" id="btnInLineSave">บันทึก</button>
+      </div>
+    </div>
+  </div>
+</div>`);
+
+/* ---------- โหลด / แสดงผล ---------- */
+const inNo = r => r.recvSeq + '/' + r.recvYear;
+const inStCls = s => 's' + Math.max(0, IN.data.statuses.indexOf(s));
+const inRecv = r => { const t = String(r.recvAt || '').split('T')[1] || ''; return thDate(r.recvDate, true) + (t ? ' ' + t + ' น.' : ''); };
+
+function initIncomingPage() {
+  if (IN.inited) return;
+  IN.inited = true;
+  $('btnInUpload').innerHTML = ic('upload') + '<span>รับหนังสือ</span>';
+  $('btnInPrint').innerHTML = ic('print') + '<span>พิมพ์ทะเบียนรับ</span>';
+  $('btnInFolder').innerHTML = ic('folder') + '<span>โฟลเดอร์</span>';
+  $('btnInLine').innerHTML = ic('chat') + '<span>LINE OA</span>';
+  $('inYear').onchange = e => { IN.year = +e.target.value; loadIncoming(); };
+  $('inQ').oninput = e => { IN.q = e.target.value.trim().toLowerCase(); renderInList(); };
+  $('btnInUpload').onclick = openInUpload;
+  $('btnInPrint').onclick = printIncoming;
+  $('btnInLine').onclick = openInLine;
+  $('btnInDSave').onclick = saveInDetail;
+  $('btnInDel').onclick = delInDetail;
+  $('btnInUpSave').onclick = saveInUpload;
+  $('btnInLineSave').onclick = saveInLine;
+  $('inFile').onchange = () => inPickFile($('inFile').files[0]);
+  const dz = $('inDrop');
+  dz.ondragover = e => { e.preventDefault(); dz.classList.add('over'); };
+  dz.ondragleave = () => dz.classList.remove('over');
+  dz.ondrop = e => { e.preventDefault(); dz.classList.remove('over'); inPickFile(e.dataTransfer.files[0]); };
+  document.getElementById('inDetailModal').addEventListener('hidden.bs.modal', () => { $('inPdf').innerHTML = ''; });
+}
+
+async function loadIncoming() {
+  initIncomingPage();
+  loading(true);
+  try { IN.data = await api('getIncomingData', IN.year); IN.year = IN.data.year; renderIncoming(); } catch (e) { fail(e); }
+  loading(false);
+}
+
+function renderIncoming() {
+  const D = IN.data;
+  $('inYear').innerHTML = D.years.map(y => `<option value="${y}"${y === D.year ? ' selected' : ''}>ปี ${y}</option>`).join('');
+  $('inTitle').textContent = 'หนังสือเข้า ปี ' + D.year;
+  $('btnInFolder').href = D.folderUrl;
+  $('btnInUpload').style.display = D.canEdit ? '' : 'none';
+  $('btnInLine').style.display = D.canEdit ? '' : 'none';
+  const R = D.rows;
+  const k = (cls, l, v, f) => `<div class="kpi ${cls}"><div class="l">${l}</div><div class="v">${v.toLocaleString('th-TH')}<small>ฉบับ</small></div><div class="f">${f}</div></div>`;
+  const today = R.filter(r => r.recvDate === D.today).length;
+  const fromLine = R.filter(r => r.source === 'line').length;
+  const noSub = R.filter(r => !r.subject).length;
+  $('inKpi').innerHTML =
+    k('dark', 'รับทั้งปี', R.length, R.length ? `เลขรับล่าสุด ${inNo(R[0])}` : 'ยังไม่มีหนังสือ') +
+    k('', 'รับวันนี้', today, `ผ่าน LINE ทั้งปี ${fromLine} ฉบับ`) +
+    k('', 'รอดำเนินการ', R.filter(r => r.status !== 'เสร็จสิ้น').length, `สถานะ "ใหม่" ${R.filter(r => r.status === 'ใหม่').length} ฉบับ`) +
+    k('cream', 'ยังไม่ลงเรื่อง', noSub, noSub ? 'กดรายการเพื่อกรอกรายละเอียด' : 'ลงรายละเอียดครบแล้ว');
+  const segs = [['', 'ทั้งหมด']].concat(D.statuses.map(s => [s, s]));
+  $('inSeg').innerHTML = segs.map(s => `<button data-st="${esc(s[0])}" class="${s[0] === IN.st ? 'on' : ''}">${esc(s[1])} <span class="muted">${s[0] ? R.filter(r => r.status === s[0]).length : R.length}</span></button>`).join('');
+  $('inSeg').querySelectorAll('button').forEach(b => b.onclick = () => { IN.st = b.dataset.st; renderIncoming(); });
+  const uniq = a => a.filter((v, i) => v && a.indexOf(v) === i);
+  $('inFromList').innerHTML = uniq(R.map(r => r.fromOrg)).map(v => `<option value="${esc(v)}">`).join('');
+  $('inToList').innerHTML = uniq(['ผู้อำนวยการโรงเรียน'].concat(R.map(r => r.toWhom))).map(v => `<option value="${esc(v)}">`).join('');
+  $('inStatus').innerHTML = D.statuses.map(s => `<option>${esc(s)}</option>`).join('');
+  renderInList();
+}
+
+function renderInList() {
+  const D = IN.data, q = IN.q;
+  const rows = D.rows.filter(r => (!IN.st || r.status === IN.st) &&
+    (!q || [inNo(r), r.docNo, r.fromOrg, r.subject, r.senderName, r.fileName, r.action].join(' ').toLowerCase().includes(q)));
+  if (!rows.length) {
+    $('inList').innerHTML = `<tbody><tr><td class="text-center muted" style="padding:28px">${D.rows.length ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีหนังสือเข้าในปีนี้ · ส่งไฟล์ PDF เข้า LINE OA หรือกด "รับหนังสือ"'}</td></tr></tbody>`;
+    return;
+  }
+  const act = D.canEdit ? ic('edit', 'sm') : ic('eye', 'sm');
+  $('inList').innerHTML = `<thead><tr><th>เลขรับ</th><th>วันที่รับ</th><th>ที่ / ลงวันที่</th><th>จาก</th><th style="min-width:260px">เรื่อง</th><th>สถานะ</th><th></th></tr></thead><tbody>` +
+    rows.map(r => `<tr>
+      <td class="no">${inNo(r)}</td>
+      <td style="white-space:nowrap">${inRecv(r)}<div class="meta">${r.source === 'line' ? `<span class="in-src line">${ic('chat', 'sm')} LINE ${esc(r.senderName)}</span>` : '<span class="in-src">อัปโหลด</span>'}</div></td>
+      <td>${esc(r.docNo) || '<span class="muted">–</span>'}<div class="meta">${r.docDate ? thDate(r.docDate, true) : ''}</div></td>
+      <td>${esc(r.fromOrg) || '<span class="muted">–</span>'}</td>
+      <td><div class="in-subj${r.subject ? '' : ' empty'}">${r.subject ? esc(r.subject) : 'ยังไม่ลงเรื่อง'}</div><div class="meta">${esc(r.action)}</div></td>
+      <td><span class="in-st ${inStCls(r.status)}">${esc(r.status)}</span></td>
+      <td class="in-act"><button class="btnx sec icon sm" data-view="${r.id}" title="ดูไฟล์${D.canEdit ? '/แก้รายละเอียด' : ''}" aria-label="ดูหนังสือเลขรับ ${inNo(r)}">${act}</button></td>
+    </tr>`).join('') + '</tbody>';
+  $('inList').querySelectorAll('[data-view]').forEach(b => b.onclick = () => openInDetail(b.dataset.view));
+}
+
+/* ---------- ดู / แก้รายละเอียด ---------- */
+function openInDetail(id) {
+  const D = IN.data, r = D.rows.find(x => x.id === id);
+  if (!r) return;
+  IN.cur = r;
+  $('inDTitle').textContent = 'เลขรับ ' + inNo(r) + (r.subject ? ' · ' + r.subject : '');
+  $('inDSub').innerHTML = `รับ ${inRecv(r)} ${r.fileUrl ? `· <a href="${esc(r.fileUrl)}" target="_blank" rel="noopener">เปิดใน Drive</a>` : ''}`;
+  $('inPdf').innerHTML = r.previewUrl ? `<iframe src="${esc(r.previewUrl)}" title="ไฟล์หนังสือ ${esc(inNo(r))}" allow="autoplay"></iframe>` : '<div class="none">ไม่มีไฟล์</div>';
+  const F = { inDocNo: r.docNo, inDocDate: r.docDate, inFrom: r.fromOrg, inTo: r.toWhom, inSubject: r.subject, inAction: r.action, inStatus: r.status, inNote: r.note };
+  Object.keys(F).forEach(k => { $(k).value = F[k] || ''; $(k).disabled = !D.canEdit; });
+  $('inDMeta').textContent = `ไฟล์ ${r.fileName}` + (r.source === 'line' ? ` · ส่งผ่าน LINE โดย ${r.senderName || r.lineUser}` : '');
+  $('btnInDSave').style.display = D.canEdit ? '' : 'none';
+  $('btnInDel').style.display = D.canEdit ? '' : 'none';
+  modal('inDetailModal').show();
+}
+
+async function saveInDetail() {
+  const r = IN.cur;
+  if (!r) return;
+  $('btnInDSave').disabled = true;
+  loading(true);
+  try {
+    IN.data = await api('saveIncoming', { id: r.id, year: IN.year, docNo: $('inDocNo').value, docDate: $('inDocDate').value, fromOrg: $('inFrom').value,
+      toWhom: $('inTo').value, subject: $('inSubject').value, action: $('inAction').value, status: $('inStatus').value, note: $('inNote').value });
+    modal('inDetailModal').hide();
+    renderIncoming();
+    toast('บันทึกเลขรับ ' + inNo(r) + ' แล้ว');
+  } catch (e) { fail(e); }
+  $('btnInDSave').disabled = false;
+  loading(false);
+}
+
+async function delInDetail() {
+  const r = IN.cur;
+  if (!r || !confirm('ลบหนังสือเลขรับ ' + inNo(r) + ' และย้ายไฟล์ไปถังขยะ?')) return;
+  loading(true);
+  try {
+    IN.data = await api('deleteIncoming', r.id, IN.year);
+    modal('inDetailModal').hide();
+    renderIncoming();
+    toast(IN.data.warn || 'ลบเลขรับ ' + inNo(r) + ' แล้ว', !!IN.data.warn);
+  } catch (e) { fail(e); }
+  loading(false);
+}
+
+/* ---------- อัปโหลด ---------- */
+function openInUpload() {
+  IN.file = null;
+  $('inFile').value = '';
+  $('inDropTxt').textContent = 'เลือกไฟล์ PDF หรือลากมาวางที่นี่';
+  ['inUpDocNo', 'inUpDocDate', 'inUpFrom', 'inUpSubject'].forEach(k => $(k).value = '');
+  modal('inUpModal').show();
+}
+function inPickFile(f) {
+  if (!f) return;
+  if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') return toast('เลือกได้เฉพาะไฟล์ PDF', true);
+  if (f.size > 30 * 1024 * 1024) return toast('ไฟล์ใหญ่เกิน 30 MB', true);
+  IN.file = f;
+  $('inDropTxt').textContent = f.name + ' (' + (f.size / 1048576).toLocaleString('th-TH', { maximumFractionDigits: 1 }) + ' MB)';
+  if (!$('inUpSubject').value) $('inUpSubject').value = f.name.replace(/\.pdf$/i, '');
+}
+const inB64 = f => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = no; fr.readAsDataURL(f); });
+
+async function saveInUpload() {
+  if (!IN.file) return toast('เลือกไฟล์ PDF ก่อน', true);
+  $('btnInUpSave').disabled = true;
+  loading(true);
+  try {
+    const b64 = await inB64(IN.file);
+    const res = await api('uploadIncoming', { name: IN.file.name, b64: b64, docNo: $('inUpDocNo').value.trim(), docDate: $('inUpDocDate').value,
+      fromOrg: $('inUpFrom').value.trim(), subject: $('inUpSubject').value.trim() });
+    IN.data = res; IN.year = res.year;
+    modal('inUpModal').hide();
+    renderIncoming();
+    toast('รับหนังสือแล้ว เลขรับ ' + res.created.recvSeq + '/' + res.created.recvYear);
+  } catch (e) { fail(e); }
+  $('btnInUpSave').disabled = false;
+  loading(false);
+}
+
+/* ---------- ตั้งค่า LINE ---------- */
+function openInLine() {
+  const D = IN.data, L = D.line;
+  if (!L) return;
+  const admin = D.isAdmin;
+  const ids = L.allowed.slice();
+  L.senders.forEach(s => { if (ids.indexOf(s.id) < 0) ids.push(s.id); });
+  const nameOf = id => (L.senders.find(s => s.id === id) || {}).name || '';
+  $('inLineBody').innerHTML = `
+    <div class="mb-3">${L.tokenSet ? '<span class="in-line-ok">✓ เชื่อม LINE OA แล้ว</span>' : '<span class="in-line-bad">ยังไม่ได้ใส่ Channel access token</span>'}</div>
+    ${admin ? `
+    <label class="flabel" for="inLineToken">Channel access token (long-lived)</label>
+    <input class="inp" type="password" id="inLineToken" placeholder="${L.tokenSet ? 'ใส่ไว้แล้ว — เว้นว่าง = ไม่เปลี่ยน' : 'วางจาก LINE Developers > Messaging API'}" autocomplete="off">
+    <div class="flabel mt-3">Webhook URL</div>
+    <div class="small-x">ลิงก์ /exec ของ deployment แบบ <b>Execute as: Me · Who has access: Anyone</b> แล้วต่อท้ายด้วย</div>
+    <div class="mt-1"><span class="in-code">?k=${esc(L.key || '(กดบันทึกเพื่อสร้างรหัส)')}</span></div>
+    <label class="small-x mt-2 d-inline-flex gap-2 align-items-center"><input type="checkbox" id="inLineNewKey"> สร้างรหัสใหม่ (ต้องแก้ Webhook URL ใน LINE ตาม)</label>
+    <div class="flabel mt-3">ผู้ที่ส่งหนังสือได้</div>
+    <div class="small-x muted mb-1">ไม่ติ๊กเลย = ทุกคนที่แอด OA ส่งได้ · คนที่ยังไม่มีสิทธิ์ส่งไฟล์มา ระบบจะตอบรหัสผู้ใช้กลับไปให้นำมาใส่</div>
+    <div id="inSenders">${ids.map(id => `<label class="in-sender"><input type="checkbox" value="${esc(id)}"${L.allowed.indexOf(id) >= 0 ? ' checked' : ''}> ${esc(nameOf(id) || 'ไม่ทราบชื่อ')} <span class="in-code">${esc(id.slice(0, 10))}…</span></label>`).join('') || '<div class="small-x muted">ยังไม่มีผู้ส่งผ่าน LINE</div>'}</div>
+    <label class="flabel mt-2" for="inLineAdd">เพิ่มรหัสผู้ใช้ (userId) เอง</label>
+    <input class="inp" id="inLineAdd" placeholder="U1234... คั่นด้วยจุลภาค">` :
+    `<div class="small-x muted">การตั้งค่า token และผู้ส่ง ทำได้เฉพาะผู้ดูแลระบบ</div>
+     <div class="mt-2 small-x">ผู้ที่ส่งผ่าน LINE: ${L.senders.map(s => esc(s.name || s.id)).join(', ') || '–'}</div>`}`;
+  $('btnInLineSave').style.display = admin ? '' : 'none';
+  modal('inLineModal').show();
+}
+
+async function saveInLine() {
+  const allowed = [...$('inSenders').querySelectorAll('input:checked')].map(x => x.value)
+    .concat($('inLineAdd').value.split(/[,\s]+/).map(s => s.trim()).filter(s => /^U[0-9a-f]{32}$/i.test(s)));
+  if ($('inLineAdd').value.trim() && !allowed.length) return toast('รหัสผู้ใช้ไม่ถูกต้อง (ขึ้นต้นด้วย U ตามด้วย 32 ตัวอักษร)', true);
+  loading(true);
+  try {
+    IN.data = await api('saveIncomingLine', { year: IN.year, token: $('inLineToken').value.trim(), newKey: $('inLineNewKey').checked, allowed: allowed.filter((v, i, a) => a.indexOf(v) === i) });
+    renderIncoming();
+    openInLine();
+    toast('บันทึกการตั้งค่า LINE แล้ว');
+  } catch (e) { fail(e); }
+  loading(false);
+}
+
+/* ---------- พิมพ์ทะเบียนหนังสือรับ ---------- */
+function printIncoming() {
+  const D = IN.data;
+  if (!D || !D.rows.length) return toast('ยังไม่มีรายการให้พิมพ์', true);
+  const rows = D.rows.slice().sort((a, b) => a.recvSeq - b.recvSeq);
+  const cs = 'border:.75pt solid #000;padding:1mm 1.5mm;vertical-align:top';
+  const th = cs + ';text-align:center;font-weight:700';
+  const hd = ['เลขทะเบียนรับ', 'ที่', 'ลงวันที่', 'จาก', 'ถึง', 'เรื่อง', 'การปฏิบัติ', 'หมายเหตุ'];
+  printDoc(`<div style="font-family:THSarabunWeb,'TH Sarabun New',Sarabun,sans-serif;font-size:14pt;line-height:1.15;color:#000">
+    <div style="text-align:center;font-weight:700;font-size:16pt">ทะเบียนหนังสือรับ</div>
+    <div style="text-align:center;font-size:15pt;margin-bottom:1mm">${esc(D.school)}</div>
+    <div style="text-align:right;margin-bottom:2mm">ปี ${D.year}</div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr>${hd.map(h => `<th style="${th}">${h}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r => `<tr>
+        <td style="${cs};text-align:center;white-space:nowrap">${r.recvSeq}<div style="font-size:12pt">${thDate(r.recvDate, true)}</div></td>
+        <td style="${cs}">${esc(r.docNo)}</td><td style="${cs};white-space:nowrap">${r.docDate ? thDate(r.docDate, true) : ''}</td>
+        <td style="${cs}">${esc(r.fromOrg)}</td><td style="${cs}">${esc(r.toWhom)}</td><td style="${cs}">${esc(r.subject)}</td>
+        <td style="${cs}">${esc(r.action)}</td><td style="${cs}">${esc(r.note)}</td></tr>`).join('')}</tbody>
+    </table>
+  </div>`, 'land');
+}
+</script>
