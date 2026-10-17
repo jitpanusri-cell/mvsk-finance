@@ -5887,8 +5887,7 @@ function mvF206(r) {
 <div style="display:flex;border-bottom:${MV_B}">
 <div style="flex:1 1 0;border-right:${MV_B};padding:10px 12px 8px;display:flex;flex-direction:column;justify-content:space-between;min-height:112px">
 <div style="text-align:center;font-weight:700;font-size:17px">สัญญาการยืมเงิน</div>
-${mvRow([mvL('ยื่นต่อ'), mvV(DC_LOAN_TO, { grow: 1 }), mvD({ grow: .35 })])}
-</div>
+${mvRow([mvL('ยื่นต่อ'), mvV(DC_LOAN_TO, { grow: 1 })])}</div>
 <div style="width:236px;padding:10px 12px;text-align:center;line-height:2.1">
 <div>เลขที่${r && r.loanContractNo ? ` <span class="mvv">${mvE(r.loanContractNo)}</span>` : mvDots(28)}</div><div>วันครบกำหนด</div><div>${r && r.loanDueDate ? `<span class="mvv">${mvE(thDate(r.loanDueDate))}</span>` : mvDots(34)}</div>
 </div>
@@ -5905,7 +5904,7 @@ ${mvRow([mvL('เพื่อเป็นค่าใช้จ่ายในก
 ${sig('ผู้ยืม')}
 </div>
 <div style="${sec}">
-${mvRow([mvL('เสนอ'), mvV(mvDir(), { grow: 1 }), mvD({ grow: .15 })])}
+${mvRow([mvL('เสนอ'), mvV(mvDir(), { grow: 1 })])}
 ${mvRow([mvL('ได้ตรวจสอบแล้วเห็นสมควรอนุมัติให้ยืมตามใบยืมฉบับนี้ได้ จำนวน'), mvV(amt, { w: 120, center: true }), mvL('บาท')], { indent: 60 })}
 ${mvRow([mvL('('), mvV(words, { w: 200 }), mvL(')')], { gap: 2 })}
 ${mvRow([mvL('ลงชื่อ' + mvDots(66)), mvL('วันที่' + mvDots(64))], { indent: 60, gap: 40, extra: ';margin-top:10px' })}
@@ -6405,7 +6404,8 @@ const GF_CSS = `
 .f206 .sec{border-top:.75pt solid #000;padding:1mm 2.5mm 1.2mm}
 .f206 .sec:first-child{border-top:0}
 .f206 .sec.hd{display:flex;padding:0}
-.f206 .sec.hd .l{flex:1;padding:1.5mm 2.5mm 1mm}
+.f206 .sec.hd .l{flex:1;padding:1.5mm 2.5mm 1mm;display:flex;flex-direction:column;justify-content:space-between}
+.f206 .sec.hd .l .tt{margin:0}
 .f206 .sec.hd .r{width:48mm;border-left:.75pt solid #000;padding:1.5mm 2.5mm 1mm}
 .f206 .tt{text-align:center;font-weight:700;font-size:17pt;margin:0 0 3.5mm}
 .f206 .ln{display:flex;align-items:baseline;white-space:nowrap}
