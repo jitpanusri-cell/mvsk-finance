@@ -10,5 +10,5 @@
 
 ## งานค้าง (16 ต.ค. 69)
 - ~~หน้าส่งคืนเงินยืมแบบใหม่~~ รวมเข้า JS/Index/CSS ล่าสุดแล้ว (17 ต.ค. 69)
-- Index.html ต้องเพิ่ม `<?!= include('LedgerUI'); ?>` ต่อจาก include('JS')
-- Code.gs doGet ต้องห่อ withBoot_(...) (ดู dev-status-speed.md)
+- ~~Index.html include('LedgerUI')~~ มีแล้ว
+- ~~Code.gs doGet ห่อ withBoot_~~ มีแล้ว
