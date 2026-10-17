@@ -4819,8 +4819,8 @@ async function saveDrModal(andPrint) {
 
 /* ---------- ส่งใช้เงินยืม: สัญญาที่ทำเองนอกระบบ (พิมพ์อย่างเดียว) ---------- */
 function openDcManRet() {
-  ['fMrNo', 'fMrName', 'fMrPos', 'fMrPurpose', 'fMrAct', 'fMrAmt', 'fMrReceiptNo', 'fMrCash', 'fMrItems', 'fMrLoanDate', 'fMrDue'].forEach(id => $(id).value = '');
-  $('fMrDate').value = S.boot.today;
+  ['fMrNo', 'fMrName', 'fMrPos', 'fMrPurpose', 'fMrAct', 'fMrAmt', 'fMrReceiptNo', 'fMrCash', 'fMrItems', 'fMrLoanDate', 'fMrDue'].forEach(id => { const el = $(id); if (el) el.value = ''; });
+  if ($('fMrDate')) $('fMrDate').value = S.boot.today;
   dcFillLists();
   // สัญญาที่บันทึกในระบบและยังไม่ล้างหนี้ → ไปหน้าบันทึกส่งคืนในระบบ
   const openL = (DC.data.list || []).filter(r => dcIsLoan(r) && r.status !== 'closed');
