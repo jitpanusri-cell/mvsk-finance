@@ -26,8 +26,11 @@ function ktbEnsureCol_(name, col) {
   if (head.indexOf(col) < 0) { sh.getRange(1, n + 1).setValue(col); _clearRowCache_(name); }
 }
 
+/* ประเภทเงินที่งานการเงินจัดเป็น "นอกงบประมาณ" ในเมนูแจ้งโอน KTB (ไม่กระทบรายงานยอดคงเหลือ 25 รายการ) */
+const KTB_OFF_BUDGET_IDS = ['18']; // 18 = ค่ากิจกรรมพัฒนาคุณภาพผู้เรียน
 function ktbBal25Options_(fy) {
-  return getBalance25(fy).rows.map(r => ({ id: r.id, name: r.name, category: r.category, catLabel: r.catLabel, mode: r.mode }));
+  return getBalance25(fy).rows.map(r => ({ id: r.id, name: r.name, catLabel: r.catLabel, mode: r.mode,
+    category: KTB_OFF_BUDGET_IDS.indexOf(String(r.id)) >= 0 ? 4 : r.category }));
 }
 
 /** ข้อมูลตั้งต้นสำหรับ dropdown ต่างๆ ของหน้าแจ้งโอนเงิน */
