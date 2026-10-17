@@ -5184,7 +5184,7 @@ function dcF2Back(r, blank) {
   const back = gPad(ret, 14, { seq: '', date: '', kind: '', amt: '', remain: '', no: '' });
   return `<div class="sheet gf">
     <div class="ttl">รายการส่งใช้เงินยืม</div>
-    <p class="ct">สัญญาการยืมเงินเลขที่ ${gD(r.loanContractNo, 28)} ชื่อผู้ยืม ${gD(r.teacherName, 55)} จำนวนเงิน ${gD(r.total ? money(r.total) : '', 30)} บาท</p>
+    <p class="ct" style="white-space:nowrap">สัญญาการยืมเงินเลขที่ ${gD(r.loanContractNo, 20)} ชื่อผู้ยืม ${gD(r.teacherName, 40)} จำนวนเงิน ${gD(r.total ? money(r.total) : '', 22)} บาท</p>
     <table class="g back"><colgroup><col style="width:8%"><col style="width:14%"><col style="width:17%"><col style="width:15%"><col style="width:15%"><col style="width:18%"><col style="width:13%"></colgroup>
       <thead><tr><th>ครั้งที่</th><th>วัน เดือน ปี</th><th>รายการส่งใช้<br>เงินสดหรือใบสำคัญ</th><th>จำนวนเงิน</th><th>คงค้าง</th><th>ลายมือชื่อ<br>ผู้รับ</th><th>ใบรับ<br>เลขที่</th></tr></thead>
       <tbody>${back.map(b => `<tr><td class="ct">${b.seq}</td><td class="ct">${b.date}</td><td class="ct">${b.kind}</td><td class="num">${b.amt}</td><td class="num">${b.remain}</td><td></td><td class="ct">${esc(b.no)}</td></tr>`).join('')}</tbody></table>
