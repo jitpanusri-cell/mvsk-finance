@@ -3617,9 +3617,8 @@ function ktDdOpts(col) {
   if (col.type === 'bt') return KT_BT.map(([, t]) => ({ t }));
   if (col.type === 'fund') {
     const bal = F.bal25 || [], out = [];
-    const vis = bal.filter(o => !o.hide);
-    KT_FUND_GRP.forEach(([cats, h]) => { const l = vis.filter(o => cats.includes(Number(o.category))); if (l.length) { out.push({ h }); l.forEach(o => out.push({ t: `${o.id}. ${o.name}` })); } });
-    vis.filter(o => !KT_FUND_GRP.some(g => g[0].includes(Number(o.category)))).forEach(o => out.push({ t: `${o.id}. ${o.name}` }));
+    KT_FUND_GRP.forEach(([cats, h]) => { const l = bal.filter(o => cats.includes(Number(o.category))); if (l.length) { out.push({ h }); l.forEach(o => out.push({ t: `${o.id}. ${o.name}` })); } });
+    bal.filter(o => !KT_FUND_GRP.some(g => g[0].includes(Number(o.category)))).forEach(o => out.push({ t: `${o.id}. ${o.name}` }));
     return out;
   }
   return null;
@@ -3749,8 +3748,7 @@ function ktMatchOpt(col, raw) {
   const F = KT.form || {};
   if (col.type === 'fund') {
     const bal = F.bal25 || [], id = (s.match(/^(\d+)[.\s]/) || [])[1];
-    const hit0 = bal.find(o => String(o.id) === s) || (id && bal.find(o => String(o.id) === id)) || bal.find(o => o.name === s) || bal.find(o => s.includes(o.name) || o.name.includes(s));
-    const hit = hit0 && hit0.hide ? (bal.find(o => !o.hide && /บำรุงการศึกษา/.test(o.name)) || hit0) : hit0;
+    const hit = bal.find(o => String(o.id) === s) || (id && bal.find(o => String(o.id) === id)) || bal.find(o => o.name === s) || bal.find(o => s.includes(o.name) || o.name.includes(s));
     return hit ? String(hit.id) : null;
   }
   if (col.type === 'bt') { const h = KT_BT.find(([k, t]) => t === s || k === s) || (/นอก/.test(s) ? KT_BT[2] : /แผ่นดิน/.test(s) ? KT_BT[1] : /งบ/.test(s) ? KT_BT[0] : null); return h ? h[0] : null; }
