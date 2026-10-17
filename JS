@@ -5141,7 +5141,7 @@ function dcF2Front(r, noAttach) {
         ${sig('ผู้ยืม')}
       </div>
       <div class="sec">
-        <div class="ln">เสนอ${f(dcDirTitle(), 0.85)}<span style="flex:.15"></span></div>
+        <div class="ln">เสนอ${f(dcDirTitle())}</div>
         <div class="ln ind">ได้ตรวจสอบแล้วเห็นสมควรอนุมัติให้ยืมตามใบยืมฉบับนี้ได้ จำนวน${f(money(r.total).replace(/\.00$/, ''), 1, 'c')}บาท</div>
         <div class="ln">(${f(words, 0, 'wv')})</div>
         ${sig('', 26)}
