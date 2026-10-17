@@ -309,6 +309,7 @@ function renderShell() {
       `${IMPLEMENTED.includes(i.id) ? '' : ' title="อยู่ระหว่างพัฒนา"'}>${ic(i.id)}<span>${i.label}</span></button>`).join('');
   }).join('');
   document.querySelectorAll('.nav-item').forEach(b => b.onclick = () => go(b.dataset.page));
+  initSideMini();
 
   // หน้าเมนูที่ยังไม่พัฒนา
   $('otherPages').innerHTML = MENU.flatMap(g => g.items).filter(i => !IMPLEMENTED.includes(i.id)).map(i => `
@@ -6591,5 +6592,38 @@ async function prRun(btnId) {
     await new Promise(r => setTimeout(r, 250));
   }
   toast('โหลดข้อมูลไม่ทัน กรุณากดปุ่มพิมพ์ในหน้านี้อีกครั้ง', true);
+}
+/* แถบเมนูย่อเหลือไอคอน: กดตราโรงเรียนเพื่อย่อ/ขยาย (จำค่าไว้ในเครื่อง) + ไอคอนขยายตามเมาส์แบบ Dock ของ macOS */
+function initSideMini() {
+  document.querySelectorAll('.nav-item').forEach(b => { if (!b.title) b.title = b.textContent.trim(); });
+  if (S._sideMini) return; S._sideMini = true;
+  const desk = () => window.innerWidth > 991.98;
+  let on = false; try { on = localStorage.getItem('sideMini') === '1'; } catch (e) { /* ไม่มีที่เก็บ */ }
+  document.body.classList.toggle('side-mini', on);
+  const logo = $('brandIcon'); logo.setAttribute('role', 'button'); logo.tabIndex = 0;
+  logo.title = 'ย่อ/ขยายแถบเมนู';
+  const flip = () => {
+    if (!desk()) return;
+    const v = !document.body.classList.contains('side-mini');
+    document.body.classList.toggle('side-mini', v);
+    logo.classList.remove('pop'); void logo.offsetWidth; logo.classList.add('pop');
+    try { localStorage.setItem('sideMini', v ? '1' : '0'); } catch (e) { /* ไม่มีที่เก็บ */ }
+  };
+  logo.onclick = flip;
+  logo.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } };
+  const nav = $('nav');
+  const reset = () => nav.querySelectorAll('.nav-item').forEach(b => b.style.removeProperty('--dock'));
+  nav.addEventListener('mousemove', e => {
+    if (!document.body.classList.contains('side-mini') || !desk()) return;
+    nav.querySelectorAll('.nav-item').forEach(b => {
+      const r = b.getBoundingClientRect(), d = Math.abs(e.clientY - (r.top + r.height / 2));
+      b.style.setProperty('--dock', (1 + 0.7 * Math.max(0, 1 - d / 110)).toFixed(3));
+    });
+  });
+  nav.addEventListener('mouseleave', reset);
+  nav.addEventListener('click', e => {
+    const b = e.target.closest('.nav-item'); if (!b || !document.body.classList.contains('side-mini')) return;
+    b.classList.remove('bounce'); void b.offsetWidth; b.classList.add('bounce');
+  });
 }
 </script>

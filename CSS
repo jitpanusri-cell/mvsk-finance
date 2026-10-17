@@ -867,4 +867,29 @@ select.fi{cursor:pointer}
 .dc2-pick-t small{font-size:14px;color:#5B6472}
 .dc2-pick-it .dc-loan-pill{flex:none}
 #dcDrMan .fsec .no{font-size:13px}
+/* ---------- แถบเมนูย่อเหลือไอคอน (กดตราโรงเรียน) + Dock แบบ macOS ---------- */
+@media (min-width:992px){
+  .sidebar{transition:transform .22s ease,width .38s cubic-bezier(.22,1,.36,1)}
+  .main{transition:margin-left .38s cubic-bezier(.22,1,.36,1)}
+  .brand-logo{cursor:pointer;transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s}
+  .brand-logo:hover{transform:scale(1.08) rotate(-4deg);box-shadow:0 6px 18px rgba(0,0,0,.25)}
+  .brand-logo.pop{animation:sidePop .5s cubic-bezier(.34,1.56,.64,1)}
+  .brand > div:not(.brand-logo),.nav-item span,.nav-group,.side-user > div:not(.avatar),.gfy{transition:opacity .2s ease}
+  body.side-mini .sidebar{width:78px}
+  body.side-mini .main{margin-left:78px}
+  body.side-mini .brand{padding:22px 0 18px;justify-content:center}
+  body.side-mini .brand > div:not(.brand-logo),body.side-mini .nav-item span,body.side-mini .gfy,body.side-mini .side-user > div:not(.avatar){opacity:0;width:0;height:0;overflow:hidden;position:absolute;pointer-events:none}
+  body.side-mini .nav-group{height:1px;padding:0;margin:10px 14px;overflow:hidden;color:transparent;background:rgba(255,255,255,.14)}
+  body.side-mini .nav-scroll{padding:4px 10px 12px;overflow-x:hidden}
+  body.side-mini .nav-item{justify-content:center;padding:10px 0;gap:0}
+  body.side-mini .nav-item svg.i{width:24px;height:24px;transform:scale(var(--dock,1));transition:transform .14s ease-out}
+  body.side-mini .nav-item:hover svg.i{filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
+  body.side-mini .nav-item.bounce svg.i{animation:dockBounce .6s cubic-bezier(.28,.84,.42,1)}
+  body.side-mini .side-user{justify-content:center;padding:14px 0}
+}
+@keyframes sidePop{0%{transform:scale(1)}40%{transform:scale(.82) rotate(8deg)}100%{transform:scale(1)}}
+@keyframes dockBounce{0%,100%{translate:0 0}30%{translate:0 -10px}55%{translate:0 0}75%{translate:0 -4px}}
+@media (prefers-reduced-motion:reduce){
+  .sidebar,.main,.brand-logo,body.side-mini .nav-item svg.i{transition:none!important;animation:none!important}
+}
 </style>
