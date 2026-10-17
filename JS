@@ -3210,6 +3210,25 @@ table.kt-grid{font-size:16px}
 /* ลายเซ็นท้ายเอกสาร (แสดงเฉพาะตอนบันทึกเป็น PDF) */
 .kd-sig{display:none}
 .kd-pdf .kd-sig{display:flex;justify-content:space-around;gap:20px;margin-top:28px;text-align:center;line-height:1.9;font-size:16px;break-inside:avoid}
+/* PDF แบบเอกสารราชการ: ขาว-ดำ เส้นตารางดำ ฟอนต์ TH Sarabun ไม่มีสีพื้น */
+.ktb-doc2.kd-pdf{border:0!important;border-radius:0!important;color:#000!important;background:#fff!important;width:180mm;padding:0 2mm}
+.ktb-doc2.kd-pdf,.ktb-doc2.kd-pdf *{font-family:'THSarabunLocal','THSarabunWeb','Sarabun',sans-serif!important;color:#000!important;box-shadow:none!important;text-shadow:none!important}
+.ktb-doc2.kd-pdf .kd-hd{background:none!important;border:0!important;flex-direction:column;justify-content:center;text-align:center;gap:4px;padding:4mm 0 3mm!important}
+.ktb-doc2.kd-pdf .kd-logo{background:none!important;border-radius:0!important;flex:none;width:auto;height:auto}
+.ktb-doc2.kd-pdf .kd-logo img{width:22mm!important;height:22mm!important}
+.ktb-doc2.kd-pdf .kd-ttl .s1{font-size:20pt!important;font-weight:700}
+.ktb-doc2.kd-pdf .kd-ttl .s2{font-size:16pt!important;opacity:1!important}
+.ktb-doc2.kd-pdf .kd-in{padding:0!important;overflow:visible!important}
+.ktb-doc2.kd-pdf table.kd{min-width:0!important;font-size:16pt!important}
+.ktb-doc2.kd-pdf .kd th,.ktb-doc2.kd-pdf .kd td{background:none!important;border:.75pt solid #000!important;padding:1.2mm 2.5mm!important;line-height:1.25}
+.ktb-doc2.kd-pdf .kd tr.gap td{border:0!important;height:4mm!important}
+.ktb-doc2.kd-pdf .kd tr.sec td{font-size:16pt!important;text-align:center;padding-top:1.2mm!important}
+.ktb-doc2.kd-pdf .kd tr.ch th{font-size:16pt!important}
+.ktb-doc2.kd-pdf .kd tr.bk td{font-weight:700}
+.ktb-doc2.kd-pdf .kd-arr-ed,.ktb-doc2.kd-pdf .ktb-loan-badge{display:none!important}
+.ktb-doc2.kd-pdf .kd .gname{text-decoration:none!important}
+.ktb-doc2.kd-pdf .kd-baht{font-size:16pt!important;font-weight:400!important;margin-top:3mm}
+.ktb-doc2.kd-pdf .kd-sig{font-size:16pt!important;margin-top:14mm;line-height:1.6}
 .kt-sheet-f .st{font-size:13px}
 .kt-busy{opacity:.5;transition:opacity .15s}
 .ktb-doc2{--kb:#00A6E6;--kn:#0B3B66;--kl:#EAF7FD;background:#fff;border:1px solid #D5E9F4;border-radius:14px;overflow:hidden;color:#13293D;font-family:var(--f-body)}
