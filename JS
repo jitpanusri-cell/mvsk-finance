@@ -3846,7 +3846,7 @@ function ktDocHtml(B, canEdit) {
       <tr class="tot"><td colspan="2" class="ct">รวม ${no} รายการ</td><td class="ct">เป็นเงิน</td><td class="num">${money(tot)}</td></tr></tbody>`;
   }).join('');
   const grand = used.length > 1 ? `<tbody><tr class="gap"><td colspan="4"></td></tr><tr class="grand"><td colspan="2" class="ct">รวมทั้งสิ้น ${gN} รายการ</td><td class="ct">เป็นเงิน</td><td class="num">${money(gT)}</td></tr></tbody>` : '';
-  const tools = [['copy', 'ktCopy', 'คัดลอกรูปภาพ (วางในไลน์ได้)'], ['png', 'ktSave', 'บันทึกรูปภาพ (PNG)'], ['pdf', 'ktPdf', 'บันทึกเป็น PDF']]
+  const tools = [['copy', 'ktCopy', 'คัดลอกรูปภาพ (วางในไลน์ได้)'], ['png', 'ktSave', 'บันทึกรูปภาพ (PNG)'], ['pdf', 'ktPdf', 'พิมพ์ / บันทึกเป็น PDF (แบบราชการ)']]
     .map(([k, i, t]) => `<button type="button" class="kd-tool" data-exp="${k}" title="${t}" aria-label="${t}">${ic(i)}</button>`).join('');
   const sch = (KT.day && KT.day.school && KT.day.school.name) || 'โรงเรียนมหาวชิราวุธ จังหวัดสงขลา';
   return `<div class="kd-wrap"><div class="kd-tools">${tools}</div><div id="ktDocInner" class="ktb-doc2 kt-th-${KT_THEME}">
@@ -4130,15 +4130,7 @@ async function exportKtb(kind) {
       const canvas = await ktCanvas();
       const a = document.createElement('a'); a.download = `KTB-${KT.date}.png`; a.href = canvas.toDataURL('image/png'); a.click();
     } else {
-      await loadHtml2Pdf();
-      const wrap = document.createElement('div'), node = $('ktDocInner').cloneNode(true);
-      node.removeAttribute('id'); node.classList.add('kd-pdf'); wrap.className = 'kd-pdf-wrap'; wrap.appendChild(node); document.body.appendChild(wrap);
-      const sx = window.scrollX, sy = window.scrollY; window.scrollTo(0, 0);
-      try {
-        await html2pdf().set({ margin: [10, 10, 10, 10], filename: `KTB-${KT.date}.pdf`,
-          html2canvas: { scale: 2, scrollX: 0, scrollY: 0, windowWidth: 900, backgroundColor: '#fff' },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'avoid-all'] } }).from(node).save();
-      } finally { wrap.remove(); window.scrollTo(sx, sy); }
+      loading(false); return ktPrintOfficial();
     }
   } catch (e) { fail(e); }
   loading(false);
@@ -6799,5 +6791,43 @@ function ktMoveRow(d) {
   const t = s + d; if (t < 0 || t >= rows.length) return;
   const x = rows[s]; rows[s] = rows[t]; rows[t] = x; KT.selRow = t;
   ktSaveDraftSoon(); ktSheetRender(true);
+}
+/* พิมพ์ / บันทึก PDF แบบหนังสือราชการ (A4 ตัวอักษรจริง TH Sarabun 16pt ผ่านหน้าต่างพิมพ์ของเบราว์เซอร์) */
+const KT_PRINT_CSS = `
+.print-doc .ktp{font-size:16pt;line-height:1.3;color:#000}
+.print-doc .ktp-hd{position:relative;text-align:center;min-height:20mm;padding:1mm 22mm 3mm}
+.print-doc .ktp-hd img{position:absolute;left:0;top:0;width:18mm;height:18mm;object-fit:contain}
+.print-doc .ktp-hd .t1{font-size:18pt;font-weight:700;line-height:1.35}
+.print-doc .ktp-hd .t2{font-size:16pt}
+.print-doc .ktp table.kd{width:100%;border-collapse:collapse;table-layout:fixed;margin:0;font-size:16pt}
+.print-doc .ktp table.kd th,.print-doc .ktp table.kd td{border:.75pt solid #000;padding:.6mm 2mm;line-height:1.25;vertical-align:middle;background:none;color:#000}
+.print-doc .ktp table.kd tr.gap td{border:0;height:3mm;padding:0}
+.print-doc .ktp table.kd tr.sec td{text-align:center;font-weight:700}
+.print-doc .ktp table.kd tr.ch th{text-align:center;font-weight:700}
+.print-doc .ktp table.kd tr.bk td{font-weight:700}
+.print-doc .ktp table.kd tr.tot td,.print-doc .ktp table.kd tr.grand td{font-weight:700}
+.print-doc .ktp table.kd td.ct{text-align:center}
+.print-doc .ktp table.kd td.num{text-align:right;white-space:nowrap}
+.print-doc .ktp table.kd tr{break-inside:avoid}
+.print-doc .ktp .ktp-baht{text-align:right;margin-top:2mm}
+.print-doc .ktp .ktp-sig{display:flex;justify-content:space-between;margin-top:12mm;text-align:center;line-height:1.5;break-inside:avoid}
+.print-doc .ktp .ktp-sig>div{width:48%}
+`;
+function ktPrintOfficial() {
+  const src = $('ktDocInner'); if (!src) return toast('ไม่มีรายการให้พิมพ์', true);
+  if (!$('ktPrintCss')) { const st = document.createElement('style'); st.id = 'ktPrintCss'; st.textContent = KT_PRINT_CSS; document.head.appendChild(st); }
+  const c = src.cloneNode(true);
+  c.querySelectorAll('.kd-arr-ed,.ktb-loan-badge,[data-html2canvas-ignore]').forEach(el => el.remove());
+  c.querySelectorAll('[data-group]').forEach(el => el.removeAttribute('class'));
+  const tbl = c.querySelector('table.kd'); if (!tbl) return;
+  tbl.querySelector('colgroup').outerHTML = '<colgroup><col style="width:9%"><col style="width:48%"><col style="width:26%"><col style="width:17%"></colgroup>';
+  const logo = ktLogoSrc(), sch = (KT.day && KT.day.school && KT.day.school.name) || 'โรงเรียนมหาวชิราวุธ จังหวัดสงขลา';
+  const baht = (c.querySelector('.kd-baht') || {}).textContent || '';
+  printDoc(`<div class="sheet ktp">
+    <div class="ktp-hd">${logo ? `<img src="${esc(logo)}" alt="">` : ''}<div class="t1">รายการสั่งจ่ายเงินผ่านระบบ KTB Corporate Online</div>
+      <div class="t2">${esc(sch)} วันที่ ${ktThDateBE(KT.date)}</div></div>
+    ${tbl.outerHTML}
+    <div class="ktp-baht">${esc(baht)}</div>
+    <div class="ktp-sig">${ktSigHtml()}</div></div>`, 'gvp');
 }
 </script>
