@@ -79,9 +79,18 @@ function doPost(e) {
   try {
     const P = incProps_();
     const key = P.getProperty('LINE_HOOK_KEY') || '';
-    if (key && String((e && e.parameter && e.parameter.k) || '') !== key) return out;
+    const keyOk = !key || String((e && e.parameter && e.parameter.k) || '') === key;
     const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
-    (body.events || []).forEach(ev => { try { incHandleEvent_(ev); } catch (err) { console.error('incoming event', err); } });
+    const evs = body.events || [];
+    console.log('LINE webhook keyOk=' + keyOk + ' token=' + !!P.getProperty('LINE_TOKEN') + ' events=' +
+      evs.map(ev => ev.type + ':' + (ev.message ? ev.message.type + ' ' + (ev.message.fileName || '') : '')).join(', '));
+    if (!keyOk) return out;
+    evs.forEach(ev => {
+      try { incHandleEvent_(ev); } catch (err) {
+        console.error('incoming event', err && err.stack || err);
+        try { incReply_(ev.replyToken, 'บันทึกหนังสือไม่สำเร็จ: ' + (err && err.message || err)); } catch (e2) { }
+      }
+    });
   } catch (err) { console.error('doPost', err); }
   return out;
 }
@@ -89,10 +98,11 @@ function doPost(e) {
 function incHandleEvent_(ev) {
   if (ev.type !== 'message' || !ev.message) return;
   const P = incProps_(), token = P.getProperty('LINE_TOKEN');
-  if (!token) return;
+  if (!token) { console.warn('ยังไม่ได้ตั้ง LINE_TOKEN'); return; }
   const uid = (ev.source && ev.source.userId) || '';
   const allowed = String(P.getProperty('LINE_ALLOWED_USERS') || '').split(/[,\s]+/).filter(String);
   const m = ev.message;
+  console.log('from ' + uid + ' allowed=' + (allowed.length ? allowed.indexOf(uid) >= 0 : 'all'));
   if (allowed.length && allowed.indexOf(uid) < 0) {
     if (m.type === 'file') incReply_(ev.replyToken, 'ยังไม่ได้รับสิทธิ์ส่งหนังสือเข้าระบบ\nแจ้งรหัสนี้ให้ผู้ดูแลระบบ:\n' + uid);
     return;
