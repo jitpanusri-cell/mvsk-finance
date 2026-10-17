@@ -1110,6 +1110,7 @@
         <div class="modal-body">
           <input type="hidden" id="fDrReqId"><input type="hidden" id="fDrReceiptNo">
           <div class="dc2-contract" id="dcDrInfo"></div>
+          <div class="dc2-pick" id="dcDrPick" hidden></div>
           <div class="dc2-grid">
             <div class="dc2-main">
               <div class="dc2-form green">
@@ -1117,6 +1118,25 @@
                 <div class="dc2-hist" id="dcDrHistWrap">
                   <div class="flabel">รายการส่งใช้ที่บันทึกแล้ว <span class="muted" style="font-weight:400">(ลบเพื่อแก้ไขได้ แม้ล้างหนี้แล้ว)</span></div>
                   <div class="table-responsive"><table class="tbl" id="dcDrHist"></table></div>
+                </div>
+                <div id="dcDrMan" hidden>
+                  <div class="fsec"><span class="no">ส</span><span>ข้อมูลสัญญา (ทำนอกระบบ)</span></div>
+                  <div class="fx c2">
+                    <div class="fc need-chk"><label for="fMrName">ชื่อ-สกุล ผู้ยืม</label><input class="fi" id="fMrName" list="dcTeacherList" autocomplete="off" placeholder="เลือกจากรายชื่อ หรือพิมพ์เอง"></div>
+                    <div class="fc"><label for="fMrPos">ตำแหน่ง</label><input class="fi" id="fMrPos" list="dcPosList" autocomplete="off" placeholder="เช่น ครู"></div>
+                  </div>
+                  <div class="fx c1">
+                    <div class="fc need-chk"><label for="fMrPurpose">ยืมเงินเพื่อเป็นค่าใช้จ่ายในการ</label><input class="fi" id="fMrPurpose" placeholder="ชื่อกิจกรรม / วัตถุประสงค์"></div>
+                  </div>
+                  <div class="fx c4">
+                    <div class="fc"><label for="fMrNo">เลขที่สัญญา</label><input class="fi" id="fMrNo"></div>
+                    <div class="fc"><label for="fMrLoanDate">ลงวันที่ (วันที่ยืม)</label><input class="fi" type="date" id="fMrLoanDate"></div>
+                    <div class="fc"><label for="fMrDue">ส่งคืนภายในวันที่</label><input class="fi" type="date" id="fMrDue"></div>
+                    <div class="fc need-chk"><label for="fMrAmt">จำนวนเงินที่ยืม (บาท)</label><input class="fi num" type="number" step="0.01" min="0" id="fMrAmt"></div>
+                  </div>
+                  <div class="fx c1">
+                    <div class="fc"><label for="fMrAct">งบกิจกรรม / โครงการ</label><input class="fi" id="fMrAct" list="dcActList" autocomplete="off" placeholder="เลือกจากรายการงบของโรงเรียน"></div>
+                  </div>
                 </div>
                 <div class="fsec"><span class="no">1</span><span>วันที่ส่งคืน</span></div>
                 <div class="fx c2">
@@ -1148,64 +1168,10 @@
               <div class="dc2-box d-flex flex-column gap-2">
                 <button class="btnx pri green w-100" id="btnDrSave"></button>
                 <button class="btnx sec w-100" id="btnDrSavePrint"></button>
+                <button class="btnx sec w-100" id="btnDrBack">พิมพ์สัญญาด้านหลัง</button>
               </div>
             </aside>
           </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <!-- ===== เอกสารส่งใช้เงินยืม (ล้างหนี้) — สัญญาที่ทำไว้นอกระบบ พิมพ์อย่างเดียว ===== -->
-  <div class="modal fade" id="dcManRetModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
-      <div class="modal-content" style="border-radius:16px">
-        <div class="modal-header border-0 pb-0">
-          <h3 class="modal-title" style="font-size:18px">ส่งคืนเงินยืม — เลือกสัญญา</h3>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
-        </div>
-        <div class="modal-body">
-          <div class="dc-note mb-3" id="dcMrPickWrap"><b>สัญญาที่ยังค้างส่งคืน</b> — เลือกสัญญาแล้วไปกรอกการส่งคืนได้เลย:
-            <select class="inp mt-1" id="fMrPick" style="max-width:100%"></select></div>
-          <div class="dc-sec blue">
-            <div class="dc-sec-h"><span class="n">1</span>ข้อมูลผู้ยืม</div>
-            <div class="row g-3">
-              <div class="col-md-6"><label class="flabel" for="fMrName">ชื่อ-สกุล ผู้ยืม *</label><input class="inp" id="fMrName" list="dcTeacherList" autocomplete="off"></div>
-              <div class="col-md-6"><label class="flabel" for="fMrPos">ตำแหน่ง <span class="muted">(เลือกหรือพิมพ์เอง)</span></label><input class="inp" id="fMrPos" list="dcPosList" autocomplete="off" placeholder="เช่น ครู"></div>
-            </div>
-          </div>
-          <div class="dc-sec purple">
-            <div class="dc-sec-h"><span class="n">2</span>สัญญายืมเงินเดิม</div>
-            <div class="row g-3">
-              <div class="col-md-3"><label class="flabel" for="fMrNo">เลขที่สัญญา</label><input class="inp" id="fMrNo" placeholder="ระบุโดยเจ้าหน้าที่การเงิน"></div>
-              <div class="col-md-3"><label class="flabel" for="fMrLoanDate">ลงวันที่ (วันที่ยืม)</label><input class="inp" type="date" id="fMrLoanDate"></div>
-              <div class="col-md-3"><label class="flabel" for="fMrDue">กำหนดใช้คืนภายในวันที่</label><input class="inp" type="date" id="fMrDue"></div>
-              <div class="col-md-3"><label class="flabel" for="fMrAmt">จำนวนเงินที่ยืม (บาท) *</label><input class="inp num" type="number" step="0.01" min="0" id="fMrAmt"></div>
-              <div class="col-12"><div class="dc-note">ไปราชการ ส่งใช้ภายใน <b>15 วัน</b> นับจากวันกลับมาถึง · จัดกิจกรรม/โครงการ ส่งใช้ภายใน <b>30 วัน</b> นับจากวันที่ได้รับเงินยืม</div></div>
-            </div>
-          </div>
-          <div class="dc-sec green">
-            <div class="dc-sec-h"><span class="n">3</span>กิจกรรม/โครงการ</div>
-            <div class="row g-3">
-              <div class="col-12"><label class="flabel" for="fMrPurpose">ยืมเงินเพื่อเป็นค่าใช้จ่ายในการ (ชื่อกิจกรรม/วัตถุประสงค์) *</label><input class="inp" id="fMrPurpose"></div>
-              <div class="col-md-8"><label class="flabel" for="fMrAct">งบกิจกรรม/โครงการ</label><input class="inp" id="fMrAct" list="dcActList" autocomplete="off" placeholder="เลือกจากรายการ หรือพิมพ์ชื่อโครงการ"></div>
-              <div class="col-md-4"><label class="flabel" for="fMrDate">วันที่ส่งใช้ (ลงวันที่ในบันทึก)</label><input class="inp" type="date" id="fMrDate"></div>
-            </div>
-          </div>
-          <div class="dc-sec orange">
-            <div class="dc-sec-h"><span class="n">4</span>หลักฐานการจ่าย / เงินสดคืน</div>
-            <div class="row g-3">
-              <div class="col-12"><div class="flabel">หลักฐานการจ่าย (ตารางรายการ คำนวณอัตโนมัติ)</div>
-                <div id="dcMrItemsUI"></div><textarea id="fMrItems" hidden></textarea></div>
-              <div class="col-md-4"><label class="flabel" for="fMrCash">เงินสดเหลือจ่ายคืน (บาท)</label><input class="inp num" type="number" step="0.01" min="0" id="fMrCash"></div>
-              <input type="hidden" id="fMrReceiptNo">
-              <div class="col-12"><div class="dc-mr-sum" id="dcMrSum"></div></div>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer border-0 pt-0">
-          <button class="btnx sec" data-bs-dismiss="modal">ปิด</button>
-          <button class="btnx sec" id="btnMrBack"></button>
-          <button class="btnx pri" id="btnMrMemo"></button>
         </div>
       </div>
     </div>

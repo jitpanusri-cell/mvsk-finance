@@ -855,4 +855,16 @@ select.fi{cursor:pointer}
 .mv-prev{max-height:none;padding:20px 12px}
 .dc2m [data-preset] ~ .small-x{display:none}
 .dc2-list .hint:empty{display:none}
+/* หน้าส่งคืน: เลือกสัญญา */
+.dc2-pick{background:#fff;border:1px solid #D5D9E0;border-radius:12px;padding:12px;margin:-6px 0 16px;display:flex;flex-direction:column;gap:8px}
+.dc2-pick-h{display:flex;gap:10px;align-items:baseline;padding:0 4px}
+.dc2-pick-h b{font-size:16px}
+.dc2-pick-it{display:flex;gap:12px;align-items:center;justify-content:space-between;text-align:left;background:#F7F8FA;border:1px solid #E3E6EB;border-radius:10px;padding:10px 14px;font:inherit;cursor:pointer;width:100%}
+.dc2-pick-it:hover{border-color:var(--c-green);background:#F2FAF5}
+.dc2-pick-it.on{border-color:var(--c-green);box-shadow:inset 3px 0 0 var(--c-green)}
+.dc2-pick-t{display:flex;flex-direction:column;min-width:0}
+.dc2-pick-t b{font-size:15.5px}
+.dc2-pick-t small{font-size:14px;color:#5B6472}
+.dc2-pick-it .dc-loan-pill{flex:none}
+#dcDrMan .fsec .no{font-size:13px}
 </style>

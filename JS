@@ -4307,7 +4307,7 @@ function initDocsPage() {
   $('dcCards').querySelectorAll('[data-go]').forEach((b, i) => {
     b.querySelector('.dc2-ic').innerHTML = ic(['docs', 'check', 'receipt'][i] || 'docs');
     b.querySelector('.dc2-go').insertAdjacentHTML('beforeend', ic('chevron', 'sm'));
-    b.onclick = () => { const g = b.dataset.go; if (g === 'loan') openDcModal(null, 'loanAct'); else if (g === 'adv') openDcModal(null, 'advance'); else openDcManRet(); };
+    b.onclick = () => { const g = b.dataset.go; if (g === 'loan') openDcModal(null, 'loanAct'); else if (g === 'adv') openDcModal(null, 'advance'); else openDcReturn(); };
   });
   $('btnDcBlank').innerHTML = ic('print', 'sm') + '<span>พิมพ์ฟอร์มเปล่า</span>';
   $('btnDcBlank').onclick = () => { const h = $('dcBlankMain'); h.hidden = !h.hidden; if (!h.hidden) dcBindBlank(h); };
@@ -4334,12 +4334,10 @@ function initDocsPage() {
   $('fDrDate').addEventListener('change', () => { dcDrSum(); });
   $('dcReturnModal').addEventListener('shown.bs.modal', () => dcDrDocs());
   $('dcReturnModal').addEventListener('hidden.bs.modal', () => { if (DC.dirty) { DC.dirty = false; loadDocs(); } });
-  /* ส่งใช้เงินยืม: สัญญาที่ทำเองนอกระบบ */
-  $('btnMrMemo').innerHTML = ic('print', 'sm') + '<span>พิมพ์บันทึกขออนุมัติส่งใช้เงินยืม (ล้างหนี้)</span>';
-  $('btnMrBack').innerHTML = ic('print', 'sm') + '<span>พิมพ์สัญญาด้านหลัง (รายการส่งใช้)</span>';
-  $('btnMrMemo').onclick = () => { const r = dcManRecord(); if (r) mvPrint('f4', r); };
-  $('btnMrBack').onclick = () => { const r = dcManRecord(); if (r) printDcF2B(r); };
-  ['fMrAmt', 'fMrCash', 'fMrItems'].forEach(id => $(id).oninput = dcManSum);
+  /* สัญญาทำนอกระบบ (ในหน้าส่งคืน) */
+  ['input', 'change'].forEach(ev => $('dcDrMan').addEventListener(ev, () => dcDrSum()));
+  $('btnDrBack').innerHTML = ic('print', 'sm') + '<span>พิมพ์สัญญาด้านหลัง</span>';
+  $('btnDrBack').onclick = () => { const r = dcDrRecord(); if (r) printDcF2B(dcDrBackRec(r)); };
   /* เลือกชื่อแล้วดึงตำแหน่ง/วิทยฐานะ/กลุ่มสาระ/ที่อยู่ จากรายการล่าสุดของคนเดิม (ถ้าช่องยังว่าง) */
   $('fDcTeacher').onchange = () => {
     const prev = (DC.data.list || []).find(x => x.teacherName === $('fDcTeacher').value.trim());
@@ -4351,6 +4349,7 @@ function initDocsPage() {
   $('fMrName').onchange = () => {
     const prev = (DC.data.list || []).find(x => x.teacherName === $('fMrName').value.trim());
     if (prev && !$('fMrPos').value) $('fMrPos').value = prev.teacherPos || '';
+    dcDrSum();
   };
   $('fDcLoanDue').oninput = () => { DC.dueTouched = true; };
   /* วันครบกำหนด (ไม่บังคับ): เลือกจากปฏิทิน หรือปุ่มลัด +30 (กิจกรรม นับจากวันรับเงิน) / +15 (ไปราชการ นับจากวันกลับ) */
@@ -4720,31 +4719,86 @@ async function deleteDcModal() {
 }
 
 /* =================== ส่งคืนเงินยืม (ล้างหนี้) =================== */
-function openDrModal(reqId) {
-  const r = DC.data.list.find(x => x.id === reqId); if (!r) return;
-  $('fDrReqId').value = reqId;
+/* สัญญาค้างส่งคืน เรียงตามวันครบกำหนด (ใกล้สุดก่อน) */
+const dcOpenLoans = () => ((DC.data && DC.data.list) || []).filter(r => dcIsLoan(r) && r.status !== 'closed')
+  .sort((a, b) => String(a.loanDueDate || '9999').localeCompare(String(b.loanDueDate || '9999')));
+/* การ์ด "ส่งคืนเงินยืม": มีสัญญาค้าง → เปิดสัญญาที่ใกล้ครบกำหนด (มีหลายสัญญาให้เลือก) / ไม่มี → สัญญาทำนอกระบบ */
+function openDcReturn() {
+  const L = dcOpenLoans();
+  openDrModal(L.length ? L[0].id : null, L.length > 1);
+}
+/* reqId = null → สัญญาทำนอกระบบ (กรอกข้อมูลสัญญาเอง พิมพ์อย่างเดียว) */
+function openDrModal(reqId, showPick) {
+  const r = reqId ? DC.data.list.find(x => x.id === reqId) : null;
+  if (reqId && !r) return;
+  DC.drMan = !r;
+  $('fDrReqId').value = r ? reqId : '';
   $('fDrDate').value = S.boot.today;
   $('fDrReceiptNo').value = '';
   $('fDrCash').value = '';
+  if (DC.drMan) {
+    ['fMrNo', 'fMrName', 'fMrPos', 'fMrPurpose', 'fMrAct', 'fMrAmt', 'fMrLoanDate', 'fMrDue'].forEach(id => $(id).value = '');
+    dcFillLists();
+    const me = DC.data.myName || '';
+    if (DC.data.seeAll === false && me) { $('fMrName').value = me; const prev = DC.data.list.find(x => x.teacherName === me); if (prev) $('fMrPos').value = prev.teacherPos || ''; }
+  }
+  $('dcDrMan').hidden = !DC.drMan;
+  $('btnDrCopy').style.display = DC.drMan ? 'none' : '';
+  $('btnDrBack').style.display = DC.drMan ? '' : 'none';
   DC.drTab = null;
   DC.drUI = dcItemsUI($('dcDrItemsUI'), [], () => dcDrSum());
-  $('btnDrSave').style.display = DC.data.canEdit ? '' : 'none';
+  const canSave = DC.data.canEdit && !DC.drMan;
+  $('btnDrSave').style.display = canSave ? '' : 'none';
   $('btnDrSave').innerHTML = ic('check', 'sm') + '<span>บันทึกส่งคืน</span>';
-  $('btnDrSavePrint').innerHTML = ic('print', 'sm') + '<span>' + (DC.data.canEdit ? 'บันทึกและพิมพ์บันทึก' : 'พิมพ์บันทึกข้อความ') + '</span>';
+  $('btnDrSavePrint').className = 'btnx w-100 ' + (canSave ? 'sec' : 'pri green');
+  $('btnDrSavePrint').innerHTML = ic('print', 'sm') + '<span>' + (canSave ? 'บันทึกและพิมพ์บันทึก' : 'พิมพ์บันทึกข้อความ') + '</span>';
   dcStep('dcReturnModal', 1);
   if ($('printSaveBar')) $('printSaveBar').style.display = 'none';
-  dcDrRender(r);
-  modal('dcReturnModal').show();
+  dcDrPick(!!showPick);
+  dcDrRender(dcDrBase());
+  if ($('dcReturnModal').classList.contains('show')) { dcDrDocs(); $('dcReturnModal').querySelector('.modal-body').scrollTop = 0; }
+  else modal('dcReturnModal').show();
+}
+/* ข้อมูลสัญญาที่ส่งคืน: ในระบบ หรือ กรอกเอง (นอกระบบ) */
+function dcDrBase() {
+  if (!DC.data) return null;
+  if (!DC.drMan) return DC.data.list.find(x => x.id === $('fDrReqId').value) || null;
+  const amt = +$('fMrAmt').value || 0;
+  return { id: '', kind: 'loanAct', teacherName: $('fMrName').value.trim(), teacherPos: $('fMrPos').value.trim(), teacherDept: '',
+    purpose: $('fMrPurpose').value.trim(), activityName: $('fMrAct').value.trim(), docDate: $('fDrDate').value,
+    loanContractNo: $('fMrNo').value.trim(), loanDate: $('fMrLoanDate').value, loanDueDate: $('fMrDue').value,
+    total: amt, returns: [], returned: 0, remain: amt, status: 'draft' };
+}
+/* เลือกสัญญาค้างส่งคืน (แสดงใต้แถบสัญญา) */
+function dcDrPick(show) {
+  const P = $('dcDrPick'), L = dcOpenLoans(), cur = $('fDrReqId').value;
+  P.hidden = !show || !L.length;
+  if (P.hidden) return;
+  P.innerHTML = `<div class="dc2-pick-h"><b>เลือกสัญญาที่จะส่งคืน</b><span class="muted">ค้างส่งคืน ${L.length} สัญญา</span></div>` +
+    L.map(r => { const x = dcDueInfo(r);
+      return `<button type="button" class="dc2-pick-it${r.id === cur ? ' on' : ''}" data-id="${r.id}"><span class="dc2-pick-t"><b>${esc(r.purpose) || '(ไม่ระบุเรื่อง)'}</b>
+        <small>${esc(r.teacherName)}${r.loanContractNo ? ' · สัญญาเลขที่ ' + esc(r.loanContractNo) : ''} · ยืม ${money(r.total)}${r.returned ? ' · คงค้าง ' + money(r.remain) : ''} บาท</small></span>
+        ${x ? `<span class="dc-loan-pill ${x.cls}">${x.txt}</span>` : ''}</button>`; }).join('');
+  P.querySelectorAll('[data-id]').forEach(b => b.onclick = () => openDrModal(b.dataset.id, false));
 }
 /* ข้อมูลสัญญา + ประวัติการส่งใช้ (ลบได้ = กลับไปแก้ไข แม้ล้างหนี้แล้ว) */
 function dcDrRender(r) {
-  const x = dcDueInfo(r);
-  $('dcDrInfo').innerHTML = `<div class="dc2-contract-l"><span class="small-x muted">สัญญาที่ส่งคืน${r.loanContractNo ? ' · เลขที่ ' + esc(r.loanContractNo) : ''}</span>
+  const nOpen = dcOpenLoans().length;
+  const btns = (nOpen > (DC.drMan ? 0 : 1) ? `<button type="button" class="btnx sec sm" data-chg>${ic('docs', 'sm')}เปลี่ยนสัญญา</button>` : '') +
+    (DC.drMan ? '' : `<button type="button" class="btnx sec sm" data-man>สัญญาทำนอกระบบ</button>`);
+  if (DC.drMan) {
+    $('dcDrInfo').innerHTML = `<div class="dc2-contract-l"><span class="small-x muted">สัญญาที่ส่งคืน</span>
+      <b>สัญญาทำนอกระบบ</b><span>กรอกข้อมูลสัญญาด้านล่าง · พิมพ์เอกสารอย่างเดียว ไม่บันทึกในระบบ</span></div><div class="d-flex gap-2 flex-wrap">${btns}</div>`;
+  } else {
+    const x = dcDueInfo(r);
+    $('dcDrInfo').innerHTML = `<div class="dc2-contract-l"><span class="small-x muted">สัญญาที่ส่งคืน${r.loanContractNo ? ' · เลขที่ ' + esc(r.loanContractNo) : ''}</span>
       <b>${esc(r.purpose)} · ยืม ${money(r.total)} บาท</b>
       <span>${esc(r.teacherName)}${r.loanDate ? ' · รับเงิน ' + thDate(r.loanDate, true) : ''}${r.loanDueDate ? ' · ส่งคืนภายใน ' + thDate(r.loanDueDate, true) : ''} ${x ? `<span class="dc-loan-pill ${x.cls}">${x.txt}</span>` : ''}</span></div>
-    <button type="button" class="btnx sec sm" data-chg>เปลี่ยนสัญญา / สัญญาทำนอกระบบ</button>`;
-  $('dcDrInfo').querySelector('[data-chg]').onclick = () => { modal('dcReturnModal').hide(); setTimeout(openDcManRet, 350); };
-  const L = r.returns || [];
+    <div class="d-flex gap-2 flex-wrap">${btns}</div>`;
+  }
+  const c = $('dcDrInfo').querySelector('[data-chg]'); if (c) c.onclick = () => dcDrPick($('dcDrPick').hidden);
+  const m = $('dcDrInfo').querySelector('[data-man]'); if (m) m.onclick = () => openDrModal(null, false);
+  const L = (r && r.returns) || [];
   $('dcDrHistWrap').style.display = L.length ? '' : 'none';
   $('dcDrHist').innerHTML = `<thead><tr><th>ครั้งที่</th><th>วันที่</th><th>รายการ</th><th>ใบรับเลขที่</th><th class="num">จำนวนเงิน</th><th class="num">คงค้าง</th><th></th></tr></thead><tbody>
     ${L.map(t => `<tr><td class="ct">${t.seq}</td><td>${thDate(t.date, true)}</td><td>${t.kind === 'cash' ? '<span class="st ok">เงินสด</span> ' : ''}${esc(t.note || (t.kind === 'cash' ? 'เงินสดเหลือจ่าย' : 'ใบสำคัญ'))}</td>
@@ -4754,14 +4808,14 @@ function dcDrRender(r) {
     if (!confirm('ลบรายการส่งใช้นี้? (ยอดคงค้างจะคำนวณใหม่ ถ้าล้างหนี้แล้วจะกลับเป็นยังไม่ล้างหนี้)')) return;
     b.disabled = true;
     try { await api('deleteLoanReturn', b.dataset.drdel); toast('ลบแล้ว — แก้ไขรายการแล้วบันทึกใหม่ได้'); await loadDocs();
-      const nr = DC.data.list.find(x => x.id === r.id); if (nr) dcDrRender(nr); }
+      const nr = DC.data.list.find(x => x.id === r.id); if (nr) dcDrRender(nr); else openDcReturn(); }
     catch (e) { fail(e); b.disabled = false; }
   });
   dcDrSum();
 }
 /* รายการ (ชั่วคราว) = สัญญา + รายการส่งใช้เดิม + ที่กำลังกรอก → ใช้แสดงบันทึกข้อความ */
 function dcDrRecord() {
-  const r = DC.data.list.find(x => x.id === $('fDrReqId').value); if (!r) return null;
+  const r = dcDrBase(); if (!r) return null;
   const date = $('fDrDate').value, no = $('fDrReceiptNo').value.trim(), cash = +$('fDrCash').value || 0;
   const seq = (r.returns || []).reduce((m, t) => Math.max(m, +t.seq || 0), 0) + 1;
   let left = Math.max(0, r.remain);
@@ -4770,7 +4824,7 @@ function dcDrRecord() {
   return Object.assign({}, r, { returns: (r.returns || []).concat(add) });
 }
 function dcDrSum() {
-  const r = DC.data && DC.data.list.find(x => x.id === $('fDrReqId').value); if (!r) return;
+  const r = dcDrBase(); if (!r) return;
   const rcp = DC.drUI ? DC.drUI.total() : 0, cash = +$('fDrCash').value || 0, sum = rcp + cash;
   const left = Math.max(0, r.remain), diff = Math.round((left - sum) * 100) / 100;
   const ok = sum && Math.abs(diff) < 0.005;
@@ -4778,7 +4832,7 @@ function dcDrSum() {
   const x = dcDueInfo(r), dd = $('fDrDate').value;
   $('dcDrDue').innerHTML = r.loanDueDate ? (dd && dd > r.loanDueDate ? `<span class="dc-loan-pill overdue">ส่งหลังกำหนด (${thDate(r.loanDueDate, true)})</span>` : `<span class="dc-loan-pill ${x ? x.cls : 'due'}">ภายในกำหนด ${thDate(r.loanDueDate, true)}</span>`) : '<span class="muted">สัญญาไม่ได้ระบุวันครบกำหนด</span>';
   $('dcDrSum').className = 'dc2-sum' + (!sum ? '' : ok ? ' ok' : ' bad');
-  $('dcDrSum').innerHTML = !sum ? `กรอกหลักฐานการจ่าย และเงินสดคืน (ถ้ามี) ให้รวมเท่ากับยอดคงค้าง ${money(left)} บาท`
+  $('dcDrSum').innerHTML = DC.drMan && !left ? 'กรอกจำนวนเงินที่ยืมในข้อมูลสัญญาก่อน' : !sum ? `กรอกหลักฐานการจ่าย และเงินสดคืน (ถ้ามี) ให้รวมเท่ากับยอดคงค้าง ${money(left)} บาท`
     : (ok ? `<b>${ic('check', 'sm')}ครบยอด ล้างหนี้ได้</b>` : diff > 0 ? `<b>${ic('warn', 'sm')}ยังขาดอีก ${money(diff)} บาท</b>` : `<b>${ic('warn', 'sm')}เกินยอดคงค้าง ${money(-diff)} บาท</b>`) +
       `<span>ยอด${r.returned ? 'คงค้าง' : 'ยืม'} ${money(left)} = หลักฐาน ${money(rcp)} + เงินสดคืน ${money(cash)}</span>`;
   const kv = (k, v, c) => `<div class="dc2-kv-r${c ? ' ' + c : ''}"><span>${k}</span><b>${v}</b></div>`;
@@ -4802,6 +4856,10 @@ async function saveDrModal(andPrint) {
   const tmp = dcDrRecord();
   const items = (DC.drUI ? DC.drUI.rows : []).filter(x => dcItemAmt(x) > 0).map(x => ({ t: dcItemText(x) || 'ใบสำคัญ', amt: dcItemAmt(x) }));
   const o = { requestId: $('fDrReqId').value, date: $('fDrDate').value, receiptNo: $('fDrReceiptNo').value.trim(), items: items, cash: +$('fDrCash').value || 0 };
+  if (DC.drMan) {
+    if (!tmp.teacherName || !tmp.purpose || !tmp.total) { fail(new Error('กรุณากรอก ชื่อผู้ยืม / ยืมเพื่อ / จำนวนเงินที่ยืม')); return; }
+    mvPrint('f4', tmp); return;
+  }
   if (!DC.data.canEdit) { if (andPrint && tmp) mvPrint('f4', tmp); return; }
   if (!items.length && !o.cash) {
     if (andPrint && tmp) { mvPrint('f4', tmp); return; }
@@ -4817,43 +4875,14 @@ async function saveDrModal(andPrint) {
   btn.disabled = false;
 }
 
-/* ---------- ส่งใช้เงินยืม: สัญญาที่ทำเองนอกระบบ (พิมพ์อย่างเดียว) ---------- */
-function openDcManRet() {
-  ['fMrNo', 'fMrName', 'fMrPos', 'fMrPurpose', 'fMrAct', 'fMrAmt', 'fMrReceiptNo', 'fMrCash', 'fMrItems', 'fMrLoanDate', 'fMrDue'].forEach(id => { const el = $(id); if (el) el.value = ''; });
-  if ($('fMrDate')) $('fMrDate').value = S.boot.today;
-  dcFillLists();
-  // สัญญาที่บันทึกในระบบและยังไม่ล้างหนี้ → ไปหน้าบันทึกส่งคืนในระบบ
-  const openL = (DC.data.list || []).filter(r => dcIsLoan(r) && r.status !== 'closed');
-  $('dcMrPickWrap').style.display = openL.length && DC.data.canEdit ? '' : 'none';
-  $('fMrPick').innerHTML = '<option value="">— สัญญานอกระบบ (กรอกเองด้านล่าง) —</option>' + openL.map(r => `<option value="${r.id}">${esc(r.loanContractNo || 'ไม่มีเลขที่')} · ${esc(r.teacherName)} · ${esc(r.purpose)} · คงค้าง ${money(r.remain)}</option>`).join('');
-  $('fMrPick').onchange = e => { const id = e.target.value; if (!id) return; modal('dcManRetModal').hide(); setTimeout(() => openDrModal(id), 350); };
-  DC.mrUI = dcItemsUI($('dcMrItemsUI'), [], rows => { $('fMrItems').value = dcItemsStore(rows); dcManSum(); });
-  dcManSum();
-  modal('dcManRetModal').show();
-}
-function dcManSum() {
-  const amt = +$('fMrAmt').value || 0, cash = +$('fMrCash').value || 0;
-  const rcp = dcLines($('fMrItems').value).reduce((x, i) => x + i.amt, 0), sum = rcp + cash, diff = Math.round((amt - sum) * 100) / 100;
-  $('dcMrSum').innerHTML = `ใบสำคัญ <b>${money(rcp)}</b> + เงินสดคืน <b>${money(cash)}</b> = <b>${money(sum)}</b> บาท` +
-    (amt ? (Math.abs(diff) < 0.005 ? ' · <span style="color:var(--ok)">ครบยอดยืม ล้างหนี้ได้</span>'
-      : diff > 0 ? ` · <span class="neg">ยังขาดอีก ${money(diff)} บาท</span>` : ` · <span class="neg">เกินยอดยืม ${money(-diff)} บาท</span>`) : '');
-}
-function dcManRecord() {
-  const name = $('fMrName').value.trim(), purpose = $('fMrPurpose').value.trim(), amt = +$('fMrAmt').value || 0;
-  if (!name || !purpose || !amt) { fail(new Error('กรุณากรอก ชื่อผู้ยืม / ยืมเพื่อ / จำนวนเงินที่ยืม')); return null; }
-  const date = $('fMrDate').value, no = $('fMrReceiptNo').value.trim(), cash = +$('fMrCash').value || 0;
-  const items = dcLines($('fMrItems').value).filter(x => x.amt);
-  let left = amt;
-  const returns = items.map(x => { left -= x.amt; return { seq: 1, date: date, kind: 'receipt', amount: x.amt, remain: left, receiptNo: no, note: x.t }; });
-  if (cash) { left -= cash; returns.push({ seq: 1, date: date, kind: 'cash', amount: cash, remain: left, receiptNo: no, note: 'เงินสดเหลือจ่าย' }); }
-  const rcpSum = items.reduce((x, i) => x + i.amt, 0);
-  // สัญญาด้านหลัง: รวมใบสำคัญเป็น 1 บรรทัด + เงินสด 1 บรรทัด (ครั้งที่ 1)
-  const back = [];
-  if (rcpSum) back.push({ seq: 1, date: date, kind: 'receipt', amount: rcpSum, remain: amt - rcpSum, receiptNo: no });
-  if (cash) back.push({ seq: 1, date: date, kind: 'cash', amount: cash, remain: amt - rcpSum - cash, receiptNo: no });
-  return { id: '', kind: 'loanAct', teacherName: name, teacherPos: $('fMrPos').value.trim(), teacherDept: '', purpose: purpose, activityName: $('fMrAct').value.trim(), docDate: date,
-    loanContractNo: $('fMrNo').value.trim(), loanDate: $('fMrLoanDate').value, loanDueDate: $('fMrDue').value,
-    total: amt, returns: returns, backRows: back, returned: amt - left, remain: left, status: 'draft' };
+/* สัญญาด้านหลัง (สัญญาทำนอกระบบ): รวมใบสำคัญเป็น 1 บรรทัด + เงินสด 1 บรรทัด (ครั้งที่ 1) */
+function dcDrBackRec(r) {
+  const R = r.returns || [], amt = r.total;
+  const rcp = R.filter(t => t.kind !== 'cash').reduce((x, t) => x + t.amount, 0), cash = R.filter(t => t.kind === 'cash').reduce((x, t) => x + t.amount, 0);
+  const d = $('fDrDate').value, no = $('fDrReceiptNo').value.trim(), back = [];
+  if (rcp) back.push({ seq: 1, date: d, kind: 'receipt', amount: rcp, remain: amt - rcp, receiptNo: no });
+  if (cash) back.push({ seq: 1, date: d, kind: 'cash', amount: cash, remain: amt - rcp - cash, receiptNo: no });
+  return Object.assign({}, r, { backRows: back });
 }
 
 /* ---------- เมนูเลือกพิมพ์ 10 แบบฟอร์ม (จัดกลุ่มตามขั้นตอน) ---------- */
