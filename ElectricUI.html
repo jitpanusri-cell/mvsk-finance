@@ -1,0 +1,379 @@
+<!-- =========================================================
+  ElectricUI.html — เมนู "ค่าไฟฟ้า" (ดู / บันทึกค่าสาธารณูปโภคไฟฟ้ารายเดือน)
+  ใส่ใน Index.html หนึ่งบรรทัด ต่อจาก include('LedgerUI') :  include('ElectricUI')
+  ฝั่งเซิร์ฟเวอร์: Electric.gs
+  ห้ามเขียนเครื่องหมายทับสองตัวติดกันในสคริปต์ไฟล์นี้ (Apps Script ย่อโค้ดแล้วตัดทิ้ง)
+========================================================= -->
+<style>
+.el-legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--ink2)}
+.el-legend span{display:inline-flex;align-items:center;gap:6px}
+.el-legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.el-legend i.prev{height:3px;border-radius:2px;background:#8A93A3}
+.el-tbl th,.el-tbl td{white-space:nowrap}
+.el-tbl th.el-first,.el-tbl td.el-first{position:sticky;left:0;z-index:1;background:#fff;min-width:150px}
+.el-tbl thead th.el-first{background:inherit}
+.el-tbl tr.el-zone td{background:#F3F6FC;font-weight:700;color:var(--pri);font-size:13.5px}
+.el-tbl tr.el-zone td.el-first{background:#F3F6FC}
+.el-tbl tr.el-sub td{font-weight:700;border-top:1px solid #D9E1F5}
+.el-tbl tr.el-sub td.el-first{background:#fff}
+.el-tbl tr.el-grand td{background:var(--pri);color:#fff;font-weight:700}
+.el-tbl tr.el-grand td.el-first{background:var(--pri)}
+.el-tbl tr.el-prev td{color:var(--ink2);font-size:13px}
+.el-tbl tr.el-chg td{font-size:12.5px}
+.el-tbl td.el-meter{padding-left:22px}
+.el-tbl .el-nil{color:var(--ink3)}
+.el-up{color:var(--bad)} .el-down{color:var(--ok)}
+.kpi.dark .el-up{color:#FFC9C2} .kpi.dark .el-down{color:#BDF0D2}
+.el-mbtn{display:inline-flex;flex-direction:column;align-items:center;gap:2px;border:0;background:none;font:inherit;font-weight:600;color:inherit;cursor:pointer;padding:2px 6px;border-radius:8px;min-width:58px}
+.el-mbtn:hover,.el-mbtn:focus-visible{background:#E6EEFF;color:#2447A8;outline:none}
+.el-mbtn .i{width:15px;height:15px;opacity:.55}
+.el-mbtn:hover .i{opacity:1}
+.el-mbtn small{font-weight:400;font-size:11px;color:var(--ink3)}
+.el-zbox{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.el-zbox h4{font-size:14.5px;font-weight:700;margin:0 0 10px;color:var(--pri);display:flex;justify-content:space-between;gap:8px}
+.el-zbox h4 b{font-variant-numeric:tabular-nums}
+.el-hint{font-size:12px;color:var(--ink3);margin-top:3px}
+.el-total{display:flex;justify-content:space-between;align-items:baseline;gap:12px;background:#F5F8FF;border-radius:12px;padding:12px 14px;font-weight:700}
+.el-total b{font-size:22px;font-variant-numeric:tabular-nums;color:var(--pri)}
+.el-sma{display:inline-flex;align-items:center;gap:4px;border:0;background:none;font:inherit;font-size:13px;color:inherit;padding:0;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+.el-sma .i{width:14px;height:14px}
+.el-empty{padding:28px 12px;text-align:center;color:var(--ink2)}
+@media (max-width:640px){.el-tbl th.el-first,.el-tbl td.el-first{min-width:118px}}
+</style>
+
+<script>
+/* ---------- ลงทะเบียนเมนู ---------- */
+const EL_ROLES = ['admin', 'finance', 'exec', 'account'];
+const EL_COLOR = { A: '#1F3A5F', B: '#C99A3E' };
+const EL = { fy: null, data: null, inited: false, mi: 0 };
+(function () {
+  ICON.electric = '<path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12z"/>';
+  ICON.eye = '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>';
+  const g = MENU.find(x => x.group === 'บันทึกข้อมูล') || MENU[1];
+  let at = g.items.findIndex(i => i.id === 'ledger');
+  at = at >= 0 ? at + 1 : g.items.findIndex(i => i.id === 'ktb');
+  g.items.splice(at >= 0 ? at : g.items.length, 0, { id: 'electric', label: 'ค่าไฟฟ้า' });
+  IMPLEMENTED.push('electric');
+  SWR_PAGE.getElectricData = 'electric';
+  SWR_LOADER.electric = 'loadElectric';
+})();
+const _elRenderShell = renderShell;
+renderShell = function () {
+  const u = S.boot && S.boot.user;
+  if (u && EL_ROLES.includes(u.role) && !u.pages.includes('electric')) u.pages.push('electric');
+  _elRenderShell();
+};
+const _elGo = go;
+go = function (page) {
+  _elGo(page);
+  if (page === 'electric') loadPageIfStale('electric', loadElectric);
+};
+
+/* ---------- หน้าเมนู + หน้าต่างบันทึก ---------- */
+document.querySelector('main.main').insertAdjacentHTML('beforeend', `
+<section class="page" id="page-electric">
+  <div class="page-head">
+    <div>
+      <h1 id="elTitle">ค่าสาธารณูปโภคไฟฟ้า</h1>
+      <div class="sub" id="elSub"></div>
+    </div>
+    <div class="controls">
+      <select class="sel" id="elFy" aria-label="ปีงบประมาณ"></select>
+      <button class="btnx sec" id="btnElPrint"></button>
+      <button class="btnx pri" id="btnElAdd"></button>
+    </div>
+  </div>
+  <div class="grid-kpi" id="elKpi"></div>
+  <div class="cardx mb-grid">
+    <div class="card-h"><h3>ค่าไฟฟ้ารายเดือน</h3><div class="el-legend" id="elLegend"></div></div>
+    <div class="chart-wrap" id="elChart"></div>
+  </div>
+  <div class="cardx mb-grid">
+    <div class="card-h"><h3 id="elTblTitle">ตารางค่าไฟฟ้า</h3><span class="small-x muted" id="elTblHint"></span></div>
+    <div class="table-responsive"><table class="tbl el-tbl" id="elTbl"></table></div>
+  </div>
+</section>`);
+
+document.body.insertAdjacentHTML('beforeend', `
+<div class="modal fade" id="elModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius:16px">
+      <div class="modal-header border-0 pb-0">
+        <div><h3 class="modal-title" style="font-size:18px" id="elMTitle">บันทึกค่าไฟฟ้า</h3><div class="muted small-x" id="elMSub"></div></div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button>
+      </div>
+      <div class="modal-body">
+        <label class="flabel" for="elMonth">เดือน</label>
+        <select class="sel w-100 mb-3" id="elMonth"></select>
+        <div id="elZones"></div>
+        <label class="flabel" for="elNote">หมายเหตุ (ถ้ามี)</label>
+        <input class="inp mb-3" id="elNote" placeholder="เช่น เลขที่ใบแจ้งหนี้ / วันที่จ่าย">
+        <div class="el-total"><span>รวมทั้งโรงเรียน</span><b id="elMTotal">0.00</b></div>
+        <div class="el-hint mt-2" id="elMCompare"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button class="btnx sec" data-bs-dismiss="modal" id="btnElClose">ยกเลิก</button>
+        <button class="btnx pri" id="btnElSave">บันทึก</button>
+      </div>
+    </div>
+  </div>
+</div>`);
+
+/* ---------- ตัวช่วยคำนวณ ---------- */
+const elSum = a => a.reduce((s, v) => s + (v || 0), 0);
+const elAvg = a => { const f = a.filter(v => v != null); return f.length ? elSum(f) / f.length : null; };
+const elMLabel = (x, long) => (long ? MTH[x.month - 1] : MTH_S[x.month - 1]) + ' ' + (long ? x.year : String(x.year).slice(-2));
+function elZoneVals(Y, z) {
+  return Y.months.map((_, i) => {
+    let s = null;
+    EL.data.meters.filter(mt => !z || mt.zone === z).forEach(mt => { const v = Y.meters[mt.key][i]; if (v != null) s = (s || 0) + v; });
+    return s;
+  });
+}
+function elChg(cur, prev) {
+  if (cur == null || !prev) return '';
+  const p = (cur - prev) / prev * 100;
+  if (Math.abs(p) < 0.05) return '<span class="muted">เท่าเดิม</span>';
+  return `<span class="${p > 0 ? 'el-up' : 'el-down'}">${p > 0 ? '▲' : '▼'} ${pct(Math.abs(p))}</span>`;
+}
+
+/* ---------- โหลด / แสดงผล ---------- */
+function initElectricPage() {
+  if (EL.inited) return;
+  EL.inited = true;
+  $('btnElAdd').innerHTML = ic('electric') + '<span>บันทึกค่าไฟ</span>';
+  $('btnElPrint').innerHTML = ic('print') + '<span>พิมพ์</span>';
+  $('elFy').onchange = e => { EL.fy = +e.target.value; loadElectric(); };
+  $('btnElAdd').onclick = () => openElMonth(elNextMonth());
+  $('btnElPrint').onclick = printElectric;
+  $('btnElSave').onclick = saveElMonth;
+  $('elMonth').onchange = e => fillElMonth(+e.target.value);
+}
+
+async function loadElectric() {
+  initElectricPage();
+  loading(true);
+  try { EL.data = await api('getElectricData', EL.fy); EL.fy = EL.data.fy; renderElectric(); } catch (e) { fail(e); }
+  loading(false);
+}
+
+function renderElectric() {
+  const D = EL.data;
+  $('elFy').innerHTML = D.fyList.map(y => `<option value="${y}"${y === D.fy ? ' selected' : ''}>ปีงบประมาณ ${y}</option>`).join('');
+  $('elTitle').textContent = 'ค่าสาธารณูปโภคไฟฟ้า ปีงบประมาณ ' + D.fy;
+  $('elSub').textContent = 'ต.ค. ' + (D.fy - 1) + ' – ก.ย. ' + D.fy + ' · ' + D.zones.map(z => z.label.replace('มหาวชิราวุธ ', '')).join(' และ ');
+  $('btnElAdd').style.display = D.canEdit ? '' : 'none';
+  renderElKpi();
+  renderElChart();
+  renderElTable();
+}
+
+function renderElKpi() {
+  const D = EL.data, C = D.cur, P = D.prev;
+  const tot = elZoneVals(C), ptot = elZoneVals(P);
+  const has = tot.map(v => v != null);
+  const n = has.filter(Boolean).length;
+  const k = (cls, l, v, f) => `<div class="kpi ${cls}"><div class="l">${l}</div><div class="v">${money(v)}<small>บาท</small></div><div class="f">${f}</div></div>`;
+  const both = tot.map((v, i) => v != null && ptot[i] != null);
+  const sumCur = elSum(tot), sumPrev = elSum(ptot);
+  const bc = a => elSum(a.filter((_, i) => both[i]));
+  const cmp = (c, p) => p ? `${elChg(c, p)} จากเดือนเดียวกันปีงบ ${D.fy - 1}` : '';
+  const zv = z => elZoneVals(C, z), pz = z => elZoneVals(P, z);
+  const zf = z => cmp(bc(zv(z)), bc(pz(z)));
+  const sma = D.sma[D.fy] || 0, bSum = elSum(zv('B'));
+  const smaTxt = sma
+    ? `นักเรียน SMA ${sma.toLocaleString('th-TH')} คน · คนละ ${money(bSum / sma)} บาท`
+    : 'ใส่จำนวนนักเรียน SMA';
+  const smaEl = D.canEdit ? `<button class="el-sma" id="btnElSma" title="แก้จำนวนนักเรียน SMA">${smaTxt} ${ic('edit')}</button>` : (sma ? smaTxt : (zf('B') || '–'));
+  const last = has.lastIndexOf(true);
+  $('elKpi').innerHTML =
+    k('dark', 'รวมทั้งโรงเรียน', sumCur, n ? `${n} เดือน · ${cmp(bc(tot), bc(ptot)) || 'ไม่มีข้อมูลปีก่อนเทียบ'}` : `ยังไม่ได้บันทึก · ปีงบ ${D.fy - 1} ทั้งปี ${money(sumPrev)} บาท`) +
+    k('', D.zones[0].label.replace('มหาวชิราวุธ ', ''), elSum(zv('A')), zf('A') || '–') +
+    k('', D.zones[1].label.replace('มหาวชิราวุธ ', ''), bSum, smaEl) +
+    k('cream', 'เฉลี่ยต่อเดือน', n ? sumCur / n : 0, n ? `ล่าสุด ${elMLabel(C.months[last], true)} ${money(tot[last])} บาท` : '–');
+  if ($('btnElSma')) $('btnElSma').onclick = editElSma;
+}
+
+function renderElChart() {
+  const D = EL.data, C = D.cur;
+  const A = elZoneVals(C, 'A'), B = elZoneVals(C, 'B'), T = elZoneVals(C), PT = elZoneVals(D.prev);
+  $('elLegend').innerHTML = D.zones.map(z => `<span><i style="background:${EL_COLOR[z.key]}"></i>${esc(z.label.replace('มหาวชิราวุธ ', ''))}</span>`).join('') +
+    `<span><i class="prev"></i>ปีงบ ${D.fy - 1}</span>`;
+  const W = 720, H = 270, L = 64, R = 12, TP = 22, BT = 34, pw = W - L - R, ph = H - TP - BT;
+  const max = niceMax(Math.max(...T.map(v => v || 0), ...PT.map(v => v || 0), 0)) || 1;
+  const y = v => TP + ph - (v / max) * ph, cw = pw / 12, bw = Math.min(34, cw * 0.56);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="กราฟค่าไฟฟ้ารายเดือน ตุลาคมถึงกันยายน"><g class="grid">`;
+  [0, .25, .5, .75, 1].forEach(t => { svg += `<line x1="${L}" x2="${W - R}" y1="${y(t * max)}" y2="${y(t * max)}"/><text x="${L - 8}" y="${y(t * max) + 4}" text-anchor="end">${t ? shortMoney(t * max) : '0'}</text>`; });
+  svg += '</g>';
+  C.months.forEach((m, i) => {
+    const cx = L + cw * i + cw / 2, x = cx - bw / 2;
+    svg += `<text x="${cx}" y="${H - 12}" text-anchor="middle">${MTH_S[m.month - 1]}</text>`;
+    if (A[i]) svg += `<rect x="${x}" y="${y(A[i])}" width="${bw}" height="${Math.max(1, ph - (y(A[i]) - TP))}" fill="${EL_COLOR.A}"/>`;
+    if (B[i]) svg += `<rect x="${x}" y="${y((A[i] || 0) + B[i])}" width="${bw}" height="${Math.max(1, y(A[i] || 0) - y((A[i] || 0) + B[i]))}" fill="${EL_COLOR.B}" rx="2"/>`;
+    if (PT[i]) svg += `<line x1="${x - 4}" x2="${x + bw + 4}" y1="${y(PT[i])}" y2="${y(PT[i])}" stroke="#8A93A3" stroke-width="3" stroke-linecap="round"/>`;
+    svg += `<rect class="hit" data-i="${i}" x="${L + cw * i}" y="${TP}" width="${cw}" height="${ph}"/>`;
+  });
+  svg += `<line x1="${L}" x2="${W - R}" y1="${TP + ph}" y2="${TP + ph}" stroke="#D5D0C4"/>`;
+  if (!T.some(v => v)) svg += `<text x="${L + pw / 2}" y="${TP + 18}" text-anchor="middle" style="font-size:14px">ยังไม่ได้บันทึกค่าไฟของปีงบนี้ · เส้นเทาคือปีงบ ${D.fy - 1}</text>`;
+  svg += '</svg>';
+  $('elChart').innerHTML = svg + '<div class="tip" id="elTip"></div>';
+  const tip = $('elTip'), wrap = $('elChart');
+  wrap.querySelectorAll('.hit').forEach(h => {
+    const i = +h.dataset.i;
+    h.onmousemove = ev => {
+      const r = (c, l, v) => `<div class="r"><i style="background:${c}"></i>${l}<b style="margin-left:auto">${v == null ? '–' : money(v)}</b></div>`;
+      tip.innerHTML = `<div class="h"><span>${elMLabel(C.months[i], true)}</span><span>${T[i] == null ? '–' : money(T[i])}</span></div>` +
+        r(EL_COLOR.A, 'โซน A', A[i]) + r(EL_COLOR.B, 'โซน B', B[i]) + r('#8A93A3', 'ปีงบ ' + (D.fy - 1), PT[i]) +
+        (T[i] != null && PT[i] ? `<div class="r" style="justify-content:flex-end">${elChg(T[i], PT[i]).replace('el-up', '').replace('el-down', '')}</div>` : '') +
+        (D.canEdit ? '<div class="r" style="color:#9AA6B8">คลิกเพื่อบันทึก/แก้ไข</div>' : '');
+      const rc = wrap.getBoundingClientRect();
+      let left = ev.clientX - rc.left + 14;
+      if (left + 230 > rc.width) left = ev.clientX - rc.left - 230;
+      tip.style.left = Math.max(0, left) + 'px';
+      tip.style.top = Math.max(0, ev.clientY - rc.top - 20) + 'px';
+      tip.style.opacity = 1;
+    };
+    h.onmouseleave = () => tip.style.opacity = 0;
+    h.style.cursor = 'pointer';
+    h.onclick = () => openElMonth(i);
+  });
+}
+
+function renderElTable() {
+  const D = EL.data, C = D.cur, P = D.prev;
+  const cell = v => v == null ? '<td class="num el-nil">–</td>' : `<td class="num">${money(v)}</td>`;
+  const row = (cls, label, vals, first) => `<tr class="${cls}"><td class="el-first${first ? ' ' + first : ''}">${label}</td>${vals.map(cell).join('')}` +
+    `<td class="num"><b>${money(elSum(vals))}</b></td>${cell(elAvg(vals))}</tr>`;
+  const T = elZoneVals(C), PT = elZoneVals(P);
+  const act = D.canEdit ? ic('edit') : ic('eye');
+  let h = `<thead><tr><th class="el-first">รายการ</th>${C.months.map((m, i) =>
+    `<th class="num"><button class="el-mbtn" data-mi="${i}" title="${D.canEdit ? 'บันทึก/แก้ไข' : 'ดู'} ${elMLabel(m, true)}" aria-label="${D.canEdit ? 'บันทึกหรือแก้ไข' : 'ดู'} ${elMLabel(m, true)}">${elMLabel(m)}${act}</button></th>`).join('')}` +
+    `<th class="num">รวม</th><th class="num">เฉลี่ย/เดือน</th></tr></thead><tbody>`;
+  D.zones.forEach(z => {
+    h += `<tr class="el-zone"><td class="el-first" colspan="1">${esc(z.label)}</td><td colspan="14"></td></tr>`;
+    D.meters.filter(mt => mt.zone === z.key).forEach(mt => { h += row('', esc(mt.label), C.meters[mt.key], 'el-meter'); });
+    h += row('el-sub', 'รวม' + esc(z.label.replace('มหาวชิราวุธ ', '')), elZoneVals(C, z.key));
+  });
+  h += row('el-grand', 'รวมทั้งโรงเรียน', T);
+  h += row('el-prev', `ปีงบ ${D.fy - 1} (เดือนเดียวกัน)`, PT);
+  h += `<tr class="el-chg"><td class="el-first muted">เพิ่ม / ลด</td>${T.map((v, i) => `<td class="num">${elChg(v, PT[i])}</td>`).join('')}` +
+    `<td class="num">${elChg(elSum(T.filter((v, i) => PT[i] != null)), elSum(PT.filter((v, i) => T[i] != null)))}</td><td></td></tr></tbody>`;
+  $('elTbl').innerHTML = h;
+  $('elTblTitle').textContent = 'ตารางค่าไฟฟ้า ปีงบประมาณ ' + D.fy;
+  $('elTblHint').textContent = D.canEdit ? 'กดชื่อเดือนเพื่อบันทึก/แก้ไข' : 'กดชื่อเดือนเพื่อดูรายละเอียด';
+  $('elTbl').querySelectorAll('[data-mi]').forEach(b => b.onclick = () => openElMonth(+b.dataset.mi));
+}
+
+/* ---------- หน้าต่างดู/บันทึก 1 เดือน ---------- */
+function elNextMonth() {
+  const T = elZoneVals(EL.data.cur);
+  const last = T.map(v => v != null).lastIndexOf(true);
+  return Math.min(11, last + 1);
+}
+
+function openElMonth(i) {
+  const D = EL.data;
+  $('elMonth').innerHTML = D.cur.months.map((m, k) => `<option value="${k}">${elMLabel(m, true)}${elZoneVals(D.cur)[k] != null ? ' (บันทึกแล้ว)' : ''}</option>`).join('');
+  $('elMTitle').textContent = D.canEdit ? 'บันทึกค่าไฟฟ้า' : 'ค่าไฟฟ้า';
+  $('elMSub').textContent = 'ปีงบประมาณ ' + D.fy;
+  $('btnElSave').style.display = D.canEdit ? '' : 'none';
+  $('btnElClose').textContent = D.canEdit ? 'ยกเลิก' : 'ปิด';
+  $('elNote').disabled = !D.canEdit;
+  fillElMonth(i);
+  modal('elModal').show();
+  if (D.canEdit) setTimeout(() => { const f = $('elZones').querySelector('input'); if (f) f.focus(); }, 350);
+}
+
+function fillElMonth(i) {
+  const D = EL.data, C = D.cur, P = D.prev;
+  EL.mi = i;
+  $('elMonth').value = i;
+  $('elZones').innerHTML = D.zones.map(z => `<div class="el-zbox"><h4><span>${esc(z.label)}</span><b data-zt="${z.key}"></b></h4>
+    <div class="row g-2">${D.meters.filter(mt => mt.zone === z.key).map(mt => {
+      const v = C.meters[mt.key][i], p = P.meters[mt.key][i];
+      return `<div class="col-6"><label class="flabel" for="elIn_${mt.key}">${esc(mt.label)}</label>
+        <input class="inp num" type="number" step="0.01" min="0" inputmode="decimal" id="elIn_${mt.key}" data-k="${mt.key}" data-z="${z.key}" value="${v == null ? '' : v}" placeholder="0.00"${D.canEdit ? '' : ' disabled'}>
+        <div class="el-hint">${elMLabel(P.months[i])}: ${p == null ? '–' : money(p)}</div></div>`;
+    }).join('')}</div></div>`).join('');
+  $('elNote').value = C.notes[i] || '';
+  $('elZones').querySelectorAll('input').forEach(inp => inp.oninput = elMTotals);
+  elMTotals();
+}
+
+function elMTotals() {
+  const D = EL.data, i = EL.mi, ins = [...$('elZones').querySelectorAll('input')];
+  const val = inp => inp.value === '' ? 0 : (+inp.value || 0);
+  D.zones.forEach(z => { $('elZones').querySelector(`[data-zt="${z.key}"]`).textContent = money(elSum(ins.filter(x => x.dataset.z === z.key).map(val))); });
+  const t = elSum(ins.map(val)), p = elZoneVals(D.prev)[i];
+  $('elMTotal').textContent = money(t);
+  $('elMCompare').innerHTML = p ? `${elMLabel(D.prev.months[i], true)} รวม ${money(p)} บาท` + (t ? ` · ${elChg(t, p)}` : '') : '';
+}
+
+async function saveElMonth() {
+  const D = EL.data, m = D.cur.months[EL.mi], amounts = {};
+  let bad = '';
+  $('elZones').querySelectorAll('input').forEach(inp => {
+    const v = inp.value.trim();
+    if (v !== '' && !(+v >= 0)) bad = inp.previousElementSibling.textContent;
+    amounts[inp.dataset.k] = v === '' ? '' : +v;
+  });
+  if (bad) return toast('จำนวนเงินของ "' + bad + '" ไม่ถูกต้อง', true);
+  const had = elZoneVals(D.cur)[EL.mi] != null;
+  if (!Object.values(amounts).some(v => v !== '') && !had) return toast('กรอกค่าไฟอย่างน้อย 1 ช่อง', true);
+  if (!Object.values(amounts).some(v => v !== '') && !confirm('ล้างค่าไฟของเดือน ' + elMLabel(m, true) + ' ทั้งหมด?')) return;
+  $('btnElSave').disabled = true;
+  loading(true);
+  try {
+    EL.data = await api('saveElectricMonth', { year: m.year, month: m.month, amounts: amounts, note: $('elNote').value });
+    EL.fy = EL.data.fy;
+    modal('elModal').hide();
+    renderElectric();
+    toast('บันทึกค่าไฟ ' + elMLabel(m, true) + ' แล้ว');
+  } catch (e) { fail(e); }
+  $('btnElSave').disabled = false;
+  loading(false);
+}
+
+async function editElSma() {
+  const D = EL.data, cur = D.sma[D.fy] || '';
+  const v = prompt('จำนวนนักเรียน SMA ปีงบประมาณ ' + D.fy + ' (คน) — ใช้คิดค่าไฟโซน B ต่อคน', cur);
+  if (v === null) return;
+  const n = Math.round(+String(v).replace(/,/g, '') || 0);
+  if (n < 0) return toast('จำนวนนักเรียนไม่ถูกต้อง', true);
+  loading(true);
+  try { EL.data = await api('saveElectricSma', D.fy, n); renderElectric(); toast('บันทึกจำนวนนักเรียนแล้ว'); } catch (e) { fail(e); }
+  loading(false);
+}
+
+/* ---------- พิมพ์ (A4 แนวนอน) ---------- */
+function printElectric() {
+  const D = EL.data;
+  if (!D) return;
+  const C = D.cur, P = D.prev;
+  const cs = 'border:.75pt solid #000;padding:.8mm 1.2mm';
+  const th = cs + ';text-align:center;font-weight:700';
+  const nm = cs + ';text-align:right;white-space:nowrap';
+  const cell = (v, b) => `<td style="${nm}${b ? ';font-weight:700' : ''}">${v == null ? '' : money(v)}</td>`;
+  const row = (label, vals, b, ind) => `<tr><td style="${cs}${b ? ';font-weight:700' : ''}${ind ? ';padding-left:4mm' : ''}">${label}</td>${vals.map(v => cell(v, b)).join('')}${cell(elSum(vals), true)}</tr>`;
+  let body = '';
+  D.zones.forEach(z => {
+    body += `<tr><td colspan="14" style="${cs};font-weight:700">${esc(z.label)}</td></tr>`;
+    D.meters.filter(mt => mt.zone === z.key).forEach(mt => { body += row(esc(mt.label), C.meters[mt.key], false, true); });
+    body += row('รวม', elZoneVals(C, z.key), true);
+  });
+  body += row('รวมทั้งโรงเรียน', elZoneVals(C), true);
+  body += row(`ปีงบ ${D.fy - 1} (เปรียบเทียบ)`, elZoneVals(P), false);
+  const sma = D.sma[D.fy], bSum = elSum(elZoneVals(C, 'B'));
+  printDoc(`<div style="font-family:THSarabunWeb,'TH Sarabun New',Sarabun,sans-serif;font-size:13pt;line-height:1.15;color:#000">
+    <div style="text-align:center;font-weight:700;font-size:16pt">ค่าสาธารณูปโภคไฟฟ้า ปีงบประมาณ ${D.fy}</div>
+    <div style="text-align:center;font-weight:700;font-size:15pt;margin-bottom:3mm">${esc(D.school)}</div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr><th style="${th}">รายการ</th>${C.months.map(m => `<th style="${th}">${elMLabel(m)}</th>`).join('')}<th style="${th}">รวม</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+    <div style="margin-top:2mm;font-size:13pt">รวมค่าไฟฟ้าทั้งปี <b>${money(elSum(elZoneVals(C)))}</b> บาท` +
+    (sma ? ` · นักเรียน SMA ${sma.toLocaleString('th-TH')} คน เฉลี่ยคนละ ${money(bSum / sma)} บาท` : '') + `</div>
+    <div style="text-align:right;font-size:12pt;margin-top:1mm">ข้อมูล ณ วันที่ ${thDate(D.today)}</div>
+  </div>`, 'land');
+}
+</script>

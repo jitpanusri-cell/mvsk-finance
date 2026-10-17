@@ -1,0 +1,160 @@
+/*******************************************************************
+ * Electric.gs — บันทึกค่าไฟฟ้ารายเดือน (ค่าสาธารณูปโภคไฟฟ้า)
+ * ----------------------------------------------------------------
+ * ชีต Electric : 1 แถว = 1 มิเตอร์ ต่อ 1 เดือน (ปี พ.ศ. + เดือน 1–12)
+ *   id | year | month | meter | amount | note | updatedBy | updatedAt
+ * มิเตอร์ (ELEC_METERS) : โซน A = ค่าไฟฟ้า, ค่าไฟฟ้า อ.9 · โซน B (SMA) = สนง., ชั้น 2-4
+ * ปีงบประมาณ = ต.ค. ปีก่อน – ก.ย. (ต.ค. 2568 อยู่ในปีงบ 2569)
+ * ครั้งแรกที่เปิดเมนู ระบบสร้างชีตเองและใส่ข้อมูลเดิมจากไฟล์
+ * "ฐานคำนวณ ค่าไฟฟ้าปี 68.xlsx" (ธ.ค. 2567 – ก.ย. 2569) ให้อัตโนมัติ
+ * จำนวนนักเรียน SMA (ใช้คิดค่าไฟต่อคน) เก็บใน Settings คีย์ elecSma = {"2569":589,...}
+ * ไม่ต้องแก้ Code.gs
+ *******************************************************************/
+
+const ELEC_SHEET = 'Electric';
+const ELEC_HEAD = ['id', 'year', 'month', 'meter', 'amount', 'note', 'updatedBy', 'updatedAt'];
+const ELEC_ZONES = [
+  { key: 'A', label: 'มหาวชิราวุธ โซน A' },
+  { key: 'B', label: 'มหาวชิราวุธ โซน B (SMA)' }
+];
+const ELEC_METERS = [
+  { key: 'A1', zone: 'A', label: 'ค่าไฟฟ้า' },
+  { key: 'A9', zone: 'A', label: 'ค่าไฟฟ้า อ.9' },
+  { key: 'B1', zone: 'B', label: 'สนง.' },
+  { key: 'B2', zone: 'B', label: 'ชั้น 2-4' }
+];
+const ELEC_VIEW_ROLES = ['admin', 'finance', 'exec', 'account'];
+
+/* ข้อมูลเดิม [ปี พ.ศ., เดือน, มิเตอร์, บาท] */
+const ELEC_SEED = [[2567,12,"A1",380053.87],[2567,12,"B1",11345.32],[2567,12,"B2",72715.13],[2568,1,"A1",413000.1],[2568,1,"B1",10557.76],[2568,1,"B2",79828.52],[2568,2,"A1",425867.91],[2568,2,"B1",10495.41],[2568,2,"B2",61614.36],[2568,3,"A1",356925.32],[2568,3,"B1",8130.07],[2568,3,"B2",22832.85],[2568,4,"A1",214097.35],[2568,4,"B1",4666.72],[2568,4,"B2",17997.03],[2568,5,"A1",409041.81],[2568,5,"B1",11589.5],[2568,5,"B2",75440.44],[2568,6,"A1",453871.25],[2568,6,"B1",15306.15],[2568,6,"B2",90513.85],[2568,7,"A1",517329.44],[2568,7,"B1",13764.13],[2568,7,"B2",79750.0],[2568,8,"A1",457465.64],[2568,8,"B1",28275.1],[2568,8,"B2",89793.59],[2568,9,"A1",484998.62],[2568,9,"B1",30615.29],[2568,9,"B2",83097.59],[2568,10,"A1",239505.0],[2568,10,"B1",11710.4],[2568,10,"B2",2756.24],[2568,11,"A1",415692.36],[2568,11,"B1",23960.26],[2568,11,"B2",76272.64],[2568,12,"A1",294943.36],[2568,12,"B1",8981.35],[2568,12,"B2",68660.2],[2569,1,"A1",313331.89],[2569,1,"B1",9605.15],[2569,1,"B2",74747.09],[2569,2,"A1",407257.77],[2569,2,"B1",12176.88],[2569,2,"B2",78499.78],[2569,3,"A1",404299.01],[2569,3,"B1",12892.7],[2569,3,"B2",31930.29],[2569,4,"A1",221797.81],[2569,4,"B1",4688.88],[2569,4,"B2",13847.69],[2569,5,"A1",370677.76],[2569,5,"B1",11964.24],[2569,5,"B2",75700.84],[2569,6,"A1",439520.09],[2569,6,"B1",16855.88],[2569,6,"B2",94783.88],[2569,7,"A1",468505.73],[2569,7,"B1",16154.59],[2569,7,"B2",84937.91],[2569,7,"A9",32272.12],[2569,8,"A1",436367.66],[2569,8,"B1",13249.22],[2569,8,"B2",80772.2],[2569,8,"A9",44024.75],[2569,9,"A1",510703.87],[2569,9,"B1",18171.36],[2569,9,"B2",96748.91],[2569,9,"A9",35416.43]];
+const ELEC_SEED_SMA = { '2569': 589 };
+
+function elecId_(y, m, k) { return 'EL-' + y + '-' + pad2_(m) + '-' + k; }
+/** ปีงบของเดือนนั้น: ต.ค.–ธ.ค. นับเป็นปีงบถัดไป */
+function elecFy_(y, m) { return Number(m) >= 10 ? Number(y) + 1 : Number(y); }
+/** 12 เดือนของปีงบ ต.ค. → ก.ย. */
+function elecMonths_(fy) {
+  const out = [];
+  for (let i = 0; i < 12; i++) { const m = (9 + i) % 12 + 1; out.push({ year: m >= 10 ? fy - 1 : fy, month: m }); }
+  return out;
+}
+
+function elecEnsure_() {
+  if (_findSheet_(ELEC_SHEET)) return;
+  const sh = ss_().insertSheet(ELEC_SHEET);
+  sh.getRange(1, 1, 1, ELEC_HEAD.length).setValues([ELEC_HEAD])
+    .setFontWeight('bold').setBackground('#16263D').setFontColor('#FFFFFF');
+  sh.setFrozenRows(1);
+  const now = new Date();
+  const rows = ELEC_SEED.map(r => [elecId_(r[0], r[1], r[2]), r[0], r[1], r[2], r[3], 'ข้อมูลเดิมจากไฟล์ฐานคำนวณค่าไฟฟ้า', 'นำเข้า', now]);
+  sh.getRange(2, 1, rows.length, ELEC_HEAD.length).setValues(rows);
+  sh.getRange(2, 5, rows.length, 1).setNumberFormat('#,##0.00');
+  _clearRowCache_(ELEC_SHEET);
+  if (!getSetting_('elecSma')) elecSaveSma_(ELEC_SEED_SMA);
+}
+
+function elecView_() {
+  const u = currentUser_();
+  if (ELEC_VIEW_ROLES.indexOf(u.role) < 0) throw new Error('ไม่มีสิทธิ์เข้าถึงเมนูค่าไฟฟ้า');
+  elecEnsure_();
+  return u;
+}
+
+function elecSma_() {
+  try { return JSON.parse(getSetting_('elecSma') || '{}') || {}; } catch (e) { return {}; }
+}
+function elecSaveSma_(map) {
+  const v = JSON.stringify(map);
+  if (!updateObject_('Settings', 'elecSma', { value: v }))
+    appendObject_('Settings', { key: 'elecSma', label: 'จำนวนนักเรียน SMA ต่อปีงบ (เมนูค่าไฟฟ้า)', value: v });
+}
+
+/* ================================================================
+ * อ่านข้อมูล
+ * ================================================================ */
+/** ยอดของปีงบ: {meters:{A1:[12 ค่า|null]}, total:[12]} */
+function elecYear_(rows, fy) {
+  const months = elecMonths_(fy);
+  const idx = {};
+  months.forEach((x, i) => idx[x.year + '-' + x.month] = i);
+  const meters = {}, notes = Array(12).fill('');
+  ELEC_METERS.forEach(mt => meters[mt.key] = Array(12).fill(null));
+  rows.forEach(r => {
+    const i = idx[Number(r.year) + '-' + Number(r.month)];
+    if (i === undefined || !meters[r.meter]) return;
+    meters[r.meter][i] = round2_(num_(r.amount));
+    const n = String(r.note || '');
+    if (n && n.indexOf('ข้อมูลเดิม') !== 0 && notes[i].indexOf(n) < 0) notes[i] = notes[i] ? notes[i] + ' · ' + n : n;
+  });
+  return { months: months, meters: meters, notes: notes };
+}
+
+function getElectricData(fy) {
+  const u = elecView_();
+  const rows = readObjects_(ELEC_SHEET);
+  const fyNow = fyOf_(todayIso_());
+  fy = Number(fy) || fyNow;
+  const fys = {};
+  fys[fyNow] = 1;
+  rows.forEach(r => { if (num_(r.amount)) fys[elecFy_(r.year, r.month)] = 1; });
+  return {
+    fy: fy, fyNow: fyNow, today: todayIso_(),
+    fyList: Object.keys(fys).map(Number).sort((a, b) => b - a),
+    canEdit: ['admin', 'finance'].indexOf(u.role) >= 0,
+    school: getSetting_('schoolName') || '',
+    zones: ELEC_ZONES, meters: ELEC_METERS,
+    cur: elecYear_(rows, fy), prev: elecYear_(rows, fy - 1),
+    sma: elecSma_()
+  };
+}
+
+/* ================================================================
+ * บันทึก
+ * ================================================================ */
+/**
+ * บันทึกค่าไฟ 1 เดือน (ทุกมิเตอร์พร้อมกัน)
+ * p = { year, month, amounts: {A1: 1234.5, A9: '', ...}, note }
+ * ช่องว่าง = ลบยอดของมิเตอร์นั้นในเดือนนี้
+ */
+function saveElectricMonth(p) {
+  elecView_();
+  const u = requireWrite_('finance');
+  const y = Number(p && p.year), m = Number(p && p.month);
+  if (!(y >= 2550 && y <= 2700) || !(m >= 1 && m <= 12)) throw new Error('เลือกเดือน/ปีให้ถูกต้อง');
+  const note = String(p.note || '').trim();
+  return withLock_(() => {
+    const have = {};
+    readObjects_(ELEC_SHEET).forEach(r => { if (Number(r.year) === y && Number(r.month) === m) have[r.meter] = r.id; });
+    const now = new Date(), add = [], del = [];
+    ELEC_METERS.forEach(mt => {
+      const raw = p.amounts ? p.amounts[mt.key] : '';
+      const blank = raw === '' || raw === null || raw === undefined;
+      const amt = blank ? 0 : round2_(Number(raw));
+      if (!blank && !(amt >= 0)) throw new Error('จำนวนเงินของ "' + mt.label + '" ไม่ถูกต้อง');
+      if (blank) { if (have[mt.key]) del.push(have[mt.key]); return; }
+      const o = { year: y, month: m, meter: mt.key, amount: amt, note: note, updatedBy: u.name || u.email, updatedAt: now };
+      if (have[mt.key]) updateObject_(ELEC_SHEET, have[mt.key], o);
+      else add.push(Object.assign({ id: elecId_(y, m, mt.key) }, o));
+    });
+    if (add.length) appendObjects_(ELEC_SHEET, add);
+    if (del.length) deleteWhere_(ELEC_SHEET, r => del.indexOf(String(r.id)) >= 0);
+    audit_('update', ELEC_SHEET, elecId_(y, m, '*'), { amounts: p.amounts, note: note });
+    return getElectricData(elecFy_(y, m));
+  });
+}
+
+/** จำนวนนักเรียน SMA ของปีงบ (0/ว่าง = ลบ) */
+function saveElectricSma(fy, n) {
+  elecView_();
+  requireWrite_('finance');
+  fy = Number(fy); n = Math.round(Number(n) || 0);
+  if (!(fy >= 2550 && fy <= 2700)) throw new Error('ปีงบประมาณไม่ถูกต้อง');
+  if (n < 0) throw new Error('จำนวนนักเรียนไม่ถูกต้อง');
+  return withLock_(() => {
+    const map = elecSma_();
+    if (n) map[fy] = n; else delete map[fy];
+    elecSaveSma_(map);
+    audit_('update', 'Settings', 'elecSma', { fy: fy, n: n });
+    return getElectricData(fy);
+  });
+}
