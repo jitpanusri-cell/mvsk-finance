@@ -157,6 +157,9 @@ function incomingSetupCheck() {
   incEnsure_();
   const f = incFolder_();
   Logger.log('โฟลเดอร์: ' + f.getName());
+  const tmp = f.createFile('ทดสอบสิทธิ์.txt', 'ทดสอบ');
+  tmp.setTrashed(true);
+  Logger.log('สร้างไฟล์ในโฟลเดอร์ได้ ✓');
   const t = incProps_().getProperty('LINE_TOKEN');
   if (!t) return Logger.log('ยังไม่ได้ใส่ LINE_TOKEN');
   const r = UrlFetchApp.fetch('https://api.line.me/v2/bot/info', { headers: { Authorization: 'Bearer ' + t }, muteHttpExceptions: true });
