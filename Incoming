@@ -72,8 +72,22 @@ function incCreate_(blob, meta) {
 }
 
 /* ================================================================
- * LINE webhook
+ * LINE webhook — ข้อความแบบการ์ด (Flex) + ริชเมนู + คำสั่งพิมพ์
+ * ----------------------------------------------------------------
+ * คำสั่งในแชต (ใช้กับ "ฉบับปัจจุบัน" = ฉบับล่าสุดที่ส่ง/เลือก หรือใส่ #เลขรับ นำหน้า)
+ *   เรื่อง ...        มอบ ... / มอบหมาย ... / ปฏิบัติ ...      จาก ...      ที่ ...      หมายเหตุ ...
+ *   เสร็จ  (สถานะเสร็จสิ้น)   ล่าสุด   วันนี้   เมนู   #12 (เลือกเลขรับ 12)   #12 มอบ งานการเงิน
+ * ริชเมนู: รัน incomingSetupRichMenu() ใน editor 1 ครั้ง (ใช้รูป INC_RICHMENU_IMG ในโฟลเดอร์หนังสือเข้า)
  * ================================================================ */
+const INC_RICHMENU_IMG = '1-TfLusxvp4_oKs47x4znQth90MvAmUZe';
+const INC_WEB_URL = 'https://script.google.com/macros/s/AKfycbyojreXlCAXWGrAfQ2_BvBtHkADxBgesrznJDBJXLnEq1X29niDhPRYGHSnWIoAsmnbSQ/exec';
+const INC_C = { navy: '#1F3A5F', ink: '#1B2433', sub: '#6B7385', line: '#E6E9F0', soft: '#F4F6FB', red: '#D0452F', green: '#12A150', gold: '#C99A3E' };
+const INC_ST_COLOR = { 'ใหม่': '#E08A00', 'กำลังดำเนินการ': '#2F5BD3', 'เสร็จสิ้น': '#12A150' };
+const INC_FIELD = { subject: 'เรื่อง', action: 'การปฏิบัติ / มอบหมาย', fromOrg: 'จาก', docNo: 'ที่ (เลขที่หนังสือ)', note: 'หมายเหตุ', toWhom: 'ถึง' };
+const INC_FIELD_SHORT = { subject: 'เรื่อง', action: 'การปฏิบัติ', fromOrg: 'หน่วยงานที่ส่ง', docNo: 'เลขที่หนังสือ', note: 'หมายเหตุ', toWhom: 'ผู้รับ', status: 'สถานะ' };
+const INC_ACTION_PRESET = ['เสนอผู้อำนวยการ', 'เพื่อทราบ', 'มอบงานการเงิน', 'แจ้งครูทุกคน', 'มอบรองฯ งบประมาณ'];
+const INC_TH_MON = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
 function doPost(e) {
   const out = ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
   try {
@@ -82,13 +96,13 @@ function doPost(e) {
     const keyOk = !key || String((e && e.parameter && e.parameter.k) || '') === key;
     const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     const evs = body.events || [];
-    console.log('LINE webhook keyOk=' + keyOk + ' token=' + !!P.getProperty('LINE_TOKEN') + ' events=' +
-      evs.map(ev => ev.type + ':' + (ev.message ? ev.message.type + ' ' + (ev.message.fileName || '') : '')).join(', '));
+    console.log('LINE webhook keyOk=' + keyOk + ' events=' +
+      evs.map(ev => ev.type + ':' + (ev.message ? ev.message.type : (ev.postback ? ev.postback.data : ''))).join(', '));
     if (!keyOk) return out;
     evs.forEach(ev => {
       try { incHandleEvent_(ev); } catch (err) {
         console.error('incoming event', err && err.stack || err);
-        try { incReply_(ev.replyToken, 'บันทึกหนังสือไม่สำเร็จ: ' + (err && err.message || err)); } catch (e2) { }
+        try { incSend_(ev.replyToken, [incErrMsg_('ทำรายการไม่สำเร็จ', String(err && err.message || err))]); } catch (e2) { }
       }
     });
   } catch (err) { console.error('doPost', err); }
@@ -96,60 +110,360 @@ function doPost(e) {
 }
 
 function incHandleEvent_(ev) {
-  if (ev.type !== 'message' || !ev.message) return;
   const P = incProps_(), token = P.getProperty('LINE_TOKEN');
   if (!token) { console.warn('ยังไม่ได้ตั้ง LINE_TOKEN'); return; }
   const uid = (ev.source && ev.source.userId) || '';
   const allowed = String(P.getProperty('LINE_ALLOWED_USERS') || '').split(/[,\s]+/).filter(String);
-  const m = ev.message;
-  console.log('from ' + uid + ' allowed=' + (allowed.length ? allowed.indexOf(uid) >= 0 : 'all'));
+  const ctx = { uid: uid, token: token, rt: ev.replyToken, all: allowed.length > 0 };
+  if (ev.type === 'follow') return incSend_(ctx.rt, [incHelpMsg_(true)]);
+  if (ev.type !== 'message' && ev.type !== 'postback') return;
   if (allowed.length && allowed.indexOf(uid) < 0) {
-    if (m.type === 'file') incReply_(ev.replyToken, 'ยังไม่ได้รับสิทธิ์ส่งหนังสือเข้าระบบ\nแจ้งรหัสนี้ให้ผู้ดูแลระบบ:\n' + uid);
-    return;
+    return incSend_(ctx.rt, [incErrMsg_('ยังไม่ได้รับสิทธิ์', 'แจ้งรหัสนี้ให้ผู้ดูแลระบบเพื่อเปิดสิทธิ์ส่งหนังสือ\n' + uid)]);
   }
-  if (m.type === 'file') {
-    if (!/\.pdf$/i.test(m.fileName || '')) return incReply_(ev.replyToken, 'ระบบรับเฉพาะไฟล์ PDF');
-    const res = withLock_(() => {
-      incEnsure_();
-      const dup = readObjects_(INC_SHEET).find(r => String(r.lineMsgId) === String(m.id));
-      if (dup) return dup;
-      const blob = UrlFetchApp.fetch('https://api-data.line.me/v2/bot/message/' + m.id + '/content',
-        { headers: { Authorization: 'Bearer ' + token } }).getBlob().setContentType('application/pdf');
-      return incCreate_(blob, { fileName: m.fileName, source: 'line', lineUser: uid, senderName: incLineName_(uid, token), lineMsgId: m.id, createdBy: 'LINE' });
-    });
-    return incReply_(ev.replyToken, 'รับหนังสือแล้ว ✓\nเลขรับ ' + res.recvSeq + '/' + res.recvYear + '\nไฟล์ ' + res.fileName +
-      '\n\nพิมพ์ "เรื่อง" ของหนังสือส่งตามมาได้ภายใน 15 นาที');
-  }
-  if (m.type === 'text') {
-    const text = String(m.text || '').trim();
-    incEnsure_();
-    const now = Date.now();
-    const last = readObjects_(INC_SHEET).filter(r => r.lineUser === uid && r.source === 'line')
-      .sort((a, b) => String(b.recvAt).localeCompare(String(a.recvAt)))[0];
-    const age = last ? now - new Date(String(last.recvAt) + ':00+07:00').getTime() : Infinity;
-    if (last && !last.subject && age < INC_SUBJECT_WINDOW_MS && text) {
-      withLock_(() => updateObject_(INC_SHEET, last.id, { subject: text.replace(/^เรื่อง\s*[:：]?\s*/, ''), updatedAt: new Date() }));
-      return incReply_(ev.replyToken, 'บันทึกเรื่องของเลขรับ ' + last.recvSeq + '/' + last.recvYear + ' แล้ว ✓');
-    }
-    return incReply_(ev.replyToken, 'ส่งหนังสือเข้า: แนบไฟล์ PDF ในแชตนี้\nระบบจะออกเลขรับให้ แล้วพิมพ์ "เรื่อง" ส่งตามมาได้');
-  }
-  if (m.type === 'image') return incReply_(ev.replyToken, 'ระบบรับเฉพาะไฟล์ PDF — สแกนเป็น PDF แล้วส่งเป็นไฟล์');
+  incEnsure_();
+  if (ev.type === 'postback') return incPostback_(ctx, String(ev.postback.data || ''));
+  const m = ev.message;
+  if (m.type === 'file') return incReceive_(ctx, m);
+  if (m.type === 'text') return incText_(ctx, String(m.text || '').trim());
+  if (m.type === 'image') return incSend_(ctx.rt, [incErrMsg_('รับเฉพาะไฟล์ PDF', 'สแกนหนังสือเป็น PDF แล้วแนบเป็น "ไฟล์" ในแชตนี้')]);
 }
 
+/* ---------- รับไฟล์ ---------- */
+function incReceive_(ctx, m) {
+  if (!/\.pdf$/i.test(m.fileName || '')) return incSend_(ctx.rt, [incErrMsg_('รับเฉพาะไฟล์ PDF', 'ไฟล์ "' + (m.fileName || '') + '" ไม่ใช่ PDF')]);
+  const row = withLock_(() => {
+    const dup = readObjects_(INC_SHEET).find(r => String(r.lineMsgId) === String(m.id));
+    if (dup) return dup;
+    const blob = UrlFetchApp.fetch('https://api-data.line.me/v2/bot/message/' + m.id + '/content',
+      { headers: { Authorization: 'Bearer ' + ctx.token } }).getBlob().setContentType('application/pdf');
+    return incCreate_(blob, { fileName: m.fileName, source: 'line', lineUser: ctx.uid, senderName: incLineName_(ctx.uid, ctx.token), lineMsgId: m.id, createdBy: 'LINE' });
+  });
+  const r = incRow_(row);
+  incState_(ctx.uid, { cur: r.id, field: r.subject ? '' : 'subject', auto: 1, at: Date.now() });
+  incSend_(ctx.rt, [incFlex_('รับหนังสือแล้ว เลขรับ ' + incNo_(r), incDocBubble_(r, 'new'), incQuick_(r))]);
+}
+
+/* ---------- ข้อความพิมพ์ ---------- */
+function incText_(ctx, t) {
+  if (!t) return;
+  if (/^(เมนู|วิธีใช้|ช่วยเหลือ|help|\?)$/i.test(t)) return incSend_(ctx.rt, [incHelpMsg_()]);
+  if (/^(ล่าสุด|รายการ|ดูรายการ)$/.test(t)) return incSend_(ctx.rt, [incLatestMsg_(ctx)]);
+  if (/^(วันนี้|สรุป|สรุปวันนี้)$/.test(t)) return incSend_(ctx.rt, [incTodayMsg_(ctx)]);
+  if (/^(ส่งหนังสือ)$/.test(t)) return incSend_(ctx.rt, [incSendGuideMsg_()]);
+  const st = incState_(ctx.uid);
+  if (/^ยกเลิก$/.test(t)) {
+    incState_(ctx.uid, { cur: st.cur || '', field: '', at: Date.now() });
+    return incSend_(ctx.rt, [incFlex_('ยกเลิกแล้ว', incNoticeBubble_('ยกเลิกแล้ว', 'ไม่มีการเปลี่ยนแปลงข้อมูล', '#5B6678', '#8A93A3'))]);
+  }
+  if (st.field && !st.auto && st.cur && !/^#/.test(t)) {
+    const pr0 = incById_(ctx, st.cur);
+    if (pr0) return incSaveSend_(ctx, pr0, st.field, t);
+  }
+  let target = null, rest = t;
+  const mm = t.match(/^#\s*(\d+)\s*/);
+  if (mm) {
+    target = incBySeq_(ctx, Number(mm[1]));
+    if (!target) return incSend_(ctx.rt, [incErrMsg_('ไม่พบเลขรับ ' + mm[1], 'ไม่มีหนังสือเลขนี้ในปีปัจจุบัน หรือไม่ใช่ฉบับที่ท่านส่ง')]);
+    rest = t.slice(mm[0].length).trim();
+    if (!rest) { incState_(ctx.uid, { cur: target.id, field: '', at: Date.now() }); return incSend_(ctx.rt, [incFlex_('เลขรับ ' + incNo_(target), incDocBubble_(target, 'view'), incQuick_(target))]); }
+  }
+  const doc = () => target || incById_(ctx, st.cur) || incMine_(ctx)[0];
+  if (/^(เสร็จ|เสร็จสิ้น|เสร็จแล้ว|กำลังดำเนินการ|ดำเนินการ)$/.test(rest)) {
+    const r = doc(); if (!r) return incSend_(ctx.rt, [incErrMsg_('ยังไม่มีหนังสือ', 'ส่งไฟล์ PDF เข้ามาก่อน')]);
+    return incSaveSend_(ctx, r, 'status', /^เสร็จ/.test(rest) ? 'เสร็จสิ้น' : 'กำลังดำเนินการ');
+  }
+  const cmd = rest.match(/^(เรื่อง|การปฏิบัติ|ปฏิบัติ|มอบหมาย|มอบ|จาก|หมายเหตุ|ถึง|เลขที่\s|ที่\s)\s*[:：]?\s*([\s\S]+)$/);
+  if (cmd) {
+    const k = cmd[1].trim(), v = cmd[2].trim();
+    const field = k === 'เรื่อง' ? 'subject' : (k === 'จาก' ? 'fromOrg' : (k === 'หมายเหตุ' ? 'note' : (k === 'ถึง' ? 'toWhom' :
+      (k === 'ที่' || k === 'เลขที่' ? 'docNo' : 'action'))));
+    const val = k === 'มอบหมาย' && !/^มอบ/.test(v) ? 'มอบหมาย ' + v : (k === 'มอบ' && !/^มอบ/.test(v) ? 'มอบ' + v : v);
+    const r = doc(); if (!r) return incSend_(ctx.rt, [incErrMsg_('ยังไม่มีหนังสือ', 'ส่งไฟล์ PDF เข้ามาก่อน แล้วค่อยพิมพ์คำสั่ง')]);
+    return incSaveSend_(ctx, r, field, val);
+  }
+  const pend = st.field && !(st.auto && Date.now() - (st.at || 0) > INC_SUBJECT_WINDOW_MS);
+  const pr = pend ? (target || incById_(ctx, st.cur)) : null;
+  if (pr) return incSaveSend_(ctx, pr, st.field, rest);
+  return incSend_(ctx.rt, [incHelpMsg_(false, 'ไม่พบคำสั่ง "' + t.slice(0, 30) + '"')]);
+}
+
+/* ---------- ปุ่ม (postback) ---------- */
+function incPostback_(ctx, data) {
+  const q = {};
+  data.split('&').forEach(p => { const i = p.indexOf('='); if (i > 0) q[p.slice(0, i)] = decodeURIComponent(p.slice(i + 1)); });
+  const st = incState_(ctx.uid);
+  const cur = () => incById_(ctx, q.id || st.cur) || incMine_(ctx)[0];
+  if (q.a === 'help') return incSend_(ctx.rt, [incHelpMsg_()]);
+  if (q.a === 'latest') return incSend_(ctx.rt, [incLatestMsg_(ctx)]);
+  if (q.a === 'today') return incSend_(ctx.rt, [incTodayMsg_(ctx)]);
+  if (q.a === 'send') return incSend_(ctx.rt, [incSendGuideMsg_()]);
+  const r = cur();
+  if (!r) return incSend_(ctx.rt, [incErrMsg_('ยังไม่มีหนังสือ', 'ส่งไฟล์ PDF เข้ามาในแชตนี้ ระบบจะออกเลขรับให้ทันที')]);
+  if (q.a === 'pick') {
+    incState_(ctx.uid, { cur: r.id, field: '', at: Date.now() });
+    return incSend_(ctx.rt, [incFlex_('เลขรับ ' + incNo_(r), incDocBubble_(r, 'view'), incQuick_(r))]);
+  }
+  if (q.a === 'set' && INC_FIELD[q.f]) {
+    incState_(ctx.uid, { cur: r.id, field: q.f, at: Date.now() });
+    return incSend_(ctx.rt, [incFlex_('พิมพ์' + INC_FIELD[q.f], incPromptBubble_(r, q.f), incPromptQuick_(q.f))]);
+  }
+  if (q.a === 'st' && INC_STATUS[Number(q.s)]) return incSaveSend_(ctx, r, 'status', INC_STATUS[Number(q.s)]);
+}
+
+/* ---------- ข้อมูล ---------- */
+function incState_(uid, v) {
+  const c = CacheService.getScriptCache(), k = 'incst_' + uid;
+  if (v === undefined) { try { return JSON.parse(c.get(k) || '{}'); } catch (e) { return {}; } }
+  if (v === null) c.remove(k); else c.put(k, JSON.stringify(v), 21600);
+}
+function incRow_(r) {
+  return {
+    id: r.id, recvYear: Number(r.recvYear), recvSeq: Number(r.recvSeq), recvDate: r.recvDate, recvAt: String(r.recvAt || ''),
+    docNo: String(r.docNo || ''), fromOrg: String(r.fromOrg || ''), toWhom: String(r.toWhom || ''), subject: String(r.subject || ''),
+    action: String(r.action || ''), status: String(r.status || 'ใหม่'), fileName: String(r.fileName || ''), fileUrl: String(r.fileUrl || ''),
+    lineUser: String(r.lineUser || ''), senderName: String(r.senderName || ''), note: String(r.note || '')
+  };
+}
+function incMine_(ctx) {
+  return readObjects_(INC_SHEET).map(incRow_).filter(r => ctx.all || r.lineUser === ctx.uid)
+    .sort((a, b) => (b.recvYear - a.recvYear) || (b.recvSeq - a.recvSeq));
+}
+function incById_(ctx, id) { return id ? incMine_(ctx).find(r => r.id === id) || null : null; }
+function incBySeq_(ctx, seq) {
+  const y = incNowParts_().yearBE;
+  return incMine_(ctx).find(r => r.recvYear === y && r.recvSeq === seq) || null;
+}
+function incSaveSend_(ctx, r, field, value) {
+  const upd = { updatedAt: new Date() };
+  upd[field] = String(value).slice(0, 500);
+  if (field === 'action' && r.status === 'ใหม่') upd.status = 'กำลังดำเนินการ';
+  withLock_(() => updateObject_(INC_SHEET, r.id, incCell_(upd)));
+  audit_('update', INC_SHEET, r.id, { via: 'LINE', user: ctx.uid, field: field, value: upd[field] });
+  incState_(ctx.uid, { cur: r.id, field: '', at: Date.now() });
+  const nr = incById_(ctx, r.id) || Object.assign({}, r, upd);
+  const label = INC_FIELD_SHORT[field] || field;
+  incSend_(ctx.rt, [incFlex_('บันทึก' + label + ' เลขรับ ' + incNo_(nr), incDocBubble_(nr, 'saved', label), incQuick_(nr))]);
+}
+
+/* ---------- ส่งข้อความ ---------- */
+function incSend_(replyToken, messages) {
+  const token = incProps_().getProperty('LINE_TOKEN');
+  if (!token || !replyToken) return;
+  const res = UrlFetchApp.fetch('https://api.line.me/v2/bot/message/reply', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify({ replyToken: replyToken, messages: messages })
+  });
+  if (res.getResponseCode() !== 200) console.error('LINE reply ' + res.getResponseCode() + ' ' + res.getContentText());
+}
+function incReply_(replyToken, text) { incSend_(replyToken, [{ type: 'text', text: text }]); }
 function incLineName_(uid, token) {
   try {
     const r = UrlFetchApp.fetch('https://api.line.me/v2/bot/profile/' + uid, { headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true });
     return r.getResponseCode() === 200 ? JSON.parse(r.getContentText()).displayName || '' : '';
   } catch (e) { return ''; }
 }
-function incReply_(replyToken, text) {
-  const token = incProps_().getProperty('LINE_TOKEN');
-  if (!token || !replyToken) return;
-  UrlFetchApp.fetch('https://api.line.me/v2/bot/message/reply', {
-    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
-    headers: { Authorization: 'Bearer ' + token },
-    payload: JSON.stringify({ replyToken: replyToken, messages: [{ type: 'text', text: text }] })
-  });
+
+/* ---------- ชิ้นส่วนการ์ด ---------- */
+function incNo_(r) { return r.recvSeq + '/' + r.recvYear; }
+function incThDate_(r) {
+  const p = String(r.recvDate || '').split('-').map(Number);
+  const tm = String(r.recvAt || '').match(/(\d{1,2}):(\d{2})/);
+  if (!p[0]) return '-';
+  return p[2] + ' ' + INC_TH_MON[p[1] - 1] + ' ' + String(p[0] + 543).slice(-2) + (tm ? '  ' + ('0' + tm[1]).slice(-2) + ':' + tm[2] + ' น.' : '');
+}
+function fxT_(t, o) { return Object.assign({ type: 'text', text: (t === null || t === undefined || t === '') ? '-' : String(t), wrap: true }, o || {}); }
+function fxRow_(label, value, o) {
+  return { type: 'box', layout: 'horizontal', spacing: 'lg', contents: [
+    fxT_(label, { size: 'sm', color: INC_C.sub, flex: 3 }),
+    fxT_(value, Object.assign({ size: 'sm', color: INC_C.ink, flex: 7, align: 'end' }, o || {}))] };
+}
+function fxPost_(label, data, disp) { return { type: 'postback', label: label, data: data, displayText: disp || label }; }
+function fxBtn_(action, color, style) { return { type: 'button', style: style || 'primary', color: style === 'secondary' ? '#E9EDF5' : (color || INC_C.navy), height: 'sm', action: action }; }
+function fxSep_() { return { type: 'separator', color: INC_C.line, margin: 'lg' }; }
+function fxHead_(kicker, title, c1, c2, mark) {
+  const titleRow = [fxT_(title, { color: '#FFFFFF', weight: 'bold', size: 'xl', flex: 1, gravity: 'center' })];
+  if (mark) titleRow.unshift({ type: 'box', layout: 'vertical', width: '38px', height: '38px', cornerRadius: '19px', backgroundColor: '#FFFFFF33',
+    justifyContent: 'center', alignItems: 'center', flex: 0, contents: [fxT_(mark, { color: '#FFFFFF', weight: 'bold', size: 'lg', align: 'center', wrap: false })] });
+  return { type: 'box', layout: 'vertical', paddingAll: '20px', spacing: 'md',
+    background: { type: 'linearGradient', angle: '120deg', startColor: c1, endColor: c2 },
+    contents: [
+      { type: 'box', layout: 'horizontal', contents: [
+        fxT_(kicker, { size: 'xs', color: '#FFFFFFD9', weight: 'bold', flex: 1, wrap: false }),
+        fxT_('MVSK FINANCE', { size: 'xxs', color: '#FFFFFFA6', align: 'end', flex: 0, wrap: false })] },
+      { type: 'box', layout: 'horizontal', spacing: 'md', alignItems: 'center', contents: titleRow }] };
+}
+function fxPill_(text, color) {
+  return { type: 'box', layout: 'vertical', flex: 0, cornerRadius: '12px', paddingStart: '10px', paddingEnd: '10px', paddingTop: '3px', paddingBottom: '3px',
+    backgroundColor: color + '22', contents: [fxT_(text, { size: 'xs', color: color, weight: 'bold', wrap: false })] };
+}
+function fxBubble_(head, body, foot, size) {
+  const b = { type: 'bubble', size: size || 'mega', header: head,
+    body: { type: 'box', layout: 'vertical', spacing: 'md', paddingAll: '20px', contents: body } };
+  if (foot && foot.length) b.footer = { type: 'box', layout: 'vertical', spacing: 'sm', paddingStart: '20px', paddingEnd: '20px', paddingBottom: '20px', paddingTop: '0px', contents: foot };
+  return b;
+}
+function incFlex_(alt, contents, quick) {
+  const m = { type: 'flex', altText: String(alt).slice(0, 400), contents: contents };
+  if (quick && quick.length) m.quickReply = { items: quick.slice(0, 13) };
+  return m;
+}
+function qrPost_(label, data, disp) { return { type: 'action', action: fxPost_(label, data, disp) }; }
+function qrMsg_(label, text) { return { type: 'action', action: { type: 'message', label: label.slice(0, 20), text: text } }; }
+
+/* ---------- การ์ดหนังสือ ---------- */
+function incDocBubble_(r, kind, savedLabel) {
+  const no = incNo_(r), stc = INC_ST_COLOR[r.status] || INC_C.sub;
+  const head = kind === 'new' ? fxHead_('หนังสือเข้า · รับสำเร็จ', 'รับหนังสือแล้ว', '#1E3F94', '#6A3FB5', '✓')
+    : kind === 'saved' ? fxHead_('หนังสือเข้า · อัปเดต', 'บันทึก' + (savedLabel || '') + 'แล้ว', '#0B7A55', '#20B47C', '✓')
+      : fxHead_('หนังสือเข้า', 'รายละเอียดหนังสือ', '#1F3A5F', '#3D5F9E', null);
+  const body = [
+    { type: 'box', layout: 'horizontal', alignItems: 'flex-end', contents: [
+      { type: 'box', layout: 'vertical', flex: 1, contents: [
+        fxT_('เลขทะเบียนรับ', { size: 'xs', color: INC_C.sub }),
+        fxT_(no, { size: '3xl', weight: 'bold', color: INC_C.navy, wrap: false })] },
+      fxPill_(r.status, stc)] },
+    fxSep_(),
+    { type: 'box', layout: 'vertical', spacing: 'sm', margin: 'lg', contents: [
+      fxRow_('วันที่รับ', incThDate_(r)),
+      fxRow_('เรื่อง', r.subject || 'ยังไม่ระบุ', r.subject ? { weight: 'bold' } : { color: INC_C.red }),
+      fxRow_('การปฏิบัติ', r.action || 'ยังไม่ระบุ', r.action ? { weight: 'bold', color: '#2447A8' } : { color: INC_C.sub }),
+      fxRow_('จาก', r.fromOrg || '-', r.fromOrg ? {} : { color: INC_C.sub }),
+      fxRow_('ที่', r.docNo || '-', r.docNo ? {} : { color: INC_C.sub }),
+      fxRow_('ผู้ส่ง', r.senderName || '-')] }];
+  if (kind === 'new' && !r.subject) body.push({ type: 'box', layout: 'vertical', margin: 'lg', paddingAll: '12px', cornerRadius: '10px', backgroundColor: '#FFF6E5',
+    contents: [fxT_('พิมพ์ชื่อเรื่องส่งมาได้เลย ระบบจะบันทึกให้ฉบับนี้', { size: 'sm', color: '#8A5A00' })] });
+  const foot = [];
+  if (!r.subject) foot.push(fxBtn_(fxPost_('ใส่ชื่อเรื่อง', 'a=set&f=subject&id=' + r.id), '#D9861A'));
+  foot.push(fxBtn_(fxPost_('การปฏิบัติ / มอบหมาย', 'a=set&f=action&id=' + r.id), '#C2416B'));
+  const row2 = [];
+  if (r.fileUrl) row2.push(fxBtn_({ type: 'uri', label: 'เปิด PDF', uri: r.fileUrl }, INC_C.navy, 'secondary'));
+  if (r.status !== 'เสร็จสิ้น') row2.push(fxBtn_(fxPost_('เสร็จสิ้น', 'a=st&s=2&id=' + r.id, 'เสร็จสิ้น #' + r.recvSeq), INC_C.green, 'secondary'));
+  if (row2.length) foot.push({ type: 'box', layout: 'horizontal', spacing: 'sm', contents: row2 });
+  return fxBubble_(head, body, foot);
+}
+
+function incMiniBubble_(r) {
+  const stc = INC_ST_COLOR[r.status] || INC_C.sub;
+  return { type: 'bubble', size: 'kilo',
+    body: { type: 'box', layout: 'vertical', paddingAll: '0px', contents: [
+      { type: 'box', layout: 'vertical', height: '6px', backgroundColor: stc, contents: [{ type: 'filler' }] },
+      { type: 'box', layout: 'vertical', paddingAll: '16px', spacing: 'sm', contents: [
+        { type: 'box', layout: 'horizontal', alignItems: 'center', contents: [
+          fxT_(incNo_(r), { size: 'xl', weight: 'bold', color: INC_C.navy, flex: 1, wrap: false }), fxPill_(r.status, stc)] },
+        fxT_(incThDate_(r), { size: 'xxs', color: INC_C.sub }),
+        fxT_(r.subject || 'ยังไม่ระบุเรื่อง', { size: 'sm', weight: 'bold', color: r.subject ? INC_C.ink : INC_C.red, maxLines: 3 }),
+        fxT_(r.action ? 'การปฏิบัติ: ' + r.action : 'ยังไม่มีการปฏิบัติ', { size: 'xs', color: r.action ? '#2447A8' : INC_C.sub, maxLines: 2 })] }] },
+    footer: { type: 'box', layout: 'horizontal', spacing: 'sm', paddingAll: '12px', paddingTop: '0px', contents: [
+      fxBtn_(fxPost_('เลือก', 'a=pick&id=' + r.id, 'เลือก #' + r.recvSeq), INC_C.navy),
+      r.fileUrl ? fxBtn_({ type: 'uri', label: 'PDF', uri: r.fileUrl }, INC_C.navy, 'secondary') : { type: 'filler' }] } };
+}
+
+function incLatestMsg_(ctx) {
+  const rows = incMine_(ctx).slice(0, 8);
+  if (!rows.length) return incErrMsg_('ยังไม่มีหนังสือ', 'ส่งไฟล์ PDF เข้ามาในแชตนี้ ระบบจะออกเลขรับให้ทันที');
+  return incFlex_('หนังสือล่าสุด ' + rows.length + ' ฉบับ', { type: 'carousel', contents: rows.map(incMiniBubble_) }, incQuick_(null));
+}
+
+function incTodayMsg_(ctx) {
+  const all = incMine_(ctx), today = incNowParts_().date, y = incNowParts_().yearBE;
+  const td = all.filter(r => r.recvDate === today);
+  const pend = all.filter(r => r.recvYear === y && r.status !== 'เสร็จสิ้น');
+  const noSub = all.filter(r => r.recvYear === y && !r.subject);
+  const stat = (n, l, c) => ({ type: 'box', layout: 'vertical', flex: 1, paddingAll: '10px', cornerRadius: '12px', backgroundColor: c + '14', spacing: 'xs', contents: [
+    fxT_(String(n), { size: 'xxl', weight: 'bold', color: c, align: 'center' }), fxT_(l, { size: 'xxs', color: INC_C.sub, align: 'center' })] });
+  const body = [
+    { type: 'box', layout: 'horizontal', spacing: 'sm', contents: [stat(td.length, 'รับวันนี้', '#2F5BD3'), stat(pend.length, 'รอดำเนินการ', '#E08A00'), stat(noSub.length, 'ยังไม่ลงเรื่อง', '#D0452F')] },
+    fxSep_(), fxT_(td.length ? 'หนังสือที่รับวันนี้' : 'วันนี้ยังไม่มีหนังสือเข้า', { size: 'sm', weight: 'bold', color: INC_C.ink, margin: 'lg' })];
+  td.slice(0, 6).forEach(r => body.push({ type: 'box', layout: 'horizontal', spacing: 'md', contents: [
+    fxT_(String(r.recvSeq), { size: 'sm', weight: 'bold', color: INC_C.navy, flex: 0, wrap: false }),
+    fxT_(r.subject || 'ยังไม่ระบุเรื่อง', { size: 'sm', color: r.subject ? INC_C.ink : INC_C.red, flex: 1, maxLines: 2 }),
+    fxT_(r.status, { size: 'xxs', color: INC_ST_COLOR[r.status] || INC_C.sub, flex: 0, wrap: false, gravity: 'center' })] }));
+  return incFlex_('สรุปหนังสือเข้าวันนี้', fxBubble_(fxHead_('หนังสือเข้า · สรุป', 'สรุปวันนี้', '#0A7D70', '#2BB59E', null), body,
+    [fxBtn_(fxPost_('ดูหนังสือล่าสุด', 'a=latest'), '#0A7D70')]), incQuick_(null));
+}
+
+function incPromptBubble_(r, f) {
+  return fxBubble_(fxHead_('เลขรับ ' + incNo_(r), 'พิมพ์' + INC_FIELD[f], f === 'action' ? '#A8325C' : '#B86E0E', f === 'action' ? '#E0607E' : '#E9A93C', null), [
+    fxT_(r.subject || 'ยังไม่ระบุเรื่อง', { size: 'md', weight: 'bold', color: INC_C.ink }),
+    r[f] ? fxRow_('ปัจจุบัน', r[f]) : fxT_('ยังไม่มีข้อมูล', { size: 'sm', color: INC_C.sub }),
+    fxSep_(),
+    fxT_(f === 'action' ? 'พิมพ์การปฏิบัติ หรือชื่อผู้รับมอบหมายส่งมาได้เลย หรือแตะตัวเลือกด้านล่าง' : 'พิมพ์ข้อความส่งมาได้เลย', { size: 'sm', color: INC_C.sub, margin: 'lg' })], null, 'kilo');
+}
+function incPromptQuick_(f) {
+  const q = [];
+  if (f === 'action') {
+    const recent = readObjects_(INC_SHEET).map(r => String(r.action || '')).filter(Boolean).reverse();
+    INC_ACTION_PRESET.concat(recent).filter((v, i, a) => v.length <= 20 && a.indexOf(v) === i).slice(0, 10).forEach(v => q.push(qrMsg_(v, v)));
+  }
+  q.push(qrMsg_('ยกเลิก', 'ยกเลิก'));
+  return q;
+}
+function incQuick_(r) {
+  const q = [];
+  if (r && !r.subject) q.push(qrPost_('ใส่เรื่อง', 'a=set&f=subject&id=' + r.id));
+  if (r) q.push(qrPost_('มอบหมาย', 'a=set&f=action&id=' + r.id, 'การปฏิบัติ / มอบหมาย'));
+  if (r && r.status !== 'เสร็จสิ้น') q.push(qrPost_('เสร็จสิ้น', 'a=st&s=2&id=' + r.id, 'เสร็จสิ้น #' + r.recvSeq));
+  q.push(qrPost_('ล่าสุด', 'a=latest'), qrPost_('วันนี้', 'a=today'), qrPost_('เมนู', 'a=help'));
+  return q;
+}
+
+function incNoticeBubble_(title, text, c1, c2) {
+  return fxBubble_(fxHead_('หนังสือเข้า', title, c1, c2, null), [fxT_(text, { size: 'sm', color: INC_C.ink })], null, 'kilo');
+}
+function incErrMsg_(title, text) {
+  return incFlex_(title, fxBubble_(fxHead_('หนังสือเข้า · แจ้งเตือน', title, '#B3261E', '#E5533D', '!'), [fxT_(text, { size: 'sm', color: INC_C.ink })],
+    [fxBtn_(fxPost_('วิธีใช้งาน', 'a=help'), '#B3261E', 'secondary')], 'kilo'), incQuick_(null));
+}
+function incSendGuideMsg_() {
+  const step = (n, t) => ({ type: 'box', layout: 'horizontal', spacing: 'md', contents: [
+    { type: 'box', layout: 'vertical', width: '24px', height: '24px', cornerRadius: '12px', backgroundColor: '#2F5BD3', flex: 0, justifyContent: 'center',
+      contents: [fxT_(String(n), { size: 'xs', color: '#FFFFFF', align: 'center', weight: 'bold' })] },
+    fxT_(t, { size: 'sm', color: INC_C.ink, flex: 1 })] });
+  return incFlex_('วิธีส่งหนังสือ', fxBubble_(fxHead_('หนังสือเข้า', 'ส่งหนังสือ', '#1E3F94', '#2F7BE0', null), [
+    step(1, 'แตะ + ข้างช่องพิมพ์ แล้วเลือก "ไฟล์"'), step(2, 'เลือกไฟล์ PDF ของหนังสือ แล้วส่ง'),
+    step(3, 'ระบบออกเลขรับให้ทันที'), step(4, 'พิมพ์ชื่อเรื่องตามมา แล้วแตะ "มอบหมาย" เพื่อใส่การปฏิบัติ')], null), incQuick_(null));
+}
+function incHelpMsg_(welcome, warn) {
+  const cmd = (k, d) => ({ type: 'box', layout: 'horizontal', spacing: 'md', contents: [
+    { type: 'box', layout: 'vertical', flex: 0, cornerRadius: '6px', backgroundColor: '#EEF2FB', paddingStart: '8px', paddingEnd: '8px', paddingTop: '2px', paddingBottom: '2px',
+      contents: [fxT_(k, { size: 'xs', color: '#2447A8', weight: 'bold', wrap: false })] },
+    fxT_(d, { size: 'xs', color: INC_C.sub, flex: 1, gravity: 'center' })] });
+  const body = [];
+  if (warn) body.push({ type: 'box', layout: 'vertical', paddingAll: '10px', cornerRadius: '10px', backgroundColor: '#FDECEA', contents: [fxT_(warn, { size: 'xs', color: '#B3261E' })] });
+  body.push(fxT_(welcome ? 'ยินดีต้อนรับสู่ระบบหนังสือเข้า โรงเรียนมหาวชิราวุธ ส่งไฟล์ PDF เข้ามาในแชตนี้ได้เลย' : 'ส่งไฟล์ PDF เพื่อรับเลขรับ แล้วใช้คำสั่งด้านล่างกับฉบับล่าสุด',
+    { size: 'sm', color: INC_C.ink }), fxSep_(),
+  { type: 'box', layout: 'vertical', spacing: 'sm', margin: 'lg', contents: [
+    cmd('เรื่อง ...', 'ใส่ชื่อเรื่อง'), cmd('มอบ ...', 'การปฏิบัติ / มอบหมาย'), cmd('จาก ...', 'หน่วยงานที่ส่ง'), cmd('ที่ ...', 'เลขที่หนังสือ'),
+    cmd('เสร็จ', 'ปิดงานฉบับนี้'), cmd('#12', 'เลือกเลขรับ 12'), cmd('#12 มอบ ...', 'สั่งการเลขรับ 12'), cmd('ล่าสุด · วันนี้', 'ดูรายการ / สรุป')] });
+  return incFlex_('วิธีใช้งานหนังสือเข้า', fxBubble_(fxHead_('หนังสือเข้า · MVSK', 'วิธีใช้งาน', '#9C6A12', '#D9A441', null), body,
+    [{ type: 'box', layout: 'horizontal', spacing: 'sm', contents: [fxBtn_(fxPost_('ล่าสุด', 'a=latest'), INC_C.navy), fxBtn_(fxPost_('สรุปวันนี้', 'a=today'), '#0A7D70')] }]), incQuick_(null));
+}
+
+/* ---------- ริชเมนู (รันใน editor 1 ครั้ง) ---------- */
+function incomingSetupRichMenu() {
+  const P = incProps_(), token = P.getProperty('LINE_TOKEN');
+  if (!token) throw new Error('ยังไม่ได้ใส่ LINE_TOKEN');
+  const H = { Authorization: 'Bearer ' + token };
+  const W = 1200, HH = 405, cw = W / 3, ch = HH / 2;
+  const acts = [
+    fxPost_('ส่งหนังสือ', 'a=send', 'ส่งหนังสือ'), fxPost_('ล่าสุด', 'a=latest', 'ล่าสุด'), fxPost_('สรุปวันนี้', 'a=today', 'สรุปวันนี้'),
+    fxPost_('ใส่เรื่อง', 'a=set&f=subject', 'ใส่เรื่อง'), fxPost_('มอบหมาย', 'a=set&f=action', 'การปฏิบัติ / มอบหมาย'),
+    { type: 'uri', label: 'เปิดระบบ', uri: INC_WEB_URL + '?openExternalBrowser=1' }];
+  const areas = acts.map((a, i) => ({ bounds: { x: Math.round((i % 3) * cw), y: Math.round(Math.floor(i / 3) * ch), width: Math.round(cw), height: Math.round(ch) }, action: a }));
+  const mk = UrlFetchApp.fetch('https://api.line.me/v2/bot/richmenu', { method: 'post', contentType: 'application/json', headers: H, muteHttpExceptions: true,
+    payload: JSON.stringify({ size: { width: W, height: HH }, selected: true, name: 'MVSK หนังสือเข้า', chatBarText: 'เมนูหนังสือเข้า', areas: areas }) });
+  if (mk.getResponseCode() !== 200) throw new Error('สร้างริชเมนูไม่ได้: ' + mk.getContentText());
+  const id = JSON.parse(mk.getContentText()).richMenuId;
+  const img = DriveApp.getFileById(INC_RICHMENU_IMG).getBlob();
+  const up = UrlFetchApp.fetch('https://api-data.line.me/v2/bot/richmenu/' + id + '/content', { method: 'post', contentType: 'image/png', headers: H, payload: img.getBytes(), muteHttpExceptions: true });
+  if (up.getResponseCode() !== 200) throw new Error('อัปโหลดรูปริชเมนูไม่ได้: ' + up.getContentText());
+  const df = UrlFetchApp.fetch('https://api.line.me/v2/bot/user/all/richmenu/' + id, { method: 'post', headers: H, muteHttpExceptions: true });
+  if (df.getResponseCode() !== 200) throw new Error('ตั้งเป็นเมนูหลักไม่ได้: ' + df.getContentText());
+  const old = P.getProperty('LINE_RICHMENU_ID');
+  if (old && old !== id) UrlFetchApp.fetch('https://api.line.me/v2/bot/richmenu/' + old, { method: 'delete', headers: H, muteHttpExceptions: true });
+  P.setProperty('LINE_RICHMENU_ID', id);
+  Logger.log('ตั้งริชเมนูแล้ว ✓ ' + id);
 }
 
 /** รันใน editor 1 ครั้ง: อนุญาตสิทธิ์ + ตรวจโฟลเดอร์/โทเคน */
@@ -165,7 +479,6 @@ function incomingSetupCheck() {
   const r = UrlFetchApp.fetch('https://api.line.me/v2/bot/info', { headers: { Authorization: 'Bearer ' + t }, muteHttpExceptions: true });
   Logger.log('LINE: ' + r.getResponseCode() + ' ' + r.getContentText());
 }
-
 /* ================================================================
  * หน้าเว็บ
  * ================================================================ */
