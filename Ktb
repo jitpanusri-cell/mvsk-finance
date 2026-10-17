@@ -143,8 +143,10 @@ function saveKtbRows(fy, date, rows, dels, order) {
     if (!String(r.fundSource || '').trim()) throw new Error(at + 'กรุณาเลือกประเภทเงิน');
   });
   const out = { added: 0, updated: 0, deleted: 0 };
-  dels.forEach(id => { deleteKtbItem(id); out.deleted++; });
   const newIds = {};
+  KTB_SYNC_HOLD = true;
+  try {
+  dels.forEach(id => { deleteKtbItem(id); out.deleted++; });
   rows.forEach(r => {
     try {
       const id = saveKtbItem({
@@ -164,6 +166,9 @@ function saveKtbRows(fy, date, rows, dels, order) {
     const cur = {}; readObjects_('KTB_Items').forEach(x => { cur[String(x.id)] = num_(x.no); });
     order.map(t => newIds[t] || t).forEach((id, i) => { if (cur[id] !== undefined && cur[id] !== i + 1) updateObject_('KTB_Items', id, { no: i + 1 }); });
   });
+  } finally { KTB_SYNC_HOLD = false; }
+  const w = ktbSyncLog_(date);
+  if (w) out.syncWarn = w;
   return out;
 }
 
@@ -248,8 +253,9 @@ function saveKtbItem(obj) {
   if (isGroup && !groupNames.length) throw new Error('กรุณาระบุรายชื่อย่อยของการโอนแบบกลุ่ม');
   const isLoan = String(obj.expenseCat || '') === KTB_LOAN_CAT;
 
-  return withLock_(() => {
-    let cur = null, prevAmount = 0, prevFund = '';
+  let cur = null;
+  const ret = withLock_(() => {
+    let prevAmount = 0, prevFund = '';
     if (obj.id) {
       cur = readObjects_('KTB_Items').find(x => String(x.id) === String(obj.id));
       if (!cur) throw new Error('ไม่พบรายการ');
@@ -283,32 +289,40 @@ function saveKtbItem(obj) {
     }
     return id;
   });
+  if (!KTB_SYNC_HOLD) ktbSyncLog_(obj.date, cur ? ktbItemDate_(cur) : '');
+  return ret;
 }
 
 /** เพิ่มหลายรายการพร้อมกันจาก Batch Paste (รายการ\tชื่อ-สกุล\tจำนวนเงิน ต่อบรรทัด) */
 function saveKtbBatchPaste(fy, date, bankAccount, fundSource, text) {
   const rows = String(text || '').split('\n').map(l => l.split('\t').map(s => s.trim())).filter(r => r.length >= 2 && r[0]);
   let n = 0;
-  rows.forEach(r => {
-    const amount = num_(r[2]);
-    if (!amount) return;
-    saveKtbItem({ fy: fy, date: date, bankAccount: bankAccount, fundSource: fundSource, expenseCat: '', customName: r[0], name: r[1] || '', amount: amount });
-    n++;
-  });
+  KTB_SYNC_HOLD = true;
+  try {
+    rows.forEach(r => {
+      const amount = num_(r[2]);
+      if (!amount) return;
+      saveKtbItem({ fy: fy, date: date, bankAccount: bankAccount, fundSource: fundSource, expenseCat: '', customName: r[0], name: r[1] || '', amount: amount });
+      n++;
+    });
+  } finally { KTB_SYNC_HOLD = false; }
+  ktbSyncLog_(date);
   return n;
 }
 
 function deleteKtbItem(id) {
   const u = requireWrite_('ktb');
-  return withLock_(() => {
+  const date = withLock_(() => {
     const cur = readObjects_('KTB_Items').find(x => String(x.id) === String(id));
     if (!cur) throw new Error('ไม่พบรายการ');
     const batch = readObjects_('KTB_Batches').find(b => b.id === cur.batchId);
     deleteWhere_('KTB_Items', o => String(o.id) === String(id));
     if (batch) ktbAdjustBalance25_(Number(batch.fy), cur.itemId, -num_(cur.amount), u);
     audit_('delete', 'KTB_Items', id, cur);
-    return true;
+    return batch ? batch.date : '';
   });
+  if (!KTB_SYNC_HOLD && date) ktbSyncLog_(date);
+  return true;
 }
 
 /** ตั้งสถานะติดตามลูกหนี้เงินยืม (จากเมนูขอยืม-ขอเบิก เมื่อบันทึกส่งใช้ครบ) */
@@ -370,4 +384,104 @@ function getKtbMonthExport(ym) {
   });
   const days = Object.keys(byDate).sort().map(k => Object.assign(byDate[k], { arriveOther: ktbArriveDate_(k, school) }));
   return { ym: ym, school: { name: school.schoolName || '' }, days: days };
+}
+
+
+/* =========================================================
+ * ส่งข้อมูลแจ้งโอนเงินไปเก็บในชีตภายนอก (ชีต "แจ้งโอนเงิน KTB รายวัน")
+ * ทุกครั้งที่บันทึก/แก้/ลบ: ลบแถวของวันโอนนั้นในชีตแล้วเขียนใหม่ทั้งวัน (ข้อมูลตรงกับระบบเสมอ)
+ * เปลี่ยนไฟล์ปลายทางได้ที่ Settings → ktbLogSheetId
+ * ========================================================= */
+var KTB_SYNC_HOLD = false;
+const KTB_LOG_SHEET_DEFAULT = '18cstdU7rgNJBvlsBC523Pqta2cZuT9-muu36qeGWdDY';
+const KTB_LOG_TAB = 'ข้อมูลแจ้งโอน';
+const KTB_LOG_HEAD = ['เดือน', 'วันที่โอน', 'ที่', 'รายการ', 'ชื่อ-สกุล', 'บัญชีปลายทาง', 'วันที่เงินเข้า', 'ประเภทงบ',
+  'ตัดยอดจากประเภทเงิน', 'หมวดรายจ่าย', 'จำนวนเงิน', 'หมายเหตุ', 'ผู้บันทึก', 'วันเวลาที่บันทึก', 'วันที่โอน (ISO)', 'รหัสรายการ'];
+function ktbItemDate_(it) {
+  const b = readObjects_('KTB_Batches').find(x => x.id === it.batchId);
+  return b ? b.date : '';
+}
+function ktbThDate_(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? Number(m[3]) + ' ' + TH_MONTHS[Number(m[2]) - 1] + ' ' + (Number(m[1]) + 543) : '';
+}
+function ktbLogSheet_() {
+  const id = String(getSettingsMap_().ktbLogSheetId || KTB_LOG_SHEET_DEFAULT).trim();
+  const ss = SpreadsheetApp.openById(id);
+  let sh = ss.getSheetByName(KTB_LOG_TAB);
+  if (!sh) {
+    const first = ss.getSheets()[0];
+    if (ss.getSheets().length === 1 && first.getLastRow() === 0) { sh = first; sh.setName(KTB_LOG_TAB); } else sh = ss.insertSheet(KTB_LOG_TAB);
+  }
+  if (sh.getLastRow() === 0 || String(sh.getRange(1, 1).getValue()) !== KTB_LOG_HEAD[0]) {
+    if (sh.getLastRow() > 0) sh.insertRowBefore(1);
+    sh.getRange(1, 1, 1, KTB_LOG_HEAD.length).setValues([KTB_LOG_HEAD]).setFontWeight('bold').setBackground('#D4D4D4').setHorizontalAlignment('center');
+    sh.setFrozenRows(1);
+    sh.hideColumns(KTB_LOG_HEAD.length - 1, 2);
+  }
+  return sh;
+}
+/** เขียนข้อมูลของวันโอน (และวันเดิม ถ้ารายการถูกย้ายวัน) ลงชีตภายนอก · คืนข้อความเตือนถ้าเขียนไม่ได้ (ไม่ทำให้การบันทึกล้ม) */
+function ktbSyncLog_(date, date2) {
+  const dates = [date, date2].filter((d, i, a) => d && a.indexOf(d) === i);
+  if (!dates.length) return '';
+  try {
+    const sh = ktbLogSheet_(), isoCol = KTB_LOG_HEAD.length - 1;
+    const school = getSettingsMap_();
+    const users = {}; readObjects_('Users').forEach(x => { users[String(x.email || '').toLowerCase()] = String(x.name || ''); });
+    const acts = readObjects_('Activities');
+    const actName = id => { const a = acts.find(x => x.id === id); return a ? ((a.code ? a.code + ' ' : '') + a.name) : ''; };
+    const items = readObjects_('KTB_Items'), batches = readObjects_('KTB_Batches');
+    const BT = { bud: 'เงินงบประมาณ', rev: 'เงินรายได้แผ่นดิน', off: 'เงินนอกงบประมาณ' }, CAT_BT = { 1: 'bud', 3: 'bud', 2: 'rev', 4: 'off' };
+    const balCache = {};
+    const balOf = (fy, id) => { const L = balCache[fy] || (balCache[fy] = ktbBal25Options_(fy)); return L.find(x => String(x.id) === String(id)) || {}; };
+    const out = [];
+    dates.forEach(d => {
+      const list = [];
+      batches.filter(b => b.date === d).forEach(b => items.filter(it => it.batchId === b.id).forEach(it => list.push({ b: b, it: it })));
+      list.sort((x, y) => num_(x.it.no) - num_(y.it.no));
+      const m = d.match(/^(\d{4})-(\d{2})/), month = m ? TH_MONTHS[Number(m[2]) - 1] + ' ' + (Number(m[1]) + 543) : '';
+      list.forEach((x, i) => {
+        const b = x.b, it = x.it, fy = Number(b.fy), bal = balOf(fy, b.fundSource);
+        const cat = String(it.expenseCat || ''), tail = it.activityId ? actName(it.activityId) : (String(it.customName || '') || String(it.note || ''));
+        const other = !/กรุงไทย/.test(String(b.bankAccount || ''));
+        const bt = BT[String(it.budgetType || '')] || BT[CAT_BT[Number(bal.category)]] || '';
+        const who = String(it.createdBy || '').toLowerCase();
+        const names = String(it.groupNames || '').split('\n').map(t => t.trim()).filter(Boolean).join(', ');
+        out.push([month, ktbThDate_(d), i + 1, [cat, tail].filter(Boolean).join(' - '),
+          isTrue_(it.isGroup) ? num_(it.groupCount) + ' ราย' + (names ? ': ' + names : '') : String(it.name || ''),
+          other ? 'ต่างธนาคาร' : 'ธนาคารกรุงไทย', ktbThDate_(other ? ktbArriveDate_(d, school) : d), bt, bal.name || '', cat,
+          round2_(num_(it.amount)), String(it.note || ''), users[who] || who, it.createdAt || '', d, String(it.id)]);
+      });
+    });
+    // ลบแถวเดิมของวันเหล่านี้ (จากล่างขึ้นบน)
+    const last = sh.getLastRow();
+    if (last > 1) {
+      const iso = sh.getRange(2, isoCol, last - 1, 1).getDisplayValues();
+      for (let r = iso.length - 1; r >= 0; r--) {
+        if (dates.indexOf(String(iso[r][0])) < 0) continue;
+        let top = r; while (top > 0 && dates.indexOf(String(iso[top - 1][0])) >= 0) top--;
+        sh.deleteRows(top + 2, r - top + 1); r = top;
+      }
+    }
+    if (out.length) {
+      const start = sh.getLastRow() + 1;
+      sh.getRange(start, isoCol, out.length, 1).setNumberFormat('@');
+      sh.getRange(start, 1, out.length, KTB_LOG_HEAD.length).setValues(out);
+      sh.getRange(start, 11, out.length, 1).setNumberFormat('#,##0.00');
+      sh.getRange(start, 14, out.length, 1).setNumberFormat('d/m/yyyy HH:mm');
+      // เรียงทั้งชีตตามวันที่โอน แล้วตามลำดับ
+      const n = sh.getLastRow() - 1;
+      if (n > 1) sh.getRange(2, 1, n, KTB_LOG_HEAD.length).sort([{ column: isoCol, ascending: true }, { column: 3, ascending: true }]);
+    }
+    return '';
+  } catch (e) {
+    return 'บันทึกในระบบแล้ว แต่ส่งข้อมูลไปชีตภายนอกไม่ได้: ' + e.message;
+  }
+}
+/** ส่งข้อมูลทั้งหมดของเดือน (หรือทุกวันที่มีข้อมูล) ไปชีตภายนอกครั้งเดียว (ใช้ครั้งแรก) — รันจากตัวแก้ไข Apps Script */
+function ktbSyncAllLog() {
+  const dates = readObjects_('KTB_Batches').map(b => String(b.date || '')).filter((d, i, a) => d && a.indexOf(d) === i).sort();
+  const warns = dates.map(d => ktbSyncLog_(d)).filter(Boolean);
+  return warns.length ? warns[0] : 'ส่งข้อมูลแล้ว ' + dates.length + ' วัน';
 }

@@ -3802,7 +3802,8 @@ async function ktSheetSave() {
     if (lastRow) { KT.lastBank = lastRow.bankAccount; KT.lastFund = lastRow.fundSource; KT.lastBt = lastRow.budgetType; }
     KT.drafts[KT.date] = null; KT.dels[KT.date] = []; try { localStorage.removeItem(ktDraftKey()); } catch (e) {}
     delete KT.month[KT.date.slice(0, 7)];
-    toast(['บันทึกแล้ว', r.added && `เพิ่ม ${r.added}`, r.updated && `แก้ ${r.updated}`, r.deleted && `ลบ ${r.deleted}`].filter(Boolean).join(' · '));
+    if (r.syncWarn) toast(r.syncWarn, true);
+    else toast(['บันทึกแล้ว', r.added && `เพิ่ม ${r.added}`, r.updated && `แก้ ${r.updated}`, r.deleted && `ลบ ${r.deleted}`].filter(Boolean).join(' · '));
     await loadKtbDay();
   } catch (e) { fail(e); btn.disabled = false; ktSheetTotals(); }
 }
