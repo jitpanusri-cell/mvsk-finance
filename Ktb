@@ -28,8 +28,12 @@ function ktbEnsureCol_(name, col) {
 
 /* ประเภทเงินที่งานการเงินจัดเป็น "นอกงบประมาณ" ในเมนูแจ้งโอน KTB (ไม่กระทบรายงานยอดคงเหลือ 25 รายการ) */
 const KTB_OFF_BUDGET_IDS = ['18']; // 18 = ค่ากิจกรรมพัฒนาคุณภาพผู้เรียน
+/* ประเภทเงินที่รวมเป็นตัวเลือกเดียวในเมนูแจ้งโอน KTB: เงินบำรุงการศึกษา (ภาคปกติ + ห้องเรียนพิเศษ) ตัดยอดที่ข้อ 19 */
+const KTB_MERGE = { '19': 'เงินบำรุงการศึกษา (ภาคปกติ และห้องเรียนพิเศษ)' };
+const KTB_HIDE_IDS = ['20'];
 function ktbBal25Options_(fy) {
-  return getBalance25(fy).rows.map(r => ({ id: r.id, name: r.name, catLabel: r.catLabel, mode: r.mode,
+  return getBalance25(fy).rows.map(r => ({ id: r.id, name: KTB_MERGE[String(r.id)] || r.name, catLabel: r.catLabel, mode: r.mode,
+    hide: KTB_HIDE_IDS.indexOf(String(r.id)) >= 0,
     category: KTB_OFF_BUDGET_IDS.indexOf(String(r.id)) >= 0 ? 4 : r.category }));
 }
 
