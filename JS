@@ -3583,7 +3583,7 @@ let _ktDraftT = null;
 const ktSaveDraftSoon = () => { clearTimeout(_ktDraftT); _ktDraftT = setTimeout(ktSaveDraft, 600); };
 
 /* ตัวเลือกประเภทเงิน แยกกลุ่ม เงินงบประมาณ / รายได้แผ่นดิน / นอกงบประมาณ ให้เห็นชัด */
-const KT_BT = [['bud', 'เงินงบประมาณ'], ['rev', 'เงินรายได้แผ่นดิน'], ['off', 'เงินนอกงบประมาณ']];
+const KT_BT = [['bud', 'เงินงบประมาณ'], ['dev', 'เงินกิจกรรมพัฒนาผู้เรียน'], ['rev', 'เงินรายได้แผ่นดิน'], ['off', 'เงินนอกงบประมาณ']];
 const ktCatToBt = c => ({ 1: 'bud', 3: 'bud', 2: 'rev', 4: 'off' })[Number(c)] || 'bud';
 const ktFundBt = id => { const o = ((KT.form || {}).bal25 || []).find(x => String(x.id) === String(id)); return ktCatToBt(o && o.category); };
 const KT_FUND_GRP = [[[1, 3], 'เงินงบประมาณ'], [[2], 'เงินรายได้แผ่นดิน'], [[4], 'เงินนอกงบประมาณ']];
@@ -3751,7 +3751,7 @@ function ktMatchOpt(col, raw) {
     const hit = bal.find(o => String(o.id) === s) || (id && bal.find(o => String(o.id) === id)) || bal.find(o => o.name === s) || bal.find(o => s.includes(o.name) || o.name.includes(s));
     return hit ? String(hit.id) : null;
   }
-  if (col.type === 'bt') { const h = KT_BT.find(([k, t]) => t === s || k === s) || (/นอก/.test(s) ? KT_BT[2] : /แผ่นดิน/.test(s) ? KT_BT[1] : /งบ/.test(s) ? KT_BT[0] : null); return h ? h[0] : null; }
+  if (col.type === 'bt') { const h = KT_BT.find(([k, t]) => t === s || k === s) || (/นอก/.test(s) ? KT_BT[3] : /แผ่นดิน/.test(s) ? KT_BT[2] : /กิจกรรม|พัฒนาผู้เรียน/.test(s) ? KT_BT[1] : /งบ/.test(s) ? KT_BT[0] : null); return h ? h[0] : null; }
   if (col.type === 'cat') { const cats = F.cats || []; return cats.find(c => c === s) || cats.find(c => s.includes(c) || c.includes(s)) || null; }
   return s;
 }
@@ -3810,7 +3810,7 @@ async function ktSheetSave() {
 
 /* เอกสารแจ้งโอน: แยกตามประเภทเงิน (งบประมาณ / รายได้แผ่นดิน / นอกงบประมาณ) → บัญชีปลายทาง (กรุงไทย / ต่างธนาคาร) */
 let KT_THEME = 'grid';
-const KT_SEC = [{ k: 'bud', cats: [1, 3], t: 'เงินงบประมาณ' }, { k: 'rev', cats: [2], t: 'เงินรายได้แผ่นดิน' }, { k: 'off', cats: [4], t: 'เงินนอกงบประมาณ' }, { k: 'etc', cats: [0], t: 'เงินอื่นๆ' }];
+const KT_SEC = [{ k: 'bud', cats: [1, 3], t: 'เงินงบประมาณ' }, { k: 'dev', cats: [], t: 'เงินกิจกรรมพัฒนาผู้เรียน' }, { k: 'rev', cats: [2], t: 'เงินรายได้แผ่นดิน' }, { k: 'off', cats: [4], t: 'เงินนอกงบประมาณ' }, { k: 'etc', cats: [0], t: 'เงินอื่นๆ' }];
 const ktBankKind = s => /กรุงไทย|ktb/i.test(String(s || '')) ? 'ธนาคารกรุงไทย' : 'ต่างธนาคาร';
 const ktThDateBE = iso => { const p = String(iso).split('-').map(Number); return `${p[2]} ${MTH[p[1] - 1]} พ.ศ. ${p[0] + 543}`; };
 function ktLogoSrc() { try { return mvImg('logo'); } catch (e) { return (KT.day && KT.day.school && KT.day.school.logoUrl) || ''; } }
@@ -3917,7 +3917,7 @@ async function exportKtbXlsx(ym) {
     const h1 = s1.getRow(4); h1.values = ['ที่', 'วันที่โอน', 'จำนวนรายการ', 'เงินงบประมาณ', 'เงินรายได้แผ่นดิน', 'เงินนอกงบประมาณ', 'รวม'];
     style(h1, { bold: true, fill: C.sky, color: C.white, align: 'center', wrap: true }); h1.height = 42;
     D.days.forEach((d, i) => {
-      const t = { bud: 0, rev: 0, off: 0, etc: 0 }; d.rows.forEach(r => { t[secOf(r).k] += r.amount; });
+      const t = { bud: 0, dev: 0, rev: 0, off: 0, etc: 0 }; d.rows.forEach(r => { t[secOf(r).k] += r.amount; }); t.bud += t.dev;
       const rn = 5 + i, row = s1.getRow(rn);
       row.values = [i + 1, thDate(d.date), d.rows.length, t.bud || null, t.rev || null, t.off + t.etc || null, { formula: `SUM(D${rn}:F${rn})` }];
       style(row, { fill: i % 2 ? C.lt2 : null }); row.getCell(1).alignment = row.getCell(3).alignment = { vertical: 'middle', horizontal: 'center' };
@@ -3956,6 +3956,7 @@ async function exportKtbXlsx(ym) {
       ws.views = [{ state: 'frozen', ySplit: 4 }];
     };
     typeTab('เงินในงบ', 'เงินงบประมาณ', ['bud'], true);
+    typeTab('เงินกิจกรรมพัฒนาผู้เรียน', 'เงินกิจกรรมพัฒนาผู้เรียน', ['dev'], false);
     typeTab('เงินนอกงบ', 'เงินนอกงบประมาณ', ['off', 'etc'], true);
     typeTab('เงินรายได้แผ่นดิน', 'เงินรายได้แผ่นดิน', ['rev'], false);
 

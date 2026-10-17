@@ -17,7 +17,7 @@ const KTB_BANKS = ['ธนาคารกรุงไทย', 'ต่างธ�
 const KTB_CATS = ['ค่าใช้สอยอื่นๆ', 'ค่าตอบแทน', 'ค่าตอบแทนการปฏิบัติงาน', 'คชจ.เดินทางไปราชการ', 'ค่าจ้างเหมา', 'ค่าวัสดุ', 'ลูกหนี้เงินยืม'];
 const KTB_LOAN_CAT = 'ลูกหนี้เงินยืม';
 /* ประเภทการแจ้งโอน: bud = เงินงบประมาณ, rev = เงินรายได้แผ่นดิน, off = เงินนอกงบประมาณ (ว่าง = ดูจากหมวดของประเภทเงิน) */
-const KTB_BT = ['bud', 'rev', 'off'];
+const KTB_BT = ['bud', 'dev', 'rev', 'off'];
 
 /** เพิ่มหัวคอลัมน์ให้ชีต ถ้ายังไม่มี (ข้อมูลเดิมไม่กระทบ) */
 function ktbEnsureCol_(name, col) {
@@ -432,7 +432,7 @@ function ktbSyncLog_(date, date2) {
     const acts = readObjects_('Activities');
     const actName = id => { const a = acts.find(x => x.id === id); return a ? ((a.code ? a.code + ' ' : '') + a.name) : ''; };
     const items = readObjects_('KTB_Items'), batches = readObjects_('KTB_Batches');
-    const BT = { bud: 'เงินงบประมาณ', rev: 'เงินรายได้แผ่นดิน', off: 'เงินนอกงบประมาณ' }, CAT_BT = { 1: 'bud', 3: 'bud', 2: 'rev', 4: 'off' };
+    const BT = { bud: 'เงินงบประมาณ', dev: 'เงินกิจกรรมพัฒนาผู้เรียน', rev: 'เงินรายได้แผ่นดิน', off: 'เงินนอกงบประมาณ' }, CAT_BT = { 1: 'bud', 3: 'bud', 2: 'rev', 4: 'off' };
     const balCache = {};
     const balOf = (fy, id) => { const L = balCache[fy] || (balCache[fy] = ktbBal25Options_(fy)); return L.find(x => String(x.id) === String(id)) || {}; };
     const out = [];
