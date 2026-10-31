@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>งานการเงินและบัญชี - โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</title>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <base target="_top">
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    html, body { 
+      height: 100%; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; 
+    }
+    body { 
+      font-family: 'Prompt', sans-serif; 
+      background-color: #f8f9fb; 
+      color: #333;
+    }
+    
+    /* ==========================================
+       1. CSS สำหรับ DYNAMIC ISLAND HEADER
+       ========================================== */
+    .dynamic-header-wrapper {
+      position: fixed;
+      top: 15px; 
+      left: 50%;
+      transform: translateX(-50%);
+      width: 95%;
+      max-width: 1200px; 
+      z-index: 9999;
+      font-family: 'Prompt', sans-serif;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* เอฟเฟกต์เมื่อเลื่อนจอลง */
+    .dynamic-header-wrapper.sticky-nav {
+      top: 10px;
+      max-width: 1140px; 
+    }
+
+    .dynamic-island {
+      background: rgba(15, 23, 42, 0.75); 
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 50px;
+      padding: 8px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .dynamic-header-wrapper.sticky-nav .dynamic-island {
+      background: rgba(15, 23, 42, 0.9);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      padding: 6px 20px;
+    }
+
+    /* ส่วนโลโก้และชื่อบน Dynamic Island */
+    .island-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-right: 15px;
+      border-right: 1px solid rgba(255, 255, 255, 0.15);
+      text-decoration: none; 
+      cursor: pointer;
+      transition: opacity 0.3s ease;
+    }
+    
+    .island-brand:hover { opacity: 0.8; }
+
+    .island-logo-img {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 5px rgba(255,255,255,0.2));
+    }
+
+    .brand-text-wrapper {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+    }
+
+    .brand-group {
+      color: #ffffff;
+      font-weight: 500;
+      font-size: 13px;
+    }
+
+    .brand-school {
+      color: #fbbc04;
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.3px;
+    }
+
+    .island-menu-container {
+      display: flex;
+      align-items: center;
+      flex-grow: 1;
+      justify-content: flex-end;
+    }
+
+    .mobile-menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: #fbbc04;
+      font-size: 26px;
+      cursor: pointer;
+      padding: 0 5px;
+    }
+
+    .island-nav {
+      display: flex;
+      gap: 3px;
+      align-items: center;
+    }
+
+    .island-nav a {
+      color: rgba(255, 255, 255, 0.85);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 400;
+      padding: 8px 12px;
+      border-radius: 25px;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+    }
+
+    .island-nav a:hover {
+      color: #0f172a;
+      background: #fbbc04;
+    }
+
+    /* Dropdown เมื่อเอาเมาส์ไปแตะ "งานการเงินและบัญชี" */
+    .island-dropdown {
+      position: relative;
+    }
+
+    .island-dropdown-menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 8px;
+      background: rgba(15, 23, 42, 0.98);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      padding: 8px;
+      min-width: 240px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+      z-index: 100;
+    }
+
+    /* เพิ่มพื้นที่บัฟเฟอร์ไม่ให้เมนูหายตอนขยับเมาส์ */
+    .island-dropdown::before {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      height: 8px;
+    }
+
+    .island-dropdown:hover .island-dropdown-menu {
+      display: block;
+    }
+
+    .island-dropdown-menu a {
+      display: block;
+      padding: 10px 14px;
+      border-radius: 9px;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .island-dropdown-menu a:hover {
+      background: #fbbc04;
+      color: #0f172a;
+    }
+
+    .island-staff-area {
+      display: flex;
+      align-items: center;
+      padding-left: 10px;
+    }
+
+    .island-staff-btn {
+      background-color: transparent;
+      color: #fbbc04;
+      border: 1px solid #fbbc04;
+      padding: 6px 16px;
+      border-radius: 25px;
+      font-family: 'Prompt', sans-serif;
+      font-weight: 500;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+      white-space: nowrap;
+    }
+
+    .island-staff-btn:hover {
+      background-color: #ff4d4d;
+      color: #ffffff;
+      border-color: #ff4d4d;
+      transform: scale(1.03);
+    }
+
+    /* การแสดงผลบนโทรศัพท์มือถือ สำหรับ Dynamic Island */
+    @media (max-width: 992px) {
+      .brand-school { display: none; }
+      .island-brand { border-right: none; padding-right: 0; }
+      .mobile-menu-toggle { display: block; }
+      
+      .island-menu-container {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 60px;
+        left: 5%;
+        width: 90%;
+        background: rgba(15, 23, 42, 0.98);
+        border-radius: 20px;
+        padding: 15px;
+        border: 1px solid rgba(255,255,255,0.1);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      }
+      .island-menu-container.show { display: flex; }
+      
+      .island-nav { flex-direction: column; width: 100%; gap: 5px; }
+      .island-nav a { width: 100%; text-align: center; padding: 12px; font-size: 15px; }
+
+      /* บนมือถือให้เมนูย่อยแสดงต่อท้ายทันทีแบบเลื่อนดูปกติ (ไม่ต้องพึ่ง hover) */
+      .island-dropdown { display: flex; flex-direction: column; width: 100%; }
+      .island-dropdown-menu {
+        display: block;
+        position: static;
+        margin-top: 4px;
+        box-shadow: none;
+        border: none;
+        background: rgba(255,255,255,0.06);
+        width: 100%;
+      }
+      .island-dropdown-menu a { text-align: center; font-size: 13px; padding: 10px; }
+      .island-dropdown::before { display: none; }
+      
+      .island-staff-area { width: 100%; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 10px; padding-left: 0; }
+      .island-staff-btn { width: 100%; padding: 12px; }
+    }
+
+    /* ==========================================
+       2. CSS สำหรับเนื้อหาเว็บไซต์ (ขยายเต็มหน้าจอคอมและมือถือ)
+       ========================================== */
+    .main-container { 
+      width: 100%; 
+      margin: 0 auto; 
+      background-color: #f8f9fb;
+      min-height: 100vh;
+      padding-bottom: 50px;
+      position: relative;
+      overflow: hidden; 
+    }
+
+    /* HEADER สีน้ำเงิน-เทา ขยายเต็มความกว้างจอจอภาพ */
+    .site-header {
+      background: linear-gradient(-45deg, #002b5e, #555555, #004a9f, #333333);
+      background-size: 300% 300%;
+      animation: gradientMove 15s ease infinite; 
+      padding: 120px 20px 60px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      color: #ffffff;
+      position: relative;
+      overflow: hidden; 
+      border-bottom: 5px solid #fbbc04; 
+      z-index: 10;
+      width: 100%;
+    }
+
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .site-header::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 50%; height: 100%;
+      background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0) 100%);
+      transform: skewX(-25deg);
+      animation: shineSweep 15s infinite ease-in-out; 
+      z-index: 1;
+    }
+
+    @keyframes shineSweep {
+      0% { left: -100%; }
+      10% { left: 150%; }
+      100% { left: 150%; }
+    }
+
+    .header-content { 
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      z-index: 2; 
+      position: relative; 
+    }
+    
+    .site-header img.logo-main {
+      width: 90px;
+      height: auto;
+      margin-bottom: 15px;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+    }
+
+    .finance-title {
+      font-size: 32px;
+      font-weight: 700;
+      color: #fbbc04; 
+      text-shadow: 0 2px 10px rgba(251, 188, 4, 0.3), 0 2px 4px rgba(0,0,0,0.8);
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+      word-break: keep-all; 
+    }
+
+    .school-subtitle-th {
+      display: block; 
+      font-size: 16px;
+      font-weight: 500;
+      color: #ffffff;
+      letter-spacing: 0.5px;
+      word-break: keep-all;
+      margin-top: 5px;
+    }
+
+    .school-subtitle-en {
+      display: block; 
+      font-size: 11px;
+      font-weight: 300;
+      color: #e2e8f0;
+      letter-spacing: 1px;
+      word-break: keep-all;
+      margin-top: 3px;
+      text-transform: uppercase;
+    }
+
+    /* คอนเทนเนอร์เนื้อหาจำกัดความกว้างตรงกลางให้อ่านง่าย */
+    .content-wrapper { 
+      padding: 20px; 
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      position: relative;
+      z-index: 2;
+    }
+
+    .section-title {
+      background-color: #264a75; 
+      color: #ffffff; 
+      font-size: 16px; 
+      font-weight: 600; 
+      padding: 15px 20px;
+      border-radius: 8px; 
+      border-left: 6px solid #fbbc04; 
+      margin-bottom: 20px; 
+      margin-top: 30px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+      display: flex; 
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap; /* ปรับให้ปุ่มตัดลงมาบรรทัดใหม่ได้ถ้าหน้าจอเล็ก */
+      gap: 10px;
+      word-break: keep-all;
+    }
+    .content-wrapper .section-title:first-child { margin-top: 10px; }
+
+    .title-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background-color: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 400;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      transition: all 0.3s ease;
+      white-space: nowrap;
+    }
+
+    .title-link-btn:hover {
+      background-color: #fbbc04;
+      color: #002b5e;
+      border-color: #fbbc04;
+      box-shadow: 0 2px 8px rgba(251, 188, 4, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .title-link-btn svg {
+      width: 13px;
+      height: 13px;
+      fill: currentColor;
+    }
+
+    /* ==========================================
+       MENU GRID & CARDS 
+       ========================================== */
+    .menu-grid {
+      display: grid; 
+      grid-template-columns: repeat(2, 1fr); 
+      gap: 14px; 
+      margin-bottom: 30px;
+    }
+    .menu-card {
+      background: #ffffff; 
+      border: 1px solid #eef0f3; 
+      border-radius: 12px; 
+      padding: 16px; /* ปรับลด padding สำหรับมือถือ */
+      text-align: left; 
+      text-decoration: none; 
+      color: #2c3e50;
+      position: relative;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.02); 
+      transition: all 0.3s ease-in-out;
+    }
+    
+    .menu-card:hover { 
+      transform: translateY(-4px);
+      background: #ffffff;
+      box-shadow: 0 10px 25px rgba(0,43,94,0.08); 
+      border-color: rgba(0,43,94,0.1);
+    }
+    
+    .card-title { 
+      font-size: 13px; /* ปรับให้เล็กลงนิดหน่อยบนมือถือ */
+      font-weight: 700; 
+      line-height: 1.4; 
+      color: #1a2b3c;
+      word-break: keep-all;
+    }
+    
+    .card-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top: 10px;
+    }
+    
+    .icon-wrapper { 
+      width: 32px; height: 32px; /* ย่อไอคอนลงเล็กน้อยบนมือถือ */
+      background-color: #f0f4f8; 
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      transition: background-color 0.3s;
+    }
+    .icon-svg { width: 16px; height: 16px; fill: #003366; transition: fill 0.3s; } 
+    
+    .arrow-circle {
+      width: 26px; height: 26px;
+      background: #f4f6f8;
+      border: 1px solid #e2e8f0;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+
+    .menu-card:hover .arrow-circle { 
+      background: #fbbc04; 
+      color: #003366; 
+      border-color: #fbbc04;
+      transform: translateX(3px);
+    }
+    .menu-card:hover .icon-wrapper { background-color: #003366; }
+    .menu-card:hover .icon-svg { fill: #ffffff; }
+
+    /* ==========================================
+       SECTION: วิดีโอ / เอกสาร (ปรับโครงสร้างให้ดูง่ายขึ้นบนโทรศัพท์)
+       ========================================== */
+    .video-wrapper {
+      background: #000; border-radius: 8px; overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 25px; border: 1px solid #eee;
+      width: 100%;
+    }
+    
+    /* แก้ไขปัญหาวิดีโอ Google Drive โดนตัดขอบ แสดงผลไม่ครบในหน้าจอมือถือ */
+    .responsive-video { 
+      position: relative; 
+      padding-bottom: 65%; /* ปรับเพิ่มจาก 56.25% เพื่อชดเชยพื้นที่ให้แถบควบคุม Google Drive บนมือถือ */
+      min-height: 260px; /* บังคับความสูงขั้นต่ำ ป้องกัน iframe แคบเกินไปบนจอมือถือเล็กๆ */
+      height: 0; 
+    }
+    .responsive-video iframe { 
+      position: absolute; 
+      top: 0; left: 0; 
+      width: 100%; height: 100%; 
+      border: none; 
+    }
+
+    /* ปรับปรุงขนาด doc-box บนหน้าจอโทรศัพท์ให้อ่านง่ายขึ้น ไม่แคบเกินไป */
+    .doc-box { 
+      border: 1px solid #eee; border-radius: 8px; overflow: hidden; margin-bottom: 25px; 
+      box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+      height: 400px; /* ปรับเพิ่มความสูงจาก 300px เป็น 400px ให้เห็นเอกสารมากขึ้นบนมือถือ */
+      width: 100%;
+      position: relative;
+      -webkit-overflow-scrolling: touch; /* เลื่อนไฟล์ PDF บน iOS ได้ดีขึ้น */
+    }
+    .responsive-doc { position: relative; height: 100%; width: 100%; }
+    .doc-box iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+
+    .payment-box { 
+      border: 1px solid #eee; border-radius: 8px; overflow: hidden; background: #ffffff; 
+      box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    }
+    .step-item { display: flex; align-items: flex-start; padding: 16px; border-bottom: 1px solid #eee; }
+    .step-item:last-child { border-bottom: none; }
+    .step-num { 
+      background: #002b5e; color: #fbbc04; font-size: 15px; font-weight: 700; 
+      min-width: 30px; height: 30px; border-radius: 6px; 
+      display: flex; align-items: center; justify-content: center; margin-right: 12px; 
+    }
+    .step-text { flex: 1; }
+    .step-text h4 { font-size: 14px; font-weight: 600; color: #222; margin-bottom: 4px; word-break: keep-all; }
+    .step-text p { font-size: 12px; color: #555; line-height: 1.5; word-break: keep-all; }
+
+    /* ปรับปรุงความสวยงามเฉพาะหน้าจอมือถือ (ปรับมุมมองโทรศัพท์) */
+    @media (max-width: 767px) {
+      .site-header { padding: 90px 15px 40px 15px; } /* ลด padding ด้านบนไม่ให้กินพื้นที่จอเยอะไป */
+      .finance-title { font-size: 26px; } /* ปรับขนาดฟอนต์หัวข้อให้พอดีจอมือถือ */
+      .school-subtitle-th { font-size: 15px; }
+      .school-subtitle-en { font-size: 10px; }
+      .section-title { font-size: 15px; padding: 12px 15px; }
+      .dynamic-island { padding: 8px 15px; }
+    }
+
+    /* DESKTOP OPTIMIZATION (ขยายขนาดเอกสารและวิดีโอเมื่อเปิดบนคอมพิวเตอร์) */
+    @media (min-width: 768px) {
+      .site-header { padding: 140px 40px 70px 40px; } 
+      .site-header img.logo-main { width: 110px; margin-bottom: 20px; }
+      .finance-title { font-size: 46px; margin-bottom: 15px; }
+      .school-subtitle-th { font-size: 22px; }
+      .school-subtitle-en { font-size: 14px; margin-top: 5px; }
+      
+      .content-wrapper { padding: 40px 20px; }
+      .section-title { font-size: 19px; padding: 16px 25px; margin-bottom: 25px; flex-wrap: nowrap;}
+      
+      .menu-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
+      .menu-card { min-height: 140px; padding: 22px; }
+      .card-title { font-size: 15px; }
+      
+      .icon-wrapper { width: 36px; height: 36px; }
+      .icon-svg { width: 18px; height: 18px; }
+      .arrow-circle { width: 28px; height: 28px; font-size: 13px; }
+
+      /* จำกัดขนาดและปรับอัตราส่วนวิดีโอบนหน้าจอคอมพิวเตอร์กลับเป็น 16:9 ปกติ */
+      .video-wrapper { max-width: 600px; margin: 0 auto 35px auto; }
+      .responsive-video { padding-bottom: 56.25%; min-height: auto; }
+      
+      /* ปรับขนาดกล่อง PDF ขยายใหญ่ขึ้นในหน้าจอคอมพิวเตอร์ตามเดิม */
+      .doc-box { max-width: 800px; height: 500px; margin: 0 auto 35px auto; }
+      
+      .step-item { padding: 20px 25px; }
+      .step-num { min-width: 32px; height: 32px; font-size: 15px; }
+      .step-text h4 { font-size: 17px; }
+      .step-text p { font-size: 15px; }
+    }
+
+    /* ==========================================
+       CSS สำหรับ FOOTER 
+       ========================================== */
+    .site-footer {
+      background: rgba(15, 23, 42, 0.95); 
+      color: #e2e8f0;
+      padding: 40px 15px 20px;
+      border-top: 4px solid #fbbc04;
+      font-size: 13px;
+      line-height: 1.6;
+      width: 100%;
+      font-family: 'Prompt', sans-serif; 
+      box-sizing: border-box;
+    }
+
+    .site-footer * {
+      box-sizing: border-box;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 25px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .footer-col h3 {
+      color: #fbbc04;
+      font-size: 15px;
+      margin-bottom: 12px;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding-bottom: 8px;
+      margin-top: 0;
+    }
+
+    .footer-col p, .footer-col ul {
+      color: #cbd5e1;
+      list-style: none;
+      margin: 0; 
+      padding: 0;
+    }
+
+    .footer-col li { margin-bottom: 8px; }
+    .footer-col strong { color: #ffffff; font-weight: 500;}
+
+    .site-footer a, 
+    .site-footer a[href^="tel"], 
+    .site-footer a[href^="mailto"] {
+      color: #fbbc04; 
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.3s;
+    }
+    
+    .site-footer a:hover {
+      color: #ffffff;
+      text-decoration: underline;
+    }
+
+    .visitor-counter {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      color: #cbd5e1;
+      font-size: 13px;
+    }
+
+    .counter-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    /* DESKTOP OPTIMIZATION สำหรับ FOOTER */
+    @media (min-width: 768px) {
+      .site-footer { padding: 50px 20px 20px; font-size: 15px; }
+      .footer-grid { grid-template-columns: repeat(3, 1fr); gap: 40px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="main-container">
+
+    <header class="dynamic-header-wrapper" id="dynamicHeader">
+      <div class="dynamic-island">
+        
+        <a href="https://script.google.com/a/macros/mvsk.ac.th/s/AKfycbyZJdbVKke-UxMNIs3YzrC_syttaATtJUjXPetrssfBIqf_IDbW-PuaHi8nXS-UyKZZDQ/exec" class="island-brand">
+          <img src="https://www.mvsk.ac.th/images/logo.png" alt="MVSK Logo" class="island-logo-img" onerror="this.src='https://lh3.googleusercontent.com/d/1PVf5EA7ntHrhJBLbwOuobqWfd9mvscY8'">
+          <div class="brand-text-wrapper">
+            <span class="brand-group">กลุ่มบริหารงานงบประมาณ</span>
+            <span class="brand-school">โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</span>
+          </div>
+        </a>
+
+        <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
+
+        <div class="island-menu-container" id="islandMenu">
+          <nav class="island-nav">
+            <div class="island-dropdown">
+              <a href="https://script.google.com/a/macros/mvsk.ac.th/s/AKfycbyZJdbVKke-UxMNIs3YzrC_syttaATtJUjXPetrssfBIqf_IDbW-PuaHi8nXS-UyKZZDQ/exec?page=finan">งานการเงินและบัญชี</a>
+              <div class="island-dropdown-menu">
+                <a href="https://script.google.com/a/macros/mvsk.ac.th/s/AKfycbxYvQpKdRqI3dPfDj_GhFnIceZ6VBC44qI3IzZSN94rjI4ETdT9dym1nOK44cgriRjoxA/exec">โครงสร้างฝ่ายการเงินและบัญชี</a>
+              </div>
+            </div>
+            <a href="https://script.google.com/a/macros/mvsk.ac.th/s/AKfycbzRCOP-7_ZpHl1C5NVjFni1w6vfwUNjGU9zh8Ik5OIaCAEdQTSZn_hOr6S6J4v99SHvVQ/exec?page=Supplies">งานพัสดุและสินทรัพย์</a>
+            <a href="https://www.mvsk.ac.th/">นักเรียน</a>
+            <a href="https://www.mvsk.ac.th/">ครู</a>
+          </nav>
+
+          <div class="island-staff-area">
+            <button class="island-staff-btn" onclick="alert('กำลังปรับปรุงระบบสำหรับเจ้าหน้าที่');">เจ้าหน้าที่</button>
+          </div>
+        </div>
+
+      </div>
+    </header>
+
+    <div class="site-header">
+      <div class="header-content">
+        <img src="https://www.mvsk.ac.th/images/logo.png" alt="MVSK LOGO" class="logo-main" onerror="this.src='https://lh3.googleusercontent.com/d/1PVf5EA7ntHrhJBLbwOuobqWfd9mvscY8'">
+        <h1 class="finance-title">งานการเงินและบัญชี</h1>
+        <span class="school-subtitle-th">โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</span>
+        <span class="school-subtitle-en">MAHAVAJIRAVUDH CHANGWATSONGKHLA SCHOOL</span>
+      </div>
+    </div>
+
+    <div class="content-wrapper">
+      
+      <div class="section-title">บริการข้อมูล (Data Service)</div>
+      
+      <div class="menu-grid">
+        <a href="https://drive.google.com/drive/folders/1MAVZSuX1EqYbylITkW2Agn09qH5XHEIA?usp=sharing" class="menu-card">
+          <div class="card-title">แบบฟอร์มต่างๆ<br>สำหรับครูและบุคลากร</div>
+          <div class="card-bottom">
+            <div class="icon-wrapper">
+              <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+            </div>
+            <div class="arrow-circle">→</div>
+          </div>
+        </a>
+        
+        <a href="https://drive.google.com/drive/folders/15tkyyaOcauqCc4JJLilAJgmJBd_7ROIN?usp=sharing" class="menu-card">
+          <div class="card-title">ตัวอย่าง<br>การกรอกแบบฟอร์ม</div>
+          <div class="card-bottom">
+            <div class="icon-wrapper">
+              <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+            </div>
+            <div class="arrow-circle">→</div>
+          </div>
+        </a>
+        
+        <a href="https://schoolbillingdev31.com/SBMVSK/Pages/PrintReportPayInForStudent.aspx" class="menu-card">
+          <div class="card-title">การชำระเงิน<br>บำรุงการศึกษา</div>
+          <div class="card-bottom">
+            <div class="icon-wrapper">
+              <svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5-.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+            </div>
+            <div class="arrow-circle">→</div>
+          </div>
+        </a>
+        
+        <a href="https://script.google.com/a/macros/mvsk.ac.th/s/AKfycbxYvQpKdRqI3dPfDj_GhFnIceZ6VBC44qI3IzZSN94rjI4ETdT9dym1nOK44cgriRjoxA/exec" class="menu-card">
+          <div class="card-title">โครงสร้างฝ่ายการเงินและบัญชี</div>
+          <div class="card-bottom">
+            <div class="icon-wrapper">
+              <svg class="icon-svg" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            </div>
+            <div class="arrow-circle">→</div>
+          </div>
+        </a>
+      </div>
+
+      <div class="section-title">
+        <span>วิดีโอแนะนำขั้นตอนการเบิกเงินเยี่ยมบ้าน</span>
+        <a href="https://drive.google.com/file/d/1zjeZ-AjS92v2coOzxFu01LRL7OB4D1jd/view?usp=sharing" class="title-link-btn">
+          คู่มือการเบิกเงิน
+          <svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.41l-9.29 9.29-1.42-1.42L17.59 5H14V3zM4 5h5V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-5h-2v5H4V5z"/></svg>
+        </a>
+      </div>
+      <div class="video-wrapper">
+        <div class="responsive-video">
+          <iframe src="https://drive.google.com/file/d/1yf_RcVuuSQNfriKsG_hX4cQYFwiPmiLn/preview" allowfullscreen></iframe>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <span>หลักเกณฑ์และอัตราการเบิกจ่าย (มว 69)</span>
+        <a href="https://drive.google.com/file/d/13f1lR8pkpezsddCNb_ex1gvfWb1TZvUf/view?usp=drive_link" class="title-link-btn">
+          ประกาศฉบับเต็ม
+          <svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.41l-9.29 9.29-1.42-1.42L17.59 5H14V3zM4 5h5V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-5h-2v5H4V5z"/></svg>
+        </a>
+      </div>
+      
+      <div class="doc-box">
+        <div class="responsive-doc">
+          <iframe src="https://drive.google.com/file/d/10p8JXa1B-B_sxkrwkW7c30TKe8W_ob95/preview"></iframe>
+        </div>
+      </div>
+
+      <div class="section-title">ขั้นตอนการชำระเงินบำรุงการศึกษา</div>
+      <div class="payment-box">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-text">
+            <h4>เข้าเว็บไซต์โรงเรียน</h4>
+            <p>เปิด <a href="https://www.mvsk.ac.th" style="color:#004a9f; text-decoration:none; font-weight:600;">www.mvsk.ac.th</a> เลือกระบบการจัดการ E-Service > ระบบชำระเงินบำรุงการศึกษา</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-text">
+            <h4>กรอกข้อมูลนักเรียน</h4>
+            <p>เลือกภาคเรียนและปีการศึกษา กรอก <strong style="color:#002b5e;">เลขประจำตัวนักเรียน</strong> และตรวจสอบความถูกต้องของชื่อ-นามสกุล</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-text">
+            <h4>ดำเนินการชำระเงิน</h4>
+            <p><strong>วิธีที่ 1:</strong> สแกนชำระผ่าน Mobile Banking ได้ทุกธนาคาร<br>
+            <strong>วิธีที่ 2:</strong> พิมพ์เอกสารใบ Pay in เพื่อนำไปชำระที่ธนาคารกรุงไทยทุกสาขา</p>
+          </div>
+        </div>
+      </div>
+
+    </div> 
+
+  </div> 
+  
+  <footer class="site-footer">
+    <div class="footer-grid">
+      
+      <div class="footer-col">
+        <h3>📍 ที่อยู่ติดต่อ</h3>
+        <p>
+          <strong>โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</strong><br>
+          เลขที่ 19 ถนนราชดำเนิน ตำบลบ่อยาง <br>
+          อำเภอเมืองสงขลา จังหวัดสงขลา 90000
+        </p>
+      </div>
+
+      <div class="footer-col">
+        <h3>📞 หมายเลขโทรศัพท์</h3>
+        <ul>
+          <li><strong>โรงเรียน:</strong> <span>074-311006</span></li>
+          <li><strong>Fax:</strong> <span>074-326107</span></li>
+          <li><strong>โครงการ SMA:</strong> <span>074-315582</span></li>
+          <li><strong>โครงการ EGL:</strong> <span>074-311006</span> ต่อ 403</li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h3>✉️ ส่งเอกสารและอีเมล</h3>
+        <p>
+          <strong>ส่งเอกสารทางราชการ:</strong><br>
+          <a href="mailto:mvskschool@gmail.com">mvskschool@gmail.com</a>
+        </p>
+      </div>
+
+    </div>
+
+    <div class="visitor-counter">
+      <div class="counter-wrapper">
+        <span style="font-weight: 500;">สถิติผู้เข้าชมเว็บไซต์:</span>
+        <img src="https://hits.sh/mvsk.ac.th/budget_home.svg?style=flat&label=Views&color=002b5e&labelColor=fbbc04" alt="Visitor Counter" style="border-radius: 4px; height: 22px;">
+      </div>
+      <p style="margin-top: 5px; font-size: 11px; color: #94a3b8;">© 2569 กลุ่มบริหารงานงบประมาณ โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</p>
+    </div>
+  </footer>
+
+  <script>
+    // เอฟเฟกต์การย่อขนาดเมื่อเลื่อนจอ
+    window.addEventListener('scroll', function() {
+      const header = document.getElementById('dynamicHeader');
+      if (header) { 
+        if (window.scrollY > 50) { 
+          header.classList.add('sticky-nav');
+        } else {
+          header.classList.remove('sticky-nav');
+        }
+      }
+    });
+
+    // ควบคุมเมนูมือถือ
+    function toggleMobileMenu() {
+      const menu = document.getElementById('islandMenu');
+      if (menu) {
+        menu.classList.toggle('show');
+      }
+    }
+  </script>
+
+</body>
+</html>
