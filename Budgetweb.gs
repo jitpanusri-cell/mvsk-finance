@@ -9,10 +9,6 @@
  *  H–S ลิงก์ 6 คู่ (url, ชื่อ) | T ผู้บันทึก | U สถานะ (VISIBLE/HIDDEN)
  *  V ปักหมุด (PIN) | W แสดงถึงวันที่ (yyyy-MM-dd) | X แก้ไขล่าสุด
  */
-
-// =========================================================
-// CONFIGURATION
-// =========================================================
 const SHEET_NAME = 'ประชาสัมพันธ์';
 const ADMIN_SHEET_NAME = 'Admin';
 const ADMIN_LOG_SHEET = 'AdminLog';
@@ -22,7 +18,6 @@ const SESSION_HOURS = 6;
 const ANN_COLS = 24;
 const ANN_TYPES = ['alert', 'finance-alert', 'supplies-alert', 'general', 'document'];
 
-/** ลิงก์ระบบงานเริ่มต้น (แก้ไขได้จากหน้าเจ้าหน้าที่ → ระบบงาน) */
 function defaultStaffLinks_() {
   const base = getScriptUrl();
   return [
@@ -30,10 +25,6 @@ function defaultStaffLinks_() {
     { name: 'เว็บไซต์งานพัสดุและสินทรัพย์', desc: 'หน้าบริการข้อมูลงานพัสดุ', url: base + '?page=Supplies', icon: 'box' }
   ];
 }
-
-// =========================================================
-// ROUTING
-// =========================================================
 function doGet(e) {
   const faviconUrl = 'https://drive.google.com/uc?id=' + FAVICON_ID + '&export=download&format=png';
   const page = (e && e.parameter && e.parameter.page) ? String(e.parameter.page) : '';
@@ -63,14 +54,9 @@ function getScriptUrl() {
   return ScriptApp.getService().getUrl();
 }
 
-/** แทรกไฟล์ HTML ย่อย เช่น ชุดไอคอน: <?!= include('Icons'); ?> */
 function include(name) {
   return HtmlService.createHtmlOutputFromFile(name).getContent();
 }
-
-// =========================================================
-// HELPERS
-// =========================================================
 function ss_() { return SpreadsheetApp.getActiveSpreadsheet(); }
 function str_(v) { return v == null ? '' : String(v).trim(); }
 function tz_() { return Session.getScriptTimeZone() || 'Asia/Bangkok'; }
@@ -149,10 +135,6 @@ function findAnnRow_(sh, id) {
 }
 
 function nowText_() { return Utilities.formatDate(new Date(), tz_(), 'dd/MM/yyyy HH:mm'); }
-
-// =========================================================
-// LOG
-// =========================================================
 function logAdminActivity(adminName, action, details) {
   try {
     let sheet = ss_().getSheetByName(ADMIN_LOG_SHEET);
@@ -166,10 +148,6 @@ function logAdminActivity(adminName, action, details) {
     console.error('Log Error: ' + e);
   }
 }
-
-// =========================================================
-// SESSION (โทเคนเข้าสู่ระบบ เก็บใน CacheService)
-// =========================================================
 function newSession_(user) {
   const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
   CacheService.getScriptCache().put('stf_' + token, JSON.stringify(user), SESSION_HOURS * 3600);
@@ -185,10 +163,6 @@ function checkSession(token) {
   try { const u = requireStaff_(token); return ok_('', { username: u.username, name: u.name }); }
   catch (e) { return fail_(e); }
 }
-
-// =========================================================
-// PASSWORD (SHA-256 + salt; รหัสแบบเดิมที่เป็นข้อความธรรมดายังใช้ได้ และจะถูกเข้ารหัสให้อัตโนมัติเมื่อล็อกอิน)
-// =========================================================
 function hashPwd_(pwd, salt) {
   salt = salt || Utilities.getUuid().slice(0, 12);
   const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + '|' + pwd, Utilities.Charset.UTF_8);
@@ -210,11 +184,6 @@ function adminSheet_() {
   }
   return sh;
 }
-
-// =========================================================
-// PUBLIC API
-// =========================================================
-/** ข่าวสำหรับหน้าเว็บสาธารณะ: เฉพาะที่แสดง ไม่หมดอายุ ไม่ส่งชื่อผู้บันทึก */
 function getAnnouncements() {
   try {
     const t = today_();
@@ -254,14 +223,9 @@ function logLogout(token) {
     const u = requireStaff_(token);
     CacheService.getScriptCache().remove('stf_' + token);
     logAdminActivity(u.name, 'ออกจากระบบ', '');
-  } catch (e) { /* หมดเวลาแล้ว ไม่ต้องทำอะไร */ }
+  } catch (e) {  }
   return { success: true };
 }
-
-// =========================================================
-// STAFF API (ต้องมีโทเคน)
-// =========================================================
-/** ข้อมูลทั้งหมดสำหรับหน้าเจ้าหน้าที่ในคำสั่งเดียว */
 function getStaffData(token) {
   try {
     const u = requireStaff_(token);
@@ -314,7 +278,6 @@ function deleteAnnouncement(token, id) {
   } catch (e) { return fail_(e); }
 }
 
-/** field: 'hidden' | 'pinned' */
 function setAnnouncementFlag(token, id, field, value) {
   try {
     const u = requireStaff_(token);
@@ -355,7 +318,6 @@ function duplicateAnnouncement(token, id) {
   } catch (e) { return fail_(e); }
 }
 
-/** orderedIds = ลำดับที่แสดงบนเว็บ (บนสุดก่อน) */
 function updateAnnouncementOrder(token, orderedIds) {
   try {
     const u = requireStaff_(token);
@@ -393,8 +355,6 @@ function uploadImageToDrive(token, base64Data, fileName) {
     return ok_('อัปโหลดรูปแล้ว', { url: 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w1200' });
   } catch (e) { return fail_('อัปโหลดรูปไม่สำเร็จ: ' + (e.message || e)); }
 }
-
-// ---------- บัญชีเจ้าหน้าที่ ----------
 function updateAdminPassword(token, currentPassword, newPassword, newName) {
   try {
     const u = requireStaff_(token);
@@ -473,11 +433,9 @@ function getAdminLog(token, limit) {
     return ok_('', { rows: rows });
   } catch (e) { return fail_(e); }
 }
-
-// ---------- ลิงก์ระบบงาน ----------
 function getStaffLinks_() {
   const raw = PropertiesService.getScriptProperties().getProperty('STAFF_LINKS');
-  if (raw) { try { return JSON.parse(raw); } catch (e) { /* ใช้ค่าเริ่มต้น */ } }
+  if (raw) { try { return JSON.parse(raw); } catch (e) {  } }
   return defaultStaffLinks_();
 }
 

@@ -23,8 +23,7 @@
     .ic.sm { width: 15px; height: 15px; } .ic.lg { width: 24px; height: 24px; }
     [hidden] { display: none !important; }
 
-    /* ปุ่มและฟอร์ม */
-    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 38px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--line); background: #fff; color: var(--navy); font-weight: 500; white-space: nowrap; text-decoration: none; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 38px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--line); background: #fff; color: var(--navy); font-weight: 500; white-space: nowrap; text-decoration: none; }
     .btn:hover { border-color: var(--navy); }
     .btn.pri { background: var(--navy); border-color: var(--navy); color: #fff; }
     .btn.pri:hover { background: var(--navy-2); }
@@ -49,8 +48,7 @@
     .check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 500; }
     .check input { width: 18px; height: 18px; accent-color: var(--navy); }
 
-    /* หน้าเข้าสู่ระบบ */
-    #login { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--navy-2); }
+        #login { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--navy-2); }
     .login-card { width: 100%; max-width: 400px; background: #fff; border-radius: 10px; padding: 32px 28px 24px; box-shadow: 0 20px 50px rgba(0, 0, 0, .3); border-top: 4px solid var(--gold); }
     .login-card .logo { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 22px; }
     .login-card img { width: 72px; height: 72px; object-fit: contain; margin-bottom: 8px; }
@@ -63,8 +61,7 @@
     .login-foot { margin-top: 18px; text-align: center; font-size: 14px; }
     .login-foot a { color: var(--navy); }
 
-    /* โครงหน้าระบบ */
-    .app-h { background: #fff; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 40; }
+        .app-h { background: #fff; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 40; }
     .app-h::after { content: ''; display: block; height: 3px; background: var(--gold); }
     .app-h .in { max-width: 1240px; margin: 0 auto; padding: 0 20px; height: 62px; display: flex; align-items: center; gap: 12px; }
     .app-h img { width: 38px; height: 38px; object-fit: contain; }
@@ -88,8 +85,7 @@
     .card-b { padding: 18px; }
     .banner { display: flex; gap: 10px; align-items: flex-start; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 14.5px; background: var(--amber-soft); border: 1px solid #fedf89; color: var(--amber); }
 
-    /* ภาพรวม */
-    .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+        .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
     .stat { padding: 16px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; text-align: left; }
     .stat:hover { border-color: var(--navy); }
     .stat .k { color: var(--muted); font-size: 14px; display: flex; align-items: center; gap: 6px; }
@@ -106,8 +102,7 @@
     .recent li:last-child { border: 0; }
     .recent .when { color: var(--muted); font-size: 13px; white-space: nowrap; }
 
-    /* ตาราง */
-    .tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+        .tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
     .tools .search { position: relative; flex: 1; min-width: 220px; }
     .tools .search .ic { position: absolute; left: 10px; top: 11px; color: var(--muted); }
     .tools .search .inp { padding-left: 34px; }
@@ -137,8 +132,7 @@
     .empty { text-align: center; padding: 40px 16px; color: var(--muted); }
     .table-wrap { overflow-x: auto; }
 
-    /* หน้าต่าง */
-    .modal { position: fixed; inset: 0; z-index: 100; background: rgba(12, 22, 40, .55); display: none; justify-content: center; align-items: flex-start; padding: 32px 16px; overflow-y: auto; }
+        .modal { position: fixed; inset: 0; z-index: 100; background: rgba(12, 22, 40, .55); display: none; justify-content: center; align-items: flex-start; padding: 32px 16px; overflow-y: auto; }
     .modal.on { display: flex; }
     .sheet { width: 100%; max-width: 860px; background: #fff; border-radius: 10px; box-shadow: 0 20px 50px rgba(0, 0, 0, .25); }
     .sheet.sm { max-width: 440px; }
@@ -184,13 +178,12 @@
   <div id="busy"></div>
   <span id="baseUrl" hidden><?= getScriptUrl(); ?></span>
 
-  <!-- ===== เข้าสู่ระบบ ===== -->
-  <div id="login">
+    <div id="login">
     <form class="login-card" id="loginForm" autocomplete="on">
       <div class="logo">
         <img src="https://drive.google.com/thumbnail?id=1PVf5EA7ntHrhJBLbwOuobqWfd9mvscY8&sz=w200" alt="ตราโรงเรียน">
         <h1>เข้าสู่ระบบเจ้าหน้าที่</h1>
-        <p>กลุ่มบริหารงานงบประมาณ โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</p>
+        <p>กลุ่มบริหารงานงบประมาณ</p>
       </div>
       <div class="err" id="loginErr" hidden></div>
       <div class="fg">
@@ -210,8 +203,7 @@
     </form>
   </div>
 
-  <!-- ===== ระบบเจ้าหน้าที่ ===== -->
-  <div id="app" hidden>
+    <div id="app" hidden>
     <header class="app-h">
       <div class="in">
         <img src="https://drive.google.com/thumbnail?id=1PVf5EA7ntHrhJBLbwOuobqWfd9mvscY8&sz=w200" alt="">
@@ -233,10 +225,9 @@
     </div></nav>
 
     <main class="main">
-      <!-- ภาพรวม -->
-      <section data-page="home">
+            <section data-page="home">
         <div class="banner" id="weakPw" hidden><svg class="ic"><use href="#i-alert"/></svg><div>บัญชีนี้ยังใช้รหัสผ่านเริ่มต้น กรุณาเปลี่ยนรหัสผ่านที่เมนู <b>บัญชีเจ้าหน้าที่</b></div></div>
-        <div class="page-h"><div><h2 id="hello">สวัสดี</h2><div class="sub">ภาพรวมข่าวประชาสัมพันธ์บนหน้าเว็บไซต์</div></div>
+        <div class="page-h"><div><h2 id="hello">สวัสดี</h2></div>
           <button class="btn pri" data-new><svg class="ic"><use href="#i-plus"/></svg>สร้างประกาศ</button></div>
         <div class="stats" id="stats"></div>
         <div class="two">
@@ -251,10 +242,9 @@
         </div>
       </section>
 
-      <!-- ประชาสัมพันธ์ -->
-      <section data-page="news" hidden>
+            <section data-page="news" hidden>
         <div class="page-h">
-          <div><h2>ข่าวประชาสัมพันธ์</h2><div class="sub">เพิ่ม แก้ไข ปักหมุด ซ่อน และจัดลำดับข่าวบนหน้าเว็บไซต์</div></div>
+          <div><h2>ข่าวประชาสัมพันธ์</h2></div>
           <div style="display:flex;gap:8px">
             <button class="btn gold" id="btnSaveOrder" hidden><svg class="ic"><use href="#i-check"/></svg>บันทึกลำดับ</button>
             <button class="btn pri" data-new><svg class="ic"><use href="#i-plus"/></svg>สร้างประกาศ</button>
@@ -277,9 +267,8 @@
         </div>
       </section>
 
-      <!-- ระบบงาน -->
-      <section data-page="systems" hidden>
-        <div class="page-h"><div><h2>ระบบงาน</h2><div class="sub">ลิงก์ไปยังระบบงานที่เจ้าหน้าที่ใช้ประจำ (เห็นเฉพาะเจ้าหน้าที่)</div></div>
+            <section data-page="systems" hidden>
+        <div class="page-h"><div><h2>ระบบงาน</h2></div>
           <button class="btn" id="btnEditLinks"><svg class="ic"><use href="#i-edit"/></svg>แก้ไขรายการลิงก์</button></div>
         <div class="card"><div class="card-b"><div class="links" id="sysLinks"></div></div></div>
         <div class="card" id="linkEditor" hidden style="margin-top:16px">
@@ -292,9 +281,8 @@
         </div>
       </section>
 
-      <!-- บัญชี -->
-      <section data-page="account" hidden>
-        <div class="page-h"><div><h2>บัญชีเจ้าหน้าที่</h2><div class="sub">แก้ไขบัญชีของตนเอง และจัดการผู้มีสิทธิ์เข้าระบบ</div></div></div>
+            <section data-page="account" hidden>
+        <div class="page-h"><div><h2>บัญชีเจ้าหน้าที่</h2></div></div>
         <div class="two">
           <div class="card">
             <div class="card-h"><h3><svg class="ic"><use href="#i-user"/></svg>บัญชีของฉัน</h3></div>
@@ -305,7 +293,7 @@
               </div>
               <div class="fg"><label class="f" for="meCur">รหัสผ่านปัจจุบัน</label><input class="inp" id="meCur" type="password" autocomplete="current-password" required></div>
               <div class="row">
-                <div class="fg"><label class="f" for="meNew">รหัสผ่านใหม่</label><input class="inp" id="meNew" type="password" autocomplete="new-password" minlength="6"><div class="hint">เว้นว่างถ้าไม่เปลี่ยน · อย่างน้อย 6 ตัว</div></div>
+                <div class="fg"><label class="f" for="meNew">รหัสผ่านใหม่</label><input class="inp" id="meNew" type="password" autocomplete="new-password" minlength="6"></div>
                 <div class="fg"><label class="f" for="meNew2">ยืนยันรหัสผ่านใหม่</label><input class="inp" id="meNew2" type="password" autocomplete="new-password"></div>
               </div>
               <button class="btn pri" type="submit"><svg class="ic"><use href="#i-check"/></svg>บันทึกบัญชี</button>
@@ -318,9 +306,8 @@
         </div>
       </section>
 
-      <!-- ประวัติ -->
-      <section data-page="log" hidden>
-        <div class="page-h"><div><h2>ประวัติการใช้งาน</h2><div class="sub">100 รายการล่าสุดจากชีต AdminLog</div></div>
+            <section data-page="log" hidden>
+        <div class="page-h"><div><h2>ประวัติการใช้งาน</h2></div>
           <button class="btn" id="btnLogReload"><svg class="ic"><use href="#i-refresh"/></svg>โหลดใหม่</button></div>
         <div class="card">
           <div class="tools"><label class="search"><svg class="ic sm"><use href="#i-search"/></svg><input class="inp" id="logQ" type="search" placeholder="ค้นหาชื่อ การทำงาน หรือรายละเอียด"></label></div>
@@ -330,8 +317,7 @@
     </main>
   </div>
 
-  <!-- ===== ฟอร์มประกาศ ===== -->
-  <div class="modal" id="mEdit" role="dialog" aria-modal="true" aria-labelledby="eTitleH">
+    <div class="modal" id="mEdit" role="dialog" aria-modal="true" aria-labelledby="eTitleH">
     <form class="sheet" id="eForm">
       <div class="sheet-h"><h3 id="eTitleH">สร้างประกาศ</h3><button type="button" class="ib" data-close aria-label="ปิด"><svg class="ic"><use href="#i-x"/></svg></button></div>
       <div class="sheet-b">
@@ -340,7 +326,7 @@
         <div class="row r3">
           <div class="fg"><label class="f" for="eType">ประเภท</label><select class="inp" id="eType"></select></div>
           <div class="fg"><label class="f" for="eDatePick">วันที่ประกาศ</label><input class="inp" type="date" id="eDatePick"><div class="hint" id="eDateTxt"></div></div>
-          <div class="fg"><label class="f" for="eExpire">แสดงถึงวันที่</label><input class="inp" type="date" id="eExpire"><div class="hint">เว้นว่าง = แสดงตลอด</div></div>
+          <div class="fg"><label class="f" for="eExpire">แสดงถึงวันที่</label><input class="inp" type="date" id="eExpire"></div>
         </div>
         <div class="fg">
           <label class="f">รายละเอียด</label>
@@ -365,7 +351,6 @@
             <div class="img-prev" id="eImgPrev"><svg class="ic lg"><use href="#i-image"/></svg></div>
             <div style="flex:1;width:100%">
               <input type="file" id="eFile" accept="image/*" class="inp" style="padding-top:6px">
-              <div class="hint">เลือกรูปเพื่ออัปโหลดเก็บใน Google Drive (ระบบย่อขนาดให้อัตโนมัติ) หรือวางลิงก์รูปด้านล่าง</div>
               <div style="display:flex;gap:8px;margin-top:8px"><input class="inp" id="eImgUrl" type="url" placeholder="ลิงก์รูปภาพ"><button type="button" class="btn" id="eImgClear">ลบรูป</button></div>
             </div>
           </div>
@@ -387,29 +372,26 @@
     </form>
   </div>
 
-  <!-- ตัวอย่างประกาศ -->
-  <div class="modal" id="mPrev" role="dialog" aria-modal="true">
+    <div class="modal" id="mPrev" role="dialog" aria-modal="true">
     <div class="sheet">
       <div class="sheet-h"><h3>ตัวอย่างการแสดงผล</h3><button class="ib" data-close aria-label="ปิด"><svg class="ic"><use href="#i-x"/></svg></button></div>
       <div class="sheet-b"><div class="prev-box" id="prevBox"></div></div>
     </div>
   </div>
 
-  <!-- เพิ่มเจ้าหน้าที่ -->
-  <div class="modal" id="mUser" role="dialog" aria-modal="true">
+    <div class="modal" id="mUser" role="dialog" aria-modal="true">
     <form class="sheet sm" id="uForm">
       <div class="sheet-h"><h3>เพิ่มเจ้าหน้าที่</h3><button type="button" class="ib" data-close aria-label="ปิด"><svg class="ic"><use href="#i-x"/></svg></button></div>
       <div class="sheet-b">
         <div class="fg"><label class="f" for="uName2">ชื่อ-นามสกุล</label><input class="inp" id="uName2" required></div>
-        <div class="fg"><label class="f" for="uUser">ชื่อผู้ใช้</label><input class="inp" id="uUser" required pattern="[A-Za-z0-9._\-]{3,30}" autocomplete="off"><div class="hint">a-z 0-9 . _ - ยาว 3–30 ตัว</div></div>
+        <div class="fg"><label class="f" for="uUser">ชื่อผู้ใช้</label><input class="inp" id="uUser" required pattern="[A-Za-z0-9._\-]{3,30}" autocomplete="off"></div>
         <div class="fg"><label class="f" for="uPass">รหัสผ่านเริ่มต้น</label><input class="inp" id="uPass" type="password" required minlength="6" autocomplete="new-password"></div>
       </div>
       <div class="sheet-f"><button type="button" class="btn" data-close>ยกเลิก</button><button class="btn pri" type="submit"><svg class="ic"><use href="#i-plus"/></svg>เพิ่มเจ้าหน้าที่</button></div>
     </form>
   </div>
 
-  <!-- ยืนยัน -->
-  <div class="modal" id="mConfirm" role="alertdialog" aria-modal="true" style="z-index:150">
+    <div class="modal" id="mConfirm" role="alertdialog" aria-modal="true" style="z-index:150">
     <div class="sheet sm" style="margin-top:12vh">
       <div class="sheet-b"><h3 id="cTitle" style="margin-bottom:8px"></h3><div id="cMsg" style="color:var(--muted)"></div></div>
       <div class="sheet-f"><button class="btn" data-close>ยกเลิก</button><button class="btn danger" id="cOk">ยืนยัน</button></div>
@@ -440,8 +422,7 @@
     function busy(on) { busyN += on ? 1 : -1; $('busy').style.display = busyN > 0 ? 'block' : 'none'; }
     function toast(msg, err) { var t = $('toast'); t.className = err ? 'err' : ''; t.innerHTML = icon(err ? 'alert' : 'check') + esc(msg); t.style.display = 'flex'; clearTimeout(t._h); t._h = setTimeout(function () { t.style.display = 'none'; }, err ? 4500 : 2600); }
 
-    /* เรียกฟังก์ชันฝั่งเซิร์ฟเวอร์ */
-    function api(fn) {
+        function api(fn) {
       var args = Array.prototype.slice.call(arguments, 1);
       busy(true);
       return new Promise(function (res, rej) {
@@ -485,8 +466,7 @@
     function plain(html) { var d = document.createElement('div'); d.innerHTML = String(html || '').replace(/<br\s*\/?>/gi, ' ').replace(/<\/(p|div|li)>/gi, ' '); d.querySelectorAll('script,style').forEach(function (x) { x.remove(); }); return (d.textContent || '').replace(/\s+/g, ' ').trim(); }
     function isExpired(a) { return a.expire && a.expire < S.today; }
 
-    /* ---------- เข้าสู่ระบบ ---------- */
-    function showLogin(msg) {
+        function showLogin(msg) {
       store('stf_token', null); S.token = '';
       $('app').hidden = true; $('login').hidden = false;
       document.querySelectorAll('.modal.on').forEach(function (m) { m.classList.remove('on'); });
@@ -518,8 +498,7 @@
       });
     }
 
-    /* ---------- แท็บ ---------- */
-    function goTab(t) {
+        function goTab(t) {
       document.querySelectorAll('.tab').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === t); });
       document.querySelectorAll('[data-page]').forEach(function (s) { s.hidden = s.dataset.page !== t; });
       if (t === 'account') loadUsers();
@@ -562,8 +541,7 @@
     }
     function toTs(s) { var m = String(s).match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/); return m ? new Date(m[3], m[2] - 1, m[1], m[4], m[5]).getTime() : 0; }
 
-    /* ---------- ตารางประกาศ ---------- */
-    (function () { $('nType').innerHTML += Object.keys(TYPES).map(function (k) { return '<option value="' + k + '">' + TYPES[k].label + '</option>'; }).join(''); $('eType').innerHTML = Object.keys(TYPES).map(function (k) { return '<option value="' + k + '">' + TYPES[k].label + '</option>'; }).join(''); })();
+        (function () { $('nType').innerHTML += Object.keys(TYPES).map(function (k) { return '<option value="' + k + '">' + TYPES[k].label + '</option>'; }).join(''); $('eType').innerHTML = Object.keys(TYPES).map(function (k) { return '<option value="' + k + '">' + TYPES[k].label + '</option>'; }).join(''); })();
 
     function filteredItems() {
       var q = $('nQ').value.trim().toLowerCase(), st = $('nStatus').value, ty = $('nType').value;
@@ -584,7 +562,7 @@
         var t = TYPES[a.type] || TYPES.general;
         var status = isExpired(a) ? '<span class="tag s-exp">หมดอายุ ' + esc(a.expire) + '</span>' : (a.isHidden ? '<span class="tag s-off">ซ่อน</span>' : '<span class="tag s-on">แสดง</span>');
         if (a.pinned) status += ' <span class="tag s-pin">ปักหมุด</span>';
-        if (a.expire && !isExpired(a)) status += '<div class="hint">ถึง ' + esc(a.expire) + '</div>';
+        if (a.expire && !isExpired(a)) status += '';
         return '<tr class="' + (a.isHidden || isExpired(a) ? 'is-hidden' : '') + '">' +
           '<td><div class="ord"><button class="ib" data-up="' + i + '" title="เลื่อนขึ้น"' + (!canOrder || i === 0 ? ' disabled' : '') + '>' + icon('up', 'sm') + '</button>' +
           '<button class="ib" data-down="' + i + '" title="เลื่อนลง"' + (!canOrder || i === list.length - 1 ? ' disabled' : '') + '>' + icon('down', 'sm') + '</button></div></td>' +
@@ -601,7 +579,7 @@
           '<button class="ib del" data-del="' + esc(a.id) + '" title="ลบ">' + icon('trash') + '</button>' +
           '</div></td></tr>';
       }).join('') : '<tr><td colspan="6"><div class="empty">' + (S.items.length ? 'ไม่พบประกาศตามเงื่อนไข' : 'ยังไม่มีประกาศ กด "สร้างประกาศ" เพื่อเริ่ม') + '</div></td></tr>';
-      $('nHint').textContent = 'แสดง ' + list.length + ' จาก ' + S.items.length + ' รายการ' + (canOrder ? ' · ใช้ลูกศรเพื่อจัดลำดับการแสดงบนเว็บ แล้วกด "บันทึกลำดับ"' : ' · ล้างตัวกรองก่อนจึงจะจัดลำดับได้');
+      $('nHint').textContent = list.length + ' / ' + S.items.length + ' รายการ';
       $('btnSaveOrder').hidden = !S.orderDirty;
     }
     ['nQ', 'nStatus', 'nType'].forEach(function (id) { $(id).addEventListener('input', renderTable); });
@@ -636,8 +614,7 @@
       api('updateAnnouncementOrder', S.token, S.items.map(function (a) { return a.id; })).then(function (r) { toast(r.message); S.orderDirty = false; renderTable(); }).catch(fail);
     };
 
-    /* ---------- ฟอร์มประกาศ ---------- */
-    var editing = null;
+        var editing = null;
     function openEditor(a) {
       editing = a;
       $('eTitleH').textContent = a ? 'แก้ไขประกาศ' : 'สร้างประกาศ';
@@ -670,8 +647,7 @@
           .catch(function (e) { fail(e); setImgPrev(); }).then(function () { $('eSave').disabled = false; });
       });
     };
-    /* ย่อรูปก่อนอัปโหลด ให้ไฟล์เล็กและส่งได้เร็ว */
-    function shrink(file, max, cb) {
+        function shrink(file, max, cb) {
       var rd = new FileReader();
       rd.onload = function () {
         var img = new Image();
@@ -705,8 +681,7 @@
       else if (e.target.closest('[data-ld]') && r.nextElementSibling) r.parentNode.insertBefore(r.nextElementSibling, r);
     };
 
-    /* แถบเครื่องมือข้อความ */
-    $('eTb').addEventListener('mousedown', function (e) { if (e.target.closest('.ib')) e.preventDefault(); });
+        $('eTb').addEventListener('mousedown', function (e) { if (e.target.closest('.ib')) e.preventDefault(); });
     $('eTb').onclick = function (e) {
       var b = e.target.closest('[data-cmd]'); if (!b) return;
       var cmd = b.dataset.cmd, val = null;
@@ -756,8 +731,7 @@
       openM('mPrev');
     };
 
-    /* ---------- ระบบงาน ---------- */
-    $('btnEditLinks').onclick = function () { $('leRows').innerHTML = ''; S.links.forEach(addLe); if (!S.links.length) addLe({}); $('linkEditor').hidden = false; };
+        $('btnEditLinks').onclick = function () { $('leRows').innerHTML = ''; S.links.forEach(addLe); if (!S.links.length) addLe({}); $('linkEditor').hidden = false; };
     function addLe(l) {
       var d = document.createElement('div'); d.className = 'row r3'; d.style.cssText = 'grid-template-columns:1fr 1.4fr 1.6fr 120px auto;align-items:center;margin-bottom:8px';
       d.innerHTML = '<input class="inp le-n" placeholder="ชื่อระบบ" value="' + esc(l.name || '') + '">' +
@@ -778,8 +752,7 @@
       api('saveStaffLinks', S.token, links).then(function (r) { S.links = r.links; renderLinks(); $('linkEditor').hidden = true; toast(r.message); }).catch(fail);
     };
 
-    /* ---------- บัญชี ---------- */
-    function loadUsers() {
+        function loadUsers() {
       $('meUser').value = S.user.username; $('meName').value = S.user.name;
       api('listAdminUsers', S.token).then(function (r) {
         S.users = r.users;
@@ -812,8 +785,7 @@
       api('addAdminUser', S.token, $('uUser').value, $('uPass').value, $('uName2').value).then(function (r) { toast(r.message); closeM('mUser'); loadUsers(); }).catch(fail);
     };
 
-    /* ---------- ประวัติ ---------- */
-    function loadLog() { api('getAdminLog', S.token, 100).then(function (r) { S.log = r.rows; renderLog(); }).catch(fail); }
+        function loadLog() { api('getAdminLog', S.token, 100).then(function (r) { S.log = r.rows; renderLog(); }).catch(fail); }
     function renderLog() {
       var q = $('logQ').value.trim().toLowerCase();
       var rows = S.log.filter(function (r) { return !q || r.join(' ').toLowerCase().indexOf(q) >= 0; });
@@ -823,8 +795,7 @@
     $('logQ').oninput = renderLog;
     $('btnLogReload').onclick = loadLog;
 
-    /* ---------- เริ่มต้น ---------- */
-    S.token = store('stf_token') || '';
+        S.token = store('stf_token') || '';
     if (S.token) boot().catch(function () { showLogin(''); }); else showLogin('');
   </script>
 </body>
