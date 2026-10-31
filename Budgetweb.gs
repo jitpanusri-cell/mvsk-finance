@@ -28,6 +28,14 @@ function doGet(e) {
 
 function getScriptUrl() { return ScriptApp.getService().getUrl(); }
 function include(name) { return HtmlService.createHtmlOutputFromFile(name).getContent(); }
+/** แถบเมนูลอย (ไฟล์ Island) ใช้ร่วมกันทุกหน้า: <?!= island('finan'); ?> */
+function island(page) {
+  const t = HtmlService.createTemplateFromFile('Island');
+  t.page = page || ''; t.url = getScriptUrl();
+  let staff = ''; try { staff = getConf_('staffUrl'); } catch (e) { }
+  t.staffUrl = staff;
+  return t.evaluate().getContent();
+}
 
 function str_(v) { return v == null ? '' : String(v).trim(); }
 function ymd_(v) {

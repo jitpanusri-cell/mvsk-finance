@@ -1,0 +1,64 @@
+<!-- Island: แถบเมนูลอย (Dynamic Island) ใช้ร่วมกันทุกหน้าเว็บ (Budget / finan / Supplies)
+     เรียกใช้: <?!= island('ชื่อหน้า'); ?>  (ฟังก์ชัน island ใน Budgetweb.gs) — แก้ที่ไฟล์นี้ที่เดียว -->
+<style>
+    .dynamic-header-wrapper, .dynamic-header-wrapper * { box-sizing: border-box; }
+    :where(.dynamic-header-wrapper) a { color: inherit; text-decoration: none; }
+    :where(.dynamic-header-wrapper) button { font: inherit; cursor: pointer; background: none; border: 0; color: inherit; }
+    :where(.dynamic-header-wrapper) img { display: block; max-width: 100%; }
+    .dynamic-header-wrapper .ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .island-nav a.on { color: #fbbc04; }
+    .dynamic-header-wrapper { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); width: 95%; max-width: 1400px; z-index: 60; transition: all .5s cubic-bezier(.4, 0, .2, 1); }
+    .dynamic-island { background: rgba(15, 23, 42, .65); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, .12); border-radius: 60px; padding: 8px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 8px 32px rgba(0, 0, 0, .3); }
+    .dynamic-header-wrapper.scrolled { top: 12px; max-width: 1200px; }
+    .dynamic-header-wrapper.scrolled .dynamic-island { background: rgba(15, 23, 42, .9); }
+    .island-brand { display: flex; align-items: center; gap: 12px; padding-right: 20px; border-right: 1px solid rgba(255, 255, 255, .1); }
+    .island-logo-img { width: 38px; height: 38px; object-fit: contain; transition: transform .3s; }
+    .island-brand:hover .island-logo-img { transform: scale(1.1) rotate(5deg); }
+    .brand-group { color: #fff; font-weight: 600; font-size: 14px; display: block; font-family: 'Prompt'; }
+    .brand-school { color: #fbbc04; font-size: 11px; display: block; font-family: 'Prompt'; }
+    .island-menu-container { display: flex; align-items: center; flex-grow: 1; justify-content: flex-end; }
+    .island-nav { display: flex; gap: 8px; align-items: center; }
+    .island-nav a { color: rgba(255, 255, 255, .8); font-size: 14px; padding: 8px 16px; border-radius: 30px; transition: all .3s; font-family: 'Prompt'; }
+    .island-nav a:hover { color: #0f172a; background: #fbbc04; font-weight: 500; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(251, 188, 4, .3); }
+    .island-staff-area { margin-left: 12px; padding-left: 12px; border-left: 1px solid rgba(255, 255, 255, .1); }
+    .island-staff-btn { display: inline-block; background: rgba(251, 188, 4, .1); color: #fbbc04; border: 1px solid rgba(251, 188, 4, .4); padding: 8px 20px; border-radius: 30px; font-family: 'Prompt'; font-size: 13px; transition: all .3s cubic-bezier(.4, 0, .2, 1); }
+    .island-staff-btn:hover { background: #fbbc04; color: #0f172a; box-shadow: 0 6px 15px rgba(251, 188, 4, .4); transform: translateY(-2px); font-weight: 600; }
+    .mobile-menu-toggle { display: none; color: #fbbc04; padding: 4px; }
+    .mobile-menu-toggle .ic { width: 26px; height: 26px; }
+    @keyframes slideDownNav { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+    @media (max-width: 1024px) {
+      .island-menu-container { display: none; flex-direction: column; position: absolute; top: 75px; left: 5%; width: 90%; background: rgba(15, 23, 42, .98); border-radius: 24px; padding: 20px; box-shadow: 0 10px 25px rgba(0, 0, 0, .5); }
+      .island-menu-container.show { display: flex; animation: slideDownNav .3s cubic-bezier(.16, 1, .3, 1) forwards; }
+      .island-nav { flex-direction: column; width: 100%; gap: 8px; }
+      .island-nav a, .island-staff-btn { width: 100%; text-align: center; padding: 12px; }
+      .island-staff-area { width: 100%; border-left: 0; padding: 10px 0 0; margin: 10px 0 0; border-top: 1px solid rgba(255, 255, 255, .1); }
+      .mobile-menu-toggle { display: block; }
+    }
+    @media (max-width: 640px) { .dynamic-header-wrapper { top: 12px; } .dynamic-island { padding: 8px 16px; } .island-brand { border-right: 0; padding-right: 0; } }
+</style>
+  <header class="dynamic-header-wrapper" id="head">
+    <div class="dynamic-island">
+      <a href="<?= url ?>" class="island-brand">
+        <img src="https://drive.google.com/thumbnail?id=1PVf5EA7ntHrhJBLbwOuobqWfd9mvscY8&sz=w500" alt="Logo" class="island-logo-img">
+        <div><span class="brand-group">กลุ่มบริหารงานงบประมาณ</span><span class="brand-school">โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</span></div>
+      </a>
+      <button class="mobile-menu-toggle" id="burger" aria-label="เมนู"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <div class="island-menu-container" id="nav">
+        <nav class="island-nav">
+          <a href="<?= url ?>?page=finan"<?= page === 'finan' ? ' class="on"' : '' ?>>งานการเงินและบัญชี</a>
+          <a href="<?= url ?>?page=Supplies"<?= page === 'Supplies' ? ' class="on"' : '' ?>>งานพัสดุและสินทรัพย์</a>
+          <a href="https://www.mvsk.ac.th/" target="_blank" rel="noopener">นักเรียน</a>
+          <a href="https://www.mvsk.ac.th/" target="_blank" rel="noopener">ครู</a>
+        </nav>
+        <div class="island-staff-area"><a class="island-staff-btn" id="staffLink" href="<?= staffUrl || '#' ?>" target="_top">เจ้าหน้าที่</a></div>
+      </div>
+    </div>
+  </header>
+<script>
+  (function () {
+    var h = document.getElementById('head'), n = document.getElementById('nav'), b = document.getElementById('burger'), s = document.getElementById('staffLink');
+    b.addEventListener('click', function () { n.classList.toggle('show'); });
+    window.addEventListener('scroll', function () { h.classList.toggle('scrolled', window.scrollY > 20); }, { passive: true });
+    s.addEventListener('click', function (e) { if (s.getAttribute('href') === '#') { e.preventDefault(); alert('ยังไม่ได้ผูกเว็บกับระบบการเงิน (ระบบการเงิน > เว็บไซต์ > ตั้งค่า)'); } });
+  })();
+</script>
