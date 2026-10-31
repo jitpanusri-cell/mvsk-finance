@@ -552,11 +552,11 @@
 
     <section class="svc" id="loan">
       <div class="wrap">
-        <div class="sh rv"><h2>ยืม ส่งคืน เบิก เงินงบประมาณ</h2><a class="link-more" href="#" data-sys="docs">เปิดระบบ<svg class="ic"><use href="#i-arrow"/></svg></a></div>
+        <div class="sh rv"><h2>ยืม ส่งคืน เบิก เงินงบประมาณ</h2><a class="link-more" href="<?= getScriptUrl(); ?>?page=Loan" target="_top">กรอกแบบฟอร์ม<svg class="ic"><use href="#i-arrow"/></svg></a></div>
         <div class="svcs c3">
-          <a class="sv rv" href="#" data-sys="docs"><svg class="ic lg"><use href="#i-coins"/></svg><h3>สัญญายืมเงิน</h3><span class="go">ทำสัญญายืม<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
-          <a class="sv rv" href="#" data-sys="docs"><svg class="ic lg"><use href="#i-refresh"/></svg><h3>ส่งคืนเงินยืม</h3><span class="go">ส่งใช้เงินยืม<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
-          <a class="sv rv" href="#" data-sys="docs"><svg class="ic lg"><use href="#i-receipt"/></svg><h3>ขอเบิกเงิน</h3><span class="go">ขอเบิกเงิน<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
+          <a class="sv rv" href="<?= getScriptUrl(); ?>?page=Loan&t=loan" target="_top"><svg class="ic lg"><use href="#i-coins"/></svg><h3>สัญญายืมเงิน</h3><span class="go">ทำสัญญายืม<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
+          <a class="sv rv" href="<?= getScriptUrl(); ?>?page=Loan&t=return" target="_top"><svg class="ic lg"><use href="#i-refresh"/></svg><h3>ส่งคืนเงินยืม</h3><span class="go">ส่งใช้เงินยืม<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
+          <a class="sv rv" href="<?= getScriptUrl(); ?>?page=Loan&t=adv" target="_top"><svg class="ic lg"><use href="#i-receipt"/></svg><h3>ขอเบิกเงิน</h3><span class="go">ขอเบิกเงิน<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
         </div>
       </div>
     </section>
@@ -708,14 +708,8 @@
       reveal();
     }
 
-    document.addEventListener('click', function (e) {
-      var a = e.target.closest('[data-sys]');
-      if (a && !SYS) { e.preventDefault(); alert('ยังไม่ได้ผูกเว็บกับระบบการเงิน (ระบบการเงิน > เว็บไซต์ > ตั้งค่า)'); }
-    });
     if (window.google && google.script && google.script.run) google.script.run.withSuccessHandler(function (d) {
       d = d || {};
-      SYS = d.staffUrl || '';
-      if (SYS) document.querySelectorAll('[data-sys]').forEach(function (a) { a.href = SYS + (SYS.indexOf('?') < 0 ? '?' : '&') + 'page=' + a.dataset.sys; a.target = '_top'; });
       renderNews(d.news);
     }).getHomeData();
 

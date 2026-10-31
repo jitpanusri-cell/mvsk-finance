@@ -68,8 +68,7 @@ const ROLES = {
   exec:    { label: 'ผู้บริหาร',         pages: ['dashboard', 'allocation', 'activity', 'reconcile', 'balance', 'refund', 'students', 'ktb', 'docs', 'print'] },
   finance: { label: 'เจ้าหน้าที่การเงิน', pages: ['dashboard', 'allocation', 'receipt', 'expense', 'activity', 'reconcile', 'balance', 'refund', 'students', 'ktb', 'docs', 'print'] },
   account: { label: 'เจ้าหน้าที่บัญชี',   pages: ['dashboard', 'allocation', 'activity', 'account', 'reconcile', 'balance', 'ktb', 'docs', 'print'] },
-  teacher: { label: 'ครูที่ปรึกษา',       pages: ['students', 'docs'] },
-  guest:   { label: 'ครู (ไม่ต้องลงทะเบียน)', pages: ['docs'] }   // บัญชี @mvsk.ac.th ที่ไม่มีในชีต Users — ใช้เมนูยืม/ส่งคืน/เบิกได้เลย
+  teacher: { label: 'ครูที่ปรึกษา',       pages: ['students', 'docs'] }
 };
 /* บทบาทที่บันทึก/แก้ไขข้อมูลได้ แยกตามกลุ่มงาน */
 const WRITE_ROLES = {
@@ -80,7 +79,7 @@ const WRITE_ROLES = {
   student:    ['admin', 'finance', 'teacher'],
   settings:   ['admin'],
   ktb:        ['admin', 'finance'],
-  docs:       ['admin', 'finance', 'teacher', 'guest']
+  docs:       ['admin', 'finance', 'teacher']
 };
 
 /* ================================================================
@@ -461,17 +460,12 @@ function seedUsers_() {
  * ผู้ใช้และสิทธิ์
  * ================================================================ */
 let _curUserCache_ = null;
-const GUEST_DOMAIN_RE_ = /@mvsk\.ac\.th$/;
 function currentUser_() {
   if (_curUserCache_) return _curUserCache_;    // อีเมลผู้ใช้ไม่เปลี่ยนระหว่างการรัน 1 ครั้ง — แคชไว้กันอ่านชีต Users ซ้ำ
   // ใช้อีเมลผู้เปิดหน้าเว็บเท่านั้น (ไม่ fallback เป็นเจ้าของสคริปต์ เพื่อไม่ให้ทุกคนได้สิทธิ์ admin)
   const email = (Session.getActiveUser().getEmail() || '').toLowerCase();
   const u = readObjects_('Users').find(r => String(r.email).toLowerCase() === email && isTrue_(r.active));
-  if (!u || !ROLES[u.role]) {
-    // ครูทุกคนในโดเมนโรงเรียนใช้เมนู สัญญายืม ส่งคืน เบิก ได้โดยไม่ต้องเพิ่มในชีต Users (เห็น/แก้เฉพาะรายการของตัวเอง)
-    if (GUEST_DOMAIN_RE_.test(email)) return (_curUserCache_ = { email: email, name: '', role: 'guest', roleLabel: ROLES.guest.label, pages: ROLES.guest.pages.slice(), rooms: [] });
-    return (_curUserCache_ = { email: email, name: '', role: '', roleLabel: '', pages: [] });
-  }
+  if (!u || !ROLES[u.role]) return (_curUserCache_ = { email: email, name: '', role: '', roleLabel: '', pages: [] });
   const pages = ROLES[u.role].pages === '*'
     ? ['dashboard', 'allocation', 'receipt', 'expense', 'activity', 'account', 'students', 'reconcile', 'balance', 'refund', 'ktb', 'docs', 'print', 'settings', 'users']
     : ROLES[u.role].pages;

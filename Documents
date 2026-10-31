@@ -103,7 +103,7 @@ function getDocsData(fy) {
     };
   });
   return {
-    fy: fy, me: u.email, myName: u.name || '', role: u.role, seeAll: u.role !== 'teacher' && u.role !== 'guest',
+    fy: fy, me: u.email, myName: u.name || '', role: u.role, seeAll: u.role !== 'teacher',
     list: list.sort((a, b) => String(b.createdAt || b.dateFrom || '').localeCompare(String(a.createdAt || a.dateFrom || ''))),
     signers: { director: s.director || '', deputy: s.deputy || '', finOfficer: s.finOfficer || '', accOfficer: s.accOfficer || '' },
     school: { name: s.schoolName || '', area: s.area || '', garudaUrl: s.garudaUrl || '', docPrefix: s.docPrefix || '' },
@@ -113,7 +113,7 @@ function getDocsData(fy) {
 
 /** รายการนี้เป็นของผู้ใช้หรือไม่ — ครูเห็น/แก้ได้เฉพาะของตัวเอง, บทบาทอื่นเห็นทั้งหมด */
 function docIsMine_(u, r) {
-  if (!r || (u.role !== 'teacher' && u.role !== 'guest')) return true;
+  if (!r || u.role !== 'teacher') return true;
   const by = String(r.createdBy || '').toLowerCase();
   return by === String(u.email || '').toLowerCase() || (!!u.name && String(r.teacherName || '').trim() === String(u.name).trim());
 }
@@ -205,7 +205,7 @@ function deleteDocRequest(id) {
 /** ทำเครื่องหมายว่าโอนเงินแล้ว (เชื่อมกับรายการแจ้งโอน KTB) */
 function markDocTransferred(id, ktbItemId) {
   const u = requireWrite_('docs');
-  if (u.role === 'teacher' || u.role === 'guest') throw new Error('เฉพาะเจ้าหน้าที่การเงินบันทึกการโอนเงินได้');
+  if (u.role === 'teacher') throw new Error('เฉพาะเจ้าหน้าที่การเงินบันทึกการโอนเงินได้');
   return withLock_(() => {
     const rec = { status: 'transferred', transferredAt: new Date(), ktbItemId: String(ktbItemId || '') };
     if (!updateObject_('Doc_Requests', id, rec)) throw new Error('ไม่พบรายการ');

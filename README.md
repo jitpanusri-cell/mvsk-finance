@@ -12,3 +12,9 @@
 - ~~หน้าส่งคืนเงินยืมแบบใหม่~~ รวมเข้า JS/Index/CSS ล่าสุดแล้ว (17 ต.ค. 69)
 - ~~Index.html include('LedgerUI')~~ มีแล้ว
 - ~~Code.gs doGet ห่อ withBoot_~~ มีแล้ว
+
+## หน้า "ยืม ส่งคืน เบิก" สาธารณะ (Loanweb)
+- ไฟล์ `Loanweb` สร้างอัตโนมัติด้วย `python3 tools/build_loanweb.py` จาก Index/CSS/JS ของระบบการเงิน — ห้ามแก้ตรง
+- วางเป็นไฟล์ HTML ชื่อ `Loan` ในโปรเจกต์หน้าเว็บ (Budget) เปิดที่ `?page=Loan&t=loan|return|adv`
+- กรอกแล้วพิมพ์อย่างเดียว ไม่บันทึก ไม่ต้องล็อกอิน ชื่อผู้ลงนาม/เลขที่หนังสือแก้ในชีต "ตั้งค่าเว็บ" (director, deputy, finOfficer, accOfficer, docPrefix, area, garudaUrl)
+- แก้แบบฟอร์มในระบบการเงินเมื่อไร → รันสคริปต์ใหม่แล้ววาง Loan ทับ
