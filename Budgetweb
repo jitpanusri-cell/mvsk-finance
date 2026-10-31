@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>กลุ่มบริหารงานงบประมาณ - โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
       --navy: #13294b; --navy-2: #0b1a33; --gold: #c79a2e; --gold-2: #e0b85a;
@@ -32,14 +32,14 @@
     .island-brand { display: flex; align-items: center; gap: 12px; padding-right: 20px; border-right: 1px solid rgba(255, 255, 255, .1); }
     .island-logo-img { width: 38px; height: 38px; object-fit: contain; transition: transform .3s; }
     .island-brand:hover .island-logo-img { transform: scale(1.1) rotate(5deg); }
-    .brand-group { color: #fff; font-weight: 600; font-size: 14px; display: block; font-family: 'IBM Plex Sans Thai'; }
-    .brand-school { color: #fbbc04; font-size: 11px; display: block; }
+    .brand-group { color: #fff; font-weight: 600; font-size: 14px; display: block; font-family: 'Prompt'; }
+    .brand-school { color: #fbbc04; font-size: 11px; display: block; font-family: 'Prompt'; }
     .island-menu-container { display: flex; align-items: center; flex-grow: 1; justify-content: flex-end; }
     .island-nav { display: flex; gap: 8px; align-items: center; }
-    .island-nav a { color: rgba(255, 255, 255, .8); font-size: 14px; padding: 8px 16px; border-radius: 30px; transition: all .3s; font-family: 'IBM Plex Sans Thai'; }
+    .island-nav a { color: rgba(255, 255, 255, .8); font-size: 14px; padding: 8px 16px; border-radius: 30px; transition: all .3s; font-family: 'Prompt'; }
     .island-nav a:hover { color: #0f172a; background: #fbbc04; font-weight: 500; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(251, 188, 4, .3); }
     .island-staff-area { margin-left: 12px; padding-left: 12px; border-left: 1px solid rgba(255, 255, 255, .1); }
-    .island-staff-btn { display: inline-block; background: rgba(251, 188, 4, .1); color: #fbbc04; border: 1px solid rgba(251, 188, 4, .4); padding: 8px 20px; border-radius: 30px; font-family: 'IBM Plex Sans Thai'; font-size: 13px; transition: all .3s cubic-bezier(.4, 0, .2, 1); }
+    .island-staff-btn { display: inline-block; background: rgba(251, 188, 4, .1); color: #fbbc04; border: 1px solid rgba(251, 188, 4, .4); padding: 8px 20px; border-radius: 30px; font-family: 'Prompt'; font-size: 13px; transition: all .3s cubic-bezier(.4, 0, .2, 1); }
     .island-staff-btn:hover { background: #fbbc04; color: #0f172a; box-shadow: 0 6px 15px rgba(251, 188, 4, .4); transform: translateY(-2px); font-weight: 600; }
     .mobile-menu-toggle { display: none; color: #fbbc04; padding: 4px; }
     .mobile-menu-toggle .ic { width: 26px; height: 26px; }
@@ -54,34 +54,59 @@
     }
     @media (max-width: 640px) { .dynamic-header-wrapper { top: 12px; } .dynamic-island { padding: 8px 16px; } .island-brand { border-right: 0; padding-right: 0; } }
 
-    .hero { position: relative; height: min(92vh, 860px); min-height: 520px; overflow: hidden; background: var(--navy-2); }
-    .slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.2s var(--ease); }
-    .slide.on { opacity: 1; z-index: 1; }
-    .slide .bg { position: absolute; inset: 0; background: center / cover no-repeat; transform: scale(1.06); }
-    .slide.on .bg { animation: kb 9s linear forwards; }
-    @keyframes kb { from { transform: scale(1.06); } to { transform: scale(1.0); } }
-    .slide::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11, 26, 51, .45) 0%, rgba(11, 26, 51, 0) 28%, rgba(11, 26, 51, 0) 50%, rgba(11, 26, 51, .55) 100%); }
-    .cap { position: absolute; z-index: 3; left: 0; right: 0; bottom: 72px; }
-    .cap .box { max-width: 620px; background: rgba(255, 255, 255, .96); padding: 26px 32px 28px; border-left: 4px solid var(--gold); }
-    .cap .kick { font-size: 13px; letter-spacing: 1.5px; color: var(--gold); font-weight: 600; text-transform: uppercase; }
-    .cap h1 { font-size: 32px; font-weight: 600; color: var(--navy); margin-top: 2px; }
-    .cap p { color: var(--ink-2); margin-top: 6px; font-size: 16.5px; }
-    .cap .more { display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; font-weight: 600; color: var(--navy); font-family: 'IBM Plex Sans Thai'; }
-    .cap .more:hover { color: var(--gold); }
-    .cap .box > * { opacity: 0; transform: translateY(14px); }
-    .cap.in .box > * { opacity: 1; transform: none; transition: opacity .7s var(--ease), transform .7s var(--ease); }
-    .cap.in .box > *:nth-child(2) { transition-delay: .08s; } .cap.in .box > *:nth-child(3) { transition-delay: .16s; } .cap.in .box > *:nth-child(4) { transition-delay: .24s; }
-    .hctl { position: absolute; z-index: 3; left: 0; right: 0; bottom: 26px; }
-    .hctl .wrap { display: flex; align-items: center; gap: 18px; }
-    .bars { display: flex; gap: 8px; flex: 1; max-width: 360px; }
-    .bars button { flex: 1; height: 3px; background: rgba(255, 255, 255, .35); position: relative; overflow: hidden; padding: 6px 0; background-clip: content-box; }
-    .bars button i { position: absolute; left: 0; top: 6px; height: 3px; width: 0; background: #fff; }
+    .hero { position: relative; min-height: 100vh; overflow: hidden; background: #0f172a; font-family: 'Prompt', sans-serif; display: flex; flex-direction: column; }
+    .slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.4s var(--ease); }
+    .slide.on { opacity: 1; }
+    .slide .bg { position: absolute; inset: -20px; background: center / cover no-repeat; filter: blur(4px); transform: scale(1.05); }
+    .slide.on .bg { animation: kb 10s linear forwards; }
+    @keyframes kb { from { transform: scale(1.12); } to { transform: scale(1.05); } }
+    .hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(15, 23, 42, .6), rgba(15, 23, 42, .85)); z-index: 1; }
+    .hero-in { position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 20px 40px; }
+    .site-header { padding: 150px 20px 40px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .site-header img.logo { width: 160px; margin-bottom: 24px; filter: drop-shadow(0 8px 16px rgba(0, 0, 0, .4)); transition: transform .5s ease; }
+    .site-header img.logo:hover { transform: scale(1.08) translateY(-5px); }
+    .finance-title { font-family: 'Prompt'; font-size: 32px; font-weight: 700; color: #fbbc04; margin-bottom: 8px; letter-spacing: .5px; text-shadow: 0 2px 10px rgba(251, 188, 4, .2); }
+    .school-subtitle-th { font-size: 18px; font-weight: 500; color: #fff; opacity: .95; }
+    .school-subtitle-en { font-size: 12px; color: #94a3b8; letter-spacing: 1.5px; margin-top: 8px; text-transform: uppercase; }
+    .site-header > * { opacity: 0; transform: translateY(16px); animation: up .9s var(--ease) forwards; }
+    .site-header > *:nth-child(2) { animation-delay: .12s; } .site-header > *:nth-child(3) { animation-delay: .22s; } .site-header > *:nth-child(4) { animation-delay: .3s; }
+    @keyframes up { to { opacity: 1; transform: none; } }
+    .menu-grid { display: grid; grid-template-columns: 1fr; gap: 20px; max-width: 1000px; width: 100%; margin: 0 auto; }
+    .menu-card { background: rgba(255, 255, 255, .08); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, .12); border-radius: 24px; padding: 24px; display: flex; align-items: center; transition: all .4s cubic-bezier(.16, 1, .3, 1); position: relative; overflow: hidden; opacity: 0; animation: up .9s .4s var(--ease) forwards; }
+    .menu-card + .menu-card { animation-delay: .5s; }
+    .menu-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; background: #fbbc04; border-radius: 24px 0 0 24px; }
+    .menu-card:hover { transform: translateY(-8px) scale(1.02); background: rgba(255, 255, 255, .12); border-color: rgba(251, 188, 4, .5); box-shadow: 0 20px 40px rgba(0, 0, 0, .4); }
+    .card-content { display: flex; align-items: center; gap: 20px; width: 100%; margin-left: 10px; }
+    .icon-wrapper { width: 56px; height: 56px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .1); border-radius: 16px; display: flex; align-items: center; justify-content: center; transition: all .4s ease; flex-shrink: 0; }
+    .icon-svg { width: 28px; height: 28px; fill: #fff; transition: fill .4s; }
+    .card-title { font-size: 20px; font-weight: 500; color: #fff; flex-grow: 1; }
+    .arrow-circle { width: 40px; height: 40px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; transition: all .4s cubic-bezier(.16, 1, .3, 1); }
+    .menu-card:hover .icon-wrapper { background: rgba(251, 188, 4, .15); border-color: #fbbc04; transform: rotate(5deg) scale(1.1); }
+    .menu-card:hover .icon-svg { fill: #fbbc04; }
+    .menu-card:hover .arrow-circle { background: #fbbc04; color: #0f172a; border-color: #fbbc04; transform: translateX(8px) scale(1.1); box-shadow: 0 0 15px rgba(251, 188, 4, .5); }
+    .hctl { position: relative; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 14px; padding: 0 20px 34px; flex-wrap: wrap; }
+    .cap { display: none; align-items: center; gap: 12px; color: #fff; background: rgba(15, 23, 42, .55); border: 1px solid rgba(255, 255, 255, .12); backdrop-filter: blur(12px); border-radius: 40px; padding: 8px 10px 8px 20px; max-width: 720px; }
+    .cap.has { display: inline-flex; }
+    .cap.in { animation: up .6s var(--ease); }
+    .cap b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cap small { color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cap a { flex: none; background: #fbbc04; color: #0f172a; border-radius: 30px; padding: 6px 14px; font-size: 13.5px; font-weight: 500; display: inline-flex; gap: 6px; align-items: center; }
+    .bars { display: flex; gap: 8px; }
+    .bars button { width: 34px; height: 15px; position: relative; overflow: hidden; }
+    .bars button::before { content: ''; position: absolute; left: 0; right: 0; top: 6px; height: 3px; background: rgba(255, 255, 255, .3); }
+    .bars button i { position: absolute; left: 0; top: 6px; height: 3px; width: 0; background: #fbbc04; }
     .bars button.on i { animation: fill var(--dur, 7s) linear forwards; }
     .bars button.done i { width: 100%; }
     @keyframes fill { to { width: 100%; } }
-    .arr { width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .55); color: #fff; display: grid; place-items: center; transition: background .2s; }
-    .arr:hover { background: rgba(255, 255, 255, .15); }
-    .count { color: #fff; font-family: 'IBM Plex Sans Thai'; font-size: 14px; letter-spacing: 1px; margin-left: auto; }
+    .arr { width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .3); color: #fff; display: grid; place-items: center; transition: background .2s; }
+    .arr:hover { background: rgba(255, 255, 255, .12); }
+    .count { display: none; }
+    @media (min-width: 768px) {
+      .site-header { padding: 170px 20px 56px; }
+      .finance-title { font-size: 42px; }
+      .school-subtitle-th { font-size: 22px; }
+      .menu-grid { grid-template-columns: repeat(2, 1fr); gap: 24px; }
+    }
 
     section { padding: 72px 0; }
     .sh { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 32px; flex-wrap: wrap; }
@@ -196,11 +221,6 @@
     }
     @media (max-width: 640px) {
       .wrap { padding: 0 18px; }
-      .hero { height: 70vh; min-height: 420px; }
-      .cap { bottom: 64px; }
-      .cap .box { padding: 18px 20px; margin-right: 12px; }
-      .cap h1 { font-size: 23px; } .cap p { font-size: 15px; }
-      .count { display: none; }
       section { padding: 52px 0; }
       .sh h2 { font-size: 27px; }
       .lead .tt { font-size: 21px; }
@@ -237,14 +257,36 @@
 
   <div class="hero" id="hero">
     <div id="slides"></div>
-    <div class="cap" id="cap"><div class="wrap"><div class="box" id="capBox"></div></div></div>
-    <div class="hctl" id="hctl">
-      <div class="wrap">
-        <div class="bars" id="bars"></div>
-        <span class="count" id="count"></span>
-        <button class="arr" id="prev" aria-label="ภาพก่อนหน้า"><svg class="ic" style="transform:rotate(180deg)"><use href="#i-arrow"/></svg></button>
-        <button class="arr" id="next" aria-label="ภาพถัดไป"><svg class="ic"><use href="#i-arrow"/></svg></button>
+    <div class="hero-in">
+      <div class="site-header">
+        <img src="https://drive.google.com/thumbnail?id=1PVf5EA7ntHrhJBLbwOuobqWfd9mvscY8&sz=w500" alt="MVSK LOGO" class="logo">
+        <h1 class="finance-title">กลุ่มบริหารงานงบประมาณ</h1>
+        <span class="school-subtitle-th">โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</span>
+        <span class="school-subtitle-en">MAHAVAJIRAVUDH CHANGWATSONGKHLA SCHOOL</span>
       </div>
+      <div class="menu-grid">
+        <a href="<?= getScriptUrl(); ?>?page=finan" class="menu-card">
+          <div class="card-content">
+            <div class="icon-wrapper"><svg class="icon-svg" viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg></div>
+            <div class="card-title">งานการเงินและบัญชี</div>
+            <div class="arrow-circle"><svg class="ic sm"><use href="#i-arrow"/></svg></div>
+          </div>
+        </a>
+        <a href="<?= getScriptUrl(); ?>?page=Supplies" class="menu-card">
+          <div class="card-content">
+            <div class="icon-wrapper"><svg class="icon-svg" viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg></div>
+            <div class="card-title">กลุ่มงานพัสดุและสินทรัพย์</div>
+            <div class="arrow-circle"><svg class="ic sm"><use href="#i-arrow"/></svg></div>
+          </div>
+        </a>
+      </div>
+    </div>
+    <div class="hctl" id="hctl">
+      <div class="cap" id="cap"></div>
+      <button class="arr" id="prev" aria-label="ภาพก่อนหน้า"><svg class="ic sm" style="transform:rotate(180deg)"><use href="#i-arrow"/></svg></button>
+      <div class="bars" id="bars"></div>
+      <button class="arr" id="next" aria-label="ภาพถัดไป"><svg class="ic sm"><use href="#i-arrow"/></svg></button>
+      <span class="count" id="count"></span>
     </div>
   </div>
 
@@ -400,7 +442,7 @@
       var S = ST.slides.length ? ST.slides : [DEF_SLIDE];
       $('slides').innerHTML = S.map(function (s, i) { return '<div class="slide' + (i ? '' : ' on') + '"><div class="bg" style="' + bg(s.imageUrl) + '"></div></div>'; }).join('');
       $('bars').innerHTML = S.map(function (s, i) { return '<button aria-label="ภาพที่ ' + (i + 1) + '" data-i="' + i + '"><i></i></button>'; }).join('');
-      $('hctl').style.display = S.length > 1 ? '' : 'none';
+      document.querySelectorAll('#prev,#next,#bars').forEach(function (el) { el.style.display = S.length > 1 ? '' : 'none'; });
       $('bars').style.setProperty('--dur', DUR + 'ms');
       show(0);
     }
@@ -411,11 +453,12 @@
       document.querySelectorAll('.slide').forEach(function (el, k) { el.classList.toggle('on', k === ST.cur); });
       document.querySelectorAll('#bars button').forEach(function (b, k) { b.classList.remove('on'); b.classList.toggle('done', k < ST.cur); void b.offsetWidth; if (k === ST.cur) b.classList.add('on'); });
       $('count').textContent = String(ST.cur + 1).padStart(2, '0') + ' / ' + String(n).padStart(2, '0');
-      var title = s.title || DEF_SLIDE.title, sub = s.title ? s.subtitle : (s.subtitle || DEF_SLIDE.subtitle);
-      $('cap').classList.remove('in');
-      $('capBox').innerHTML = '<div class="kick">' + (s.title ? 'กลุ่มบริหารงานงบประมาณ' : 'Mahavajiravudh Changwatsongkhla School') + '</div><h1>' + esc(title) + '</h1>' +
-        (sub ? '<p>' + esc(sub) + '</p>' : '') + (s.link ? '<a class="more" href="' + esc(safeUrl(s.link)) + '" target="_blank" rel="noopener">' + esc(s.linkText || 'อ่านเพิ่มเติม') + icon('arrow', 'sm') + '</a>' : '');
-      requestAnimationFrame(function () { requestAnimationFrame(function () { $('cap').classList.add('in'); }); });
+      var cap = $('cap');
+      cap.classList.remove('in'); void cap.offsetWidth;
+      cap.classList.toggle('has', !!s.title);
+      cap.innerHTML = s.title ? '<b>' + esc(s.title) + '</b>' + (s.subtitle ? '<small>' + esc(s.subtitle) + '</small>' : '') +
+        (s.link ? '<a href="' + esc(safeUrl(s.link)) + '" target="_blank" rel="noopener">' + esc(s.linkText || 'อ่านเพิ่มเติม') + icon('arrow', 'sm') + '</a>' : '') : '';
+      if (s.title) cap.classList.add('in');
       clearTimeout(ST.timer);
       if (n > 1) ST.timer = setTimeout(function () { show(ST.cur + 1); }, DUR);
     }
