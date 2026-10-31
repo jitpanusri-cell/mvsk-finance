@@ -95,13 +95,16 @@ function doGet() {
       ' ยังไม่ได้รับสิทธิ์ กรุณาติดต่อผู้ดูแลระบบให้เพิ่มในชีต Users</p>' +
       (user.email ? '' : '<p style="color:#666">ระบบอ่านอีเมลผู้ใช้ไม่ได้ — ให้ Deploy แบบ "เรียกใช้ในฐานะ: ผู้ใช้ที่เข้าถึงเว็บแอป" และแชร์ไฟล์ชีตให้ผู้ใช้</p>') +
       '</div>')
-      .setTitle('งบประมาณ สพฐ.');
+      .setTitle('งบประมาณ สพฐ.').setFaviconUrl(FAVICON_URL_);
   }
   return withBoot_(HtmlService.createTemplateFromFile('Index').evaluate())
     .setTitle('งบประมาณ สพฐ. — ' + (getSetting_('schoolName') || ''))
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    .setFaviconUrl(FAVICON_URL_);
 }
+/* ไอคอนแท็บเบราว์เซอร์ (ตราโรงเรียน) — รูปเดียวกับเว็บกลุ่มบริหารงานงบประมาณ */
+const FAVICON_URL_ = 'https://drive.google.com/uc?id=1zC_TJwmzziZAPRap48Nr4gxK9_Cjs4-e&export=download&format=png';
 
 /** แทรกไฟล์ HTML ย่อย (CSS.html / JS.html) ใน Index.html */
 function include(name) {
