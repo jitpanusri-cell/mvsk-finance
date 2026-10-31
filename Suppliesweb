@@ -145,7 +145,8 @@
     .sheet .dl a { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); color: var(--navy); font-weight: 500; text-decoration: none; }
     .sheet .dl a:hover { color: var(--gold); }
     .sheet .dl a .ic:last-child { margin-left: auto; }
-    .sheet .ft { display: flex; justify-content: flex-end; margin-top: 28px; }
+    .sheet .ft { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 28px; }
+    .sheet .ft .link-more { background: none; border: 0; cursor: pointer; font-size: 15px; }
     .sheet .btn-out { background: none; cursor: pointer; font-size: 15px; }
     .mx { position: fixed; top: 16px; right: 20px; width: 44px; height: 44px; border: 0; cursor: pointer; border-radius: 50%; background: #fff; display: grid; place-items: center; color: var(--navy); z-index: 10002; }
     @media (max-width: 640px) { .modal { padding: 0; } .sheet { border-radius: 0; } .sheet .bd { padding: 20px 18px 28px; } .sheet h2 { font-size: 22px; } }
@@ -343,9 +344,16 @@
         '<div class="bd">' + (date ? '<span class="dt">' + ico('calendar') + esc(date) + '</span>' : '') + '<h2>' + esc(a.title) + '</h2>' +
         '<div class="content">' + clean(a.details) + '</div>' +
         (links.length ? '<div class="dl">' + links.map(function (l) { return '<a href="' + esc(safeUrl(l.url)) + '" target="_blank" rel="noopener">' + ico('file') + esc(l.name) + ico('download', 'sm') + '</a>'; }).join('') + '</div>' : '') +
-        '<div class="ft"><button class="btn-out" data-close>ปิด</button></div></div>';
+        '<div class="ft"><button class="link-more" data-copy="' + esc(a.id) + '">' + ico('copy', 'sm') + 'คัดลอกลิงก์ข่าว</button><button class="btn-out" data-close>ปิด</button></div></div>';
       var m = $('modal'); m.classList.add('on'); document.body.style.overflow = 'hidden';
       requestAnimationFrame(function () { m.classList.add('show'); m.scrollTop = 0; });
+    }
+    function copyLink(b) {
+      var url = BASE + '?page=Supplies&news=' + encodeURIComponent(b.dataset.copy);
+      var done = function () { b.lastChild.textContent = 'คัดลอกแล้ว'; setTimeout(function () { b.lastChild.textContent = 'คัดลอกลิงก์ข่าว'; }, 2000); };
+      function fb() { var x = document.createElement('textarea'); x.value = url; document.body.appendChild(x); x.select(); try { document.execCommand('copy'); done(); } catch (e) { prompt('คัดลอกลิงก์นี้', url); } x.remove(); }
+      try { if (navigator.clipboard) { navigator.clipboard.writeText(url).then(done, fb); return; } } catch (e) { }
+      fb();
     }
     function closeNews() { var m = $('modal'); if (!m.classList.contains('on')) return; m.classList.remove('show'); setTimeout(function () { m.classList.remove('on'); }, 250); document.body.style.overflow = ''; }
     function gal(ph, k) {
@@ -356,6 +364,7 @@
       var t = e.target, g = t.closest('[data-gal]');
       if (g) { gal(g.closest('.ph'), Number(g.dataset.gal)); return; }
       var o = t.closest('[data-open]'); if (o) { openNews(o.dataset.open); return; }
+      var cp = t.closest('[data-copy]'); if (cp) { copyLink(cp); return; }
       if (t.closest('[data-close]') || t === $('modal')) closeNews();
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeNews(); });
@@ -375,8 +384,8 @@
 
     function renderNews(list) {
       var L = (list || []).filter(function (a) { return a.type === NEWS_TYPE; })
-        .sort(function (a, b) { return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0); }).slice(0, 3);
-      NEWS = L; if (!L.length) return;
+        .sort(function (a, b) { return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0); });
+      NEWS = L; L = L.slice(0, 3); if (!L.length) return;
       $('newsGrid').innerHTML = L.map(function (a) {
         var img = (a.images && a.images[0]) || a.imageUrl || '';
         var date = String(a.date || '').replace(/^วันที่\s*/, '').replace(/พ\.ศ\.\s*/, '');
@@ -395,6 +404,7 @@
     if (window.google && google.script && google.script.run) google.script.run.withSuccessHandler(function (d) {
       d = d || {};
       renderNews(d.news);
+      if (google.script.url) google.script.url.getLocation(function (l) { if (l && l.parameter && l.parameter.news) openNews(l.parameter.news); });
       renderSup(d.sup === undefined ? null : d.sup);
     }).withFailureHandler(function () { renderSup(null); }).getHomeData();
     else renderSup(null);

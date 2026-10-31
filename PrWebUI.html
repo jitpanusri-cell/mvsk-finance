@@ -118,7 +118,7 @@ document.querySelector('main.main').insertAdjacentHTML('beforeend', `
     </div>
   </div>
   <div class="seg pw-tabs" id="pwTabs" role="tablist">
-    <button data-t="news" class="on">ข่าวประชาสัมพันธ์</button><button data-t="slides">ภาพสไลด์หน้าแรก</button><button data-t="fin">งานการเงินและบัญชี</button><button data-t="sup">งานพัสดุ</button><button data-t="conf">ตั้งค่า</button>
+    <button data-t="news" class="on">ข่าวประชาสัมพันธ์</button><button data-t="slides">ภาพสไลด์หน้าแรก</button><button data-t="fin">งานการเงินและบัญชี</button><button data-t="sup">งานพัสดุ</button><button data-t="pay">ขั้นตอนชำระเงิน</button><button data-t="conf">ตั้งค่า</button>
   </div>
   <div id="pwNotLinked" hidden class="cardx mb-grid"></div>
   <div data-pwt="news">
@@ -134,6 +134,7 @@ document.querySelector('main.main').insertAdjacentHTML('beforeend', `
   <div data-pwt="slides" hidden><div class="pw-slides" id="pwSlides"></div></div>
   <div data-pwt="fin" hidden><div class="pw-slides" id="pwFin"></div></div>
   <div data-pwt="sup" hidden><div class="pw-slides" id="pwSup"></div></div>
+  <div data-pwt="pay" hidden><div class="pw-slides" id="pwPay"></div></div>
   <div data-pwt="conf" hidden>
     <div class="cardx mb-grid" style="max-width:720px">
       <div class="mb-3" id="pwConfInfo"></div>
@@ -207,7 +208,7 @@ document.body.insertAdjacentHTML('beforeend', `
           <div class="col-sm-4"><label class="flabel" for="pwFType">ประเภท</label><select class="sel w-100" id="pwFType"><option value="video">วิดีโอ</option><option value="pdf">เอกสาร PDF</option></select></div>
           <div class="col-sm-4"><label class="flabel" for="pwFDate">วันที่</label><input class="inp" type="date" id="pwFDate"></div>
           <div class="col-12"><label class="flabel" for="pwFTitle">หัวข้อ *</label><input class="inp" id="pwFTitle" maxlength="150"></div>
-          <div class="col-12"><label class="flabel" for="pwFFile" id="pwFFileL">ลิงก์ไฟล์ Google Drive * (แชร์ให้ทุกคนที่มีลิงก์ดูได้)</label><input class="inp" id="pwFFile" placeholder="drive.google.com/file/d/..."></div>
+          <div class="col-12"><label class="flabel" for="pwFFile" id="pwFFileL">ลิงก์ไฟล์ Google Drive * (แชร์ให้ทุกคนที่มีลิงก์ดูได้)</label><textarea class="inp" id="pwFFile" rows="2" placeholder="drive.google.com/file/d/..."></textarea></div>
           <div class="col-sm-8"><label class="flabel" for="pwFLink">ลิงก์ปุ่ม</label><input class="inp" id="pwFLink" placeholder="เว้นว่าง = ไม่มีปุ่ม"></div>
           <div class="col-sm-4"><label class="flabel" for="pwFLinkT">ชื่อปุ่ม</label><input class="inp" id="pwFLinkT" placeholder="เช่น ประกาศฉบับเต็ม"></div>
         </div>
@@ -251,9 +252,9 @@ document.body.insertAdjacentHTML('beforeend', `
 
 function loadPw() {
   loading(true);
-  api('getPwData').then(d => { PW.data = d; PW.dirtyNews = PW.dirtySlides = PW.dirtyFin = PW.dirtySup = false; renderPw(); loading(false); }).catch(fail);
+  api('getPwData').then(d => { PW.data = d; PW.dirtyNews = PW.dirtySlides = PW.dirtyFin = PW.dirtySup = PW.dirtyPay = false; renderPw(); loading(false); }).catch(fail);
 }
-function pwReload() { return rawApi('getPwData').then(d => { PW.data = d; PW.dirtyNews = PW.dirtySlides = PW.dirtyFin = PW.dirtySup = false; renderPw(); }); }
+function pwReload() { return rawApi('getPwData').then(d => { PW.data = d; PW.dirtyNews = PW.dirtySlides = PW.dirtyFin = PW.dirtySup = PW.dirtyPay = false; renderPw(); }); }
 function pwRun(fn, ...args) { loading(true); return rawApi(fn, ...args).then(r => { loading(false); SWR.writeAt = Date.now(); S._lastLoad = {}; return r; }, e => { fail(e); throw e; }); }
 
 function pwThai(ymd) { if (!ymd) return ''; const p = ymd.split('-'); return 'วันที่ ' + Number(p[2]) + ' ' + PW_MONTH[Number(p[1]) - 1] + ' พ.ศ. ' + (Number(p[0]) + 543); }
@@ -276,14 +277,15 @@ function renderPw() {
   $('pwOpenWeb').hidden = !D.webUrl;
   if (D.webUrl) { $('pwOpenWeb').href = D.webUrl; $('pwOpenWeb').innerHTML = ic('ext') + 'เปิดหน้าเว็บ'; }
   $('pwAdd').hidden = !D.linked || t === 'conf';
-  $('pwAdd').innerHTML = ic('plus') + (t === 'slides' ? 'เพิ่มสไลด์' : t === 'fin' || t === 'sup' ? 'เพิ่มรายการ' : 'สร้างประกาศ');
-  $('pwSaveOrder').hidden = !(t === 'news' ? PW.dirtyNews : t === 'slides' ? PW.dirtySlides : t === 'fin' ? PW.dirtyFin : t === 'sup' ? PW.dirtySup : false);
+  $('pwAdd').innerHTML = ic('plus') + (t === 'slides' ? 'เพิ่มสไลด์' : t === 'fin' || t === 'sup' || t === 'pay' ? 'เพิ่มรายการ' : 'สร้างประกาศ');
+  $('pwSaveOrder').hidden = !(t === 'news' ? PW.dirtyNews : t === 'slides' ? PW.dirtySlides : t === 'fin' ? PW.dirtyFin : t === 'sup' ? PW.dirtySup : t === 'pay' ? PW.dirtyPay : false);
   if (!$('pwTy').options[1]) $('pwTy').insertAdjacentHTML('beforeend', Object.keys(PW_TYPE).map(k => `<option value="${k}">${PW_TYPE[k]}</option>`).join(''));
   if (!$('pwType').options[0]) $('pwType').innerHTML = Object.keys(PW_TYPE).map(k => `<option value="${k}">${PW_TYPE[k]}</option>`).join('');
   if (t === 'news') renderPwNews();
   if (t === 'slides') renderPwSlides();
   if (t === 'fin') renderPwFin();
   if (t === 'sup') renderPwFin('sup');
+  if (t === 'pay') renderPwFin('pay');
   if (t === 'conf') {
     $('pwConfInfo').innerHTML = D.linked ? `ผูกกับ <a href="${esc(D.sheetUrl)}" target="_blank" rel="noopener"><b>${esc(D.sheetName)}</b></a>` : '';
     ['pwSheet', 'pwWeb', 'pwConfSave'].forEach(id => $(id).disabled = !D.canAdmin);
@@ -339,12 +341,12 @@ function renderPwSlides() {
         </div></div></div>`).join('');
 }
 
-const pwK = () => PW.tab === 'sup' ? 'sup' : 'fin';
+const pwK = () => PW.tab === 'sup' || PW.tab === 'pay' ? PW.tab : 'fin';
 function renderPwFin(kind) {
-  const sup = kind === 'sup', L = (sup ? PW.data.sup : PW.data.fin) || [];
-  $(sup ? 'pwSup' : 'pwFin').innerHTML = !L.length ? '<div class="cardx pw-empty" style="grid-column:1/-1">ยังไม่มีรายการ — กด "เพิ่มรายการ" เพื่อใส่' + (sup ? 'เอกสารหรือแบบฟอร์ม' : 'วิดีโอหรือ PDF จาก Google Drive') + '</div>' :
+  const sup = kind === 'sup', pay = kind === 'pay', L = PW.data[kind || 'fin'] || [];
+  $(pay ? 'pwPay' : sup ? 'pwSup' : 'pwFin').innerHTML = !L.length ? '<div class="cardx pw-empty" style="grid-column:1/-1">ยังไม่มีรายการ — กด "เพิ่มรายการ" เพื่อใส่' + (pay ? 'ขั้นตอน' : sup ? 'เอกสารหรือแบบฟอร์ม' : 'วิดีโอหรือ PDF จาก Google Drive') + '</div>' :
     L.map((s, i) => `<div class="pw-slide ${s.isHidden ? 'dim' : ''}">
-      <div class="im" style="${pwBg(s.thumb)}"><span class="no">${i + 1}</span><span class="ty">${s.type === 'pdf' ? 'PDF' : s.type === 'link' ? 'ลิงก์' : 'วิดีโอ'}</span></div>
+      <div class="im" style="${pay ? 'aspect-ratio:auto;height:44px' : pwBg(s.thumb)}"><span class="no">${pay ? 'ขั้นที่ ' : ''}${i + 1}</span><span class="ty">${s.type === 'pdf' ? 'PDF' : s.type === 'link' ? 'ลิงก์' : s.type === 'step' ? 'ขั้นตอน' : 'วิดีโอ'}</span></div>
       <div class="bd"><div class="grow"><div class="t">${esc(s.title || '(ไม่มีหัวข้อ)')}</div><div class="s">${esc([s.date, s.linkText ? 'ปุ่ม: ' + s.linkText : ''].filter(Boolean).join(' · '))}</div></div>
         <div class="pw-act">
           <button class="pw-ib" data-pwfmv="${i}|-1" ${!i ? 'disabled' : ''} title="เลื่อนก่อน">${ic('up')}</button>
@@ -357,10 +359,10 @@ function renderPwFin(kind) {
 
 $('pwTabs').onclick = e => { const b = e.target.closest('button'); if (b) { PW.tab = b.dataset.t; renderPw(); } };
 ['pwQ', 'pwSt', 'pwTy'].forEach(id => $(id).addEventListener('input', renderPwNews));
-$('pwAdd').onclick = () => PW.tab === 'slides' ? pwOpenSlide(null) : PW.tab === 'fin' || PW.tab === 'sup' ? pwOpenFin(null) : pwOpenNews(null);
+$('pwAdd').onclick = () => PW.tab === 'slides' ? pwOpenSlide(null) : PW.tab === 'fin' || PW.tab === 'sup' || PW.tab === 'pay' ? pwOpenFin(null) : pwOpenNews(null);
 $('pwSaveOrder').onclick = () => {
-  const t = PW.tab, fn = t === 'news' ? 'pwOrderNews' : t === 'fin' || t === 'sup' ? 'pwOrderFin' : 'pwOrderSlides';
-  pwRun(fn, (t === 'news' ? PW.data.items : t === 'fin' || t === 'sup' ? PW.data[t] : PW.data.slides).map(x => x.id), t)
+  const t = PW.tab, fn = t === 'news' ? 'pwOrderNews' : t === 'fin' || t === 'sup' || t === 'pay' ? 'pwOrderFin' : 'pwOrderSlides';
+  pwRun(fn, (t === 'news' ? PW.data.items : t === 'fin' || t === 'sup' || t === 'pay' ? PW.data[t] : PW.data.slides).map(x => x.id), t)
     .then(() => { toast('บันทึกลำดับแล้ว'); return pwReload(); });
 };
 $('pwConfSave').onclick = () => pwRun('setPwSheet', $('pwSheet').value, $('pwWeb').value).then(d => { PW.data = d; PW.tab = d.linked ? 'news' : 'conf'; renderPw(); toast('บันทึกแล้ว'); });
@@ -378,7 +380,7 @@ $('page-webpr').addEventListener('click', e => {
   else if (d.pwdel) { const a = find(d.pwdel); if (confirm('ลบประกาศ "' + a.title + '" ?')) pwRun('pwDeleteNews', a.id).then(() => { toast('ลบแล้ว'); return pwReload(); }); }
   else if (d.pwshide) { const s = findS(d.pwshide); pwRun('pwFlagSlide', s.id, !s.isHidden).then(pwReload); }
   else if (d.pwsedit) pwOpenSlide(findS(d.pwsedit));
-  else if (d.pwfmv) { const [i, k] = d.pwfmv.split('|').map(Number); swap(PW.data[pwK()], i, k); if (pwK() === 'sup') PW.dirtySup = true; else PW.dirtyFin = true; renderPw(); }
+  else if (d.pwfmv) { const [i, k] = d.pwfmv.split('|').map(Number); swap(PW.data[pwK()], i, k); PW['dirty' + { fin: 'Fin', sup: 'Sup', pay: 'Pay' }[pwK()]] = true; renderPw(); }
   else if (d.pwfhide) { const s = PW.data[pwK()].find(a => a.id === d.pwfhide); pwRun('pwFlagFin', s.id, !s.isHidden, pwK()).then(pwReload); }
   else if (d.pwfedit) pwOpenFin(PW.data[pwK()].find(a => a.id === d.pwfedit));
   else if (d.pwfdel) { if (confirm('ลบรายการนี้?')) pwRun('pwDeleteFin', d.pwfdel, pwK()).then(() => { toast('ลบแล้ว'); return pwReload(); }); }
@@ -524,10 +526,10 @@ $('pwSlideForm').onsubmit = e => {
 
 function pwOpenFin(s) {
   PW.edit = s;
-  const sup = pwK() === 'sup', sec = sup ? 'งานพัสดุ' : 'งานการเงินและบัญชี';
+  const sup = pwK() === 'sup', pay = pwK() === 'pay', sec = pay ? 'ขั้นตอนชำระเงิน' : sup ? 'งานพัสดุ' : 'งานการเงินและบัญชี';
   $('pwFinH').textContent = (s ? 'แก้ไขรายการ ' : 'เพิ่มรายการ ') + sec;
-  $('pwFType').closest('.col-sm-4').hidden = sup; $('pwFLink').closest('.col-sm-8').hidden = sup; $('pwFLinkT').closest('.col-sm-4').hidden = sup;
-  $('pwFFileL').textContent = sup ? 'ลิงก์เอกสาร / โฟลเดอร์ *' : 'ลิงก์ไฟล์ Google Drive * (แชร์ให้ทุกคนที่มีลิงก์ดูได้)';
+  $('pwFType').closest('.col-sm-4').hidden = sup || pay; $('pwFDate').closest('.col-sm-4').hidden = pay; $('pwFLink').closest('.col-sm-8').hidden = sup; $('pwFLinkT').closest('.col-sm-4').hidden = sup;
+  $('pwFFileL').textContent = pay ? 'รายละเอียด * (ขึ้นบรรทัดใหม่ได้)' : sup ? 'ลิงก์เอกสาร / โฟลเดอร์ *' : 'ลิงก์ไฟล์ Google Drive * (แชร์ให้ทุกคนที่มีลิงก์ดูได้)';
   const y = s ? pwYmd(s.date) : PW.data.today;
   $('pwFDate').value = y || ''; $('pwFDate').dataset.raw = s && !y ? s.date : '';
   $('pwFType').value = s ? s.type : 'video'; $('pwFTitle').value = s ? s.title : ''; $('pwFFile').value = s ? s.fileUrl : '';
