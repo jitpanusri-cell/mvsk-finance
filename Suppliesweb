@@ -249,10 +249,11 @@
     <section class="svc boxed" id="docs">
       <div class="wrap">
         <div class="sh rv"><h2>เอกสารและแบบฟอร์ม</h2></div>
-        <div class="svcs c2">
+        <div class="svcs c2" id="supGrid"></div>
+        <template id="supDefault">
           <a class="sv rv" href="https://drive.google.com/drive/folders/1HpR_5SEKs0a236PJB6Kkex8PgrqAiZB8?usp=drive_link" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-file"/></svg><h3>แบบฟอร์ม ว119</h3></a>
           <a class="sv rv" href="https://drive.google.com/drive/folders/1nxE8cd2eVIBejf8ZolpLUKpIRj_LrDld?usp=drive_link" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-receipt"/></svg><h3>แบบฟอร์มขออนุมัติจัดซื้อจัดจ้าง</h3></a>
-        </div>
+        </template>
       </div>
     </section>
 
@@ -359,6 +360,19 @@
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeNews(); });
 
+    /* เอกสารและแบบฟอร์ม — จากชีต "งานพัสดุ" (null = ยังไม่มีชีต ใช้รายการเดิม) */
+    function renderSup(list) {
+      var g = $('supGrid');
+      if (!list) { g.innerHTML = ''; g.appendChild($('supDefault').content.cloneNode(true)); reveal(); return; }
+      if (!list.length) { $('docs').hidden = true; return; }
+      g.innerHTML = list.map(function (f) {
+        var d = String(f.date || '').replace(/^วันที่\s*/, '').replace(/พ\.ศ\.\s*/, '');
+        return '<a class="sv rv" href="' + esc(safeUrl(f.url)) + '" target="_blank" rel="noopener">' + ico('file', 'lg') +
+          (d ? '<span class="kk">' + esc(d) + '</span>' : '') + '<h3>' + esc(f.title) + '</h3></a>';
+      }).join('');
+      reveal();
+    }
+
     function renderNews(list) {
       var L = (list || []).filter(function (a) { return a.type === NEWS_TYPE; })
         .sort(function (a, b) { return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0); }).slice(0, 3);
@@ -381,7 +395,9 @@
     if (window.google && google.script && google.script.run) google.script.run.withSuccessHandler(function (d) {
       d = d || {};
       renderNews(d.news);
-    }).getHomeData();
+      renderSup(d.sup === undefined ? null : d.sup);
+    }).withFailureHandler(function () { renderSup(null); }).getHomeData();
+    else renderSup(null);
 
     var io = null;
     function reveal() {

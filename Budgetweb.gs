@@ -92,13 +92,13 @@ function embedUrl_(u) {
   if (y) return 'https://www.youtube.com/embed/' + y[1];
   return u;
 }
-function getFinItems() {
-  const sh = sheet_('งานการเงิน');
+function getFinItems(name) {
+  const sh = sheet_(name || 'งานการเงิน');
   if (!sh) return null;
   if (sh.getLastRow() < 2) return [];
   return sh.getRange(2, 1, sh.getLastRow() - 1, 10).getValues()
     .filter(r => str_(r[0]) && str_(r[3]) && str_(r[6]) !== 'HIDDEN')
-    .map(r => ({ type: str_(r[1]) === 'pdf' ? 'pdf' : 'video', title: str_(r[2]), date: str_(r[9]), embed: embedUrl_(r[3]), linkText: str_(r[4]), link: str_(r[5]) }));
+    .map(r => ({ type: str_(r[1]) === 'pdf' || str_(r[1]) === 'link' ? str_(r[1]) : 'video', title: str_(r[2]), date: str_(r[9]), url: str_(r[3]), embed: embedUrl_(r[3]), linkText: str_(r[4]), link: str_(r[5]) }));
 }
 
 function getHomeData() {
@@ -109,7 +109,9 @@ function getHomeData() {
   try { staffUrl = getConf_('staffUrl'); } catch (e) { }
   let fin = null;
   try { fin = getFinItems(); } catch (e) { }
-  return { news: news, slides: slides, staffUrl: staffUrl, fin: fin };
+  let sup = null;
+  try { sup = getFinItems('งานพัสดุ'); } catch (e) { }
+  return { news: news, slides: slides, staffUrl: staffUrl, fin: fin, sup: sup };
 }
 
 /* ---------- หน้า "ยืม ส่งคืน เบิก" สาธารณะ (ไฟล์ Loan สร้างจาก tools/build_loanweb.py) ----------
