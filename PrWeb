@@ -1,0 +1,264 @@
+const PW_ROLES = ['admin', 'finance', 'account', 'exec'];
+const PW_NEWS = 'ประชาสัมพันธ์';
+const PW_SLIDES = 'สไลด์';
+const PW_CONF = 'ตั้งค่าเว็บ';
+const PW_COLS = 24;
+const PW_TYPES = ['alert', 'finance-alert', 'supplies-alert', 'general', 'document'];
+const PW_IMG_FOLDER = '1HSaggL6ChoYQX1W4HbZS-g-5EHe_oGkA';
+
+function pwUser_() {
+  const u = currentUser_();
+  if (PW_ROLES.indexOf(u.role) < 0) throw new Error('ไม่มีสิทธิ์เข้าถึงเมนูประชาสัมพันธ์');
+  return u;
+}
+function pwStr_(v) { return v == null ? '' : String(v).trim(); }
+function pwYmd_(v) {
+  if (!v) return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const s = pwStr_(v);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+}
+function pwNow_() { return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm'); }
+function pwHead_(sh, head) {
+  if (sh.getLastRow() === 0) {
+    sh.appendRow(head);
+    sh.getRange(1, 1, 1, head.length).setFontWeight('bold').setBackground('#13294b').setFontColor('#ffffff');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function pwSs_() {
+  const id = pwStr_(getSetting_('prSheetId'));
+  if (!id) throw new Error('ยังไม่ได้ผูกชีตเว็บไซต์กลุ่มบริหารงานงบประมาณ (แท็บ ตั้งค่า)');
+  try { return SpreadsheetApp.openById(id); }
+  catch (e) { throw new Error('เปิดชีตเว็บไซต์ไม่ได้ — บัญชีที่ Deploy ระบบนี้ต้องมีสิทธิ์แก้ไขชีตนั้น'); }
+}
+function pwNewsSheet_(ss) {
+  const sh = ss.getSheetByName(PW_NEWS) || ss.insertSheet(PW_NEWS);
+  const head = ['รหัส', 'วันที่', 'หัวข้อ', 'รายละเอียด', 'รูปภาพ', 'ประเภท', 'ลิงก์ (JSON)'];
+  for (let i = 1; i <= 6; i++) head.push('ลิงก์ ' + i, 'ชื่อปุ่ม ' + i);
+  head.push('ผู้บันทึก', 'สถานะ', 'ปักหมุด', 'แสดงถึงวันที่', 'แก้ไขล่าสุด');
+  pwHead_(sh, head);
+  if (pwStr_(sh.getRange(1, 22).getValue()) === '')
+    sh.getRange(1, 20, 1, 5).setValues([head.slice(19)]).setFontWeight('bold').setBackground('#13294b').setFontColor('#ffffff');
+  return sh;
+}
+function pwSlideSheet_(ss) {
+  return pwHead_(ss.getSheetByName(PW_SLIDES) || ss.insertSheet(PW_SLIDES),
+    ['รหัส', 'รูปภาพ', 'หัวข้อ', 'ข้อความรอง', 'ลิงก์ปุ่ม', 'ชื่อปุ่ม', 'สถานะ', 'ผู้บันทึก', 'แก้ไขล่าสุด']);
+}
+function pwConfSheet_(ss) {
+  return pwHead_(ss.getSheetByName(PW_CONF) || ss.insertSheet(PW_CONF), ['key', 'value']);
+}
+function pwSetConf_(ss, key, value) {
+  const sh = pwConfSheet_(ss);
+  const v = sh.getDataRange().getValues();
+  for (let i = 1; i < v.length; i++) if (pwStr_(v[i][0]) === key) { if (pwStr_(v[i][1]) !== value) sh.getRange(i + 1, 2).setValue(value); return; }
+  sh.appendRow([key, value]);
+}
+
+function pwRowToNews_(r) {
+  let links = [];
+  for (let c = 7; c < 19; c += 2) if (pwStr_(r[c]) && pwStr_(r[c + 1])) links.push({ url: pwStr_(r[c]), name: pwStr_(r[c + 1]) });
+  if (!links.length && r[6]) { try { links = JSON.parse(r[6]) || []; } catch (e) { links = []; } }
+  const id = pwStr_(r[0]), m = id.match(/^ANN-(\d{10,})/);
+  return {
+    id: id, date: pwStr_(r[1]), title: pwStr_(r[2]), details: pwStr_(r[3]), imageUrl: pwStr_(r[4]),
+    type: PW_TYPES.indexOf(pwStr_(r[5])) >= 0 ? pwStr_(r[5]) : 'general', links: links,
+    by: pwStr_(r[19]), isHidden: pwStr_(r[20]) === 'HIDDEN', pinned: pwStr_(r[21]) === 'PIN',
+    expire: pwYmd_(r[22]), updatedAt: pwStr_(r[23]), createdAt: m ? Number(m[1]) : 0
+  };
+}
+function pwReadNews_(sh) {
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh.getRange(2, 1, n, Math.max(PW_COLS, sh.getLastColumn())).getValues()
+    .filter(r => pwStr_(r[0]) || pwStr_(r[2])).map(pwRowToNews_).reverse();
+}
+function pwReadSlides_(sh) {
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh.getRange(2, 1, n, 9).getValues().filter(r => pwStr_(r[0])).map(r => ({
+    id: pwStr_(r[0]), imageUrl: pwStr_(r[1]), title: pwStr_(r[2]), subtitle: pwStr_(r[3]),
+    link: pwStr_(r[4]), linkText: pwStr_(r[5]), isHidden: pwStr_(r[6]) === 'HIDDEN', by: pwStr_(r[7]), updatedAt: pwStr_(r[8])
+  }));
+}
+function pwFind_(sh, id) {
+  const n = sh.getLastRow();
+  if (n < 2) return 0;
+  const ids = sh.getRange(1, 1, n, 1).getValues();
+  for (let i = 1; i < ids.length; i++) if (pwStr_(ids[i][0]) === pwStr_(id)) return i + 1;
+  return 0;
+}
+
+function getPwData() {
+  const u = pwUser_();
+  const id = pwStr_(getSetting_('prSheetId'));
+  const out = { linked: !!id, canAdmin: u.role === 'admin', today: todayIso_(), items: [], slides: [], sheetUrl: '', sheetName: '', webUrl: '' };
+  if (!id) return out;
+  const ss = pwSs_();
+  pwSetConf_(ss, 'staffUrl', ScriptApp.getService().getUrl() || '');
+  out.sheetUrl = ss.getUrl();
+  out.sheetName = ss.getName();
+  out.webUrl = pwStr_(getSetting_('prWebUrl'));
+  out.items = pwReadNews_(pwNewsSheet_(ss));
+  out.slides = pwReadSlides_(pwSlideSheet_(ss));
+  return out;
+}
+
+function pwSetSetting_(key, label, value) {
+  withLock_(() => {
+    if (!updateObject_('Settings', key, { value: value })) appendObject_('Settings', { key: key, label: label, value: value });
+  });
+}
+function setPwSheet(urlOrId, webUrl) {
+  const u = pwUser_();
+  if (u.role !== 'admin') throw new Error('เฉพาะผู้ดูแลระบบ');
+  const s = pwStr_(urlOrId);
+  const m = s.match(/\/d\/([a-zA-Z0-9_-]{20,})/);
+  const id = m ? m[1] : s;
+  if (id) {
+    let ss;
+    try { ss = SpreadsheetApp.openById(id); } catch (e) { throw new Error('เปิดชีตไม่ได้ ตรวจลิงก์และสิทธิ์แก้ไข'); }
+    pwNewsSheet_(ss); pwSlideSheet_(ss);
+  }
+  pwSetSetting_('prSheetId', 'ชีตเว็บไซต์กลุ่มบริหารงานงบประมาณ (ID)', id);
+  pwSetSetting_('prWebUrl', 'ลิงก์เว็บไซต์กลุ่มบริหารงานงบประมาณ', pwStr_(webUrl));
+  audit_('update', 'Settings', 'prSheetId', { value: id });
+  return getPwData();
+}
+
+function pwSaveNews(o) {
+  const u = pwUser_();
+  o = o || {};
+  const title = pwStr_(o.title);
+  if (!title) throw new Error('กรุณากรอกหัวข้อ');
+  const links = (o.links || []).filter(l => l && pwStr_(l.url) && pwStr_(l.name)).slice(0, 6);
+  const flat = [];
+  for (let i = 0; i < 6; i++) flat.push(links[i] ? pwStr_(links[i].url) : '', links[i] ? pwStr_(links[i].name) : '');
+  const type = PW_TYPES.indexOf(o.type) >= 0 ? o.type : 'general';
+  const ss = pwSs_();
+  return withLock_(() => {
+    const sh = pwNewsSheet_(ss);
+    const body = [pwStr_(o.date), title, String(o.details || ''), pwStr_(o.imageUrl), type, JSON.stringify(links)].concat(flat)
+      .concat([u.name, o.isHidden ? 'HIDDEN' : 'VISIBLE', o.pinned ? 'PIN' : '', pwYmd_(o.expire), pwNow_()]);
+    const row = o.id ? pwFind_(sh, o.id) : 0;
+    let id = o.id;
+    if (row) sh.getRange(row, 2, 1, body.length).setValues([body]);
+    else { id = 'ANN-' + Date.now(); sh.appendRow([id].concat(body)); }
+    audit_(row ? 'update' : 'create', 'WebNews', id, { title: title });
+    return { id: id };
+  });
+}
+
+function pwDeleteNews(id) {
+  pwUser_();
+  const ss = pwSs_();
+  return withLock_(() => {
+    const sh = pwNewsSheet_(ss), row = pwFind_(sh, id);
+    if (!row) throw new Error('ไม่พบประกาศนี้');
+    sh.deleteRow(row);
+    audit_('delete', 'WebNews', id, {});
+    return true;
+  });
+}
+
+function pwFlagNews(id, field, value) {
+  pwUser_();
+  const col = field === 'hidden' ? 21 : field === 'pinned' ? 22 : 0;
+  if (!col) throw new Error('คำสั่งไม่ถูกต้อง');
+  const ss = pwSs_();
+  return withLock_(() => {
+    const sh = pwNewsSheet_(ss), row = pwFind_(sh, id);
+    if (!row) throw new Error('ไม่พบประกาศนี้');
+    sh.getRange(row, col).setValue(field === 'hidden' ? (value ? 'HIDDEN' : 'VISIBLE') : (value ? 'PIN' : ''));
+    audit_('update', 'WebNews', id, { field: field, value: !!value });
+    return true;
+  });
+}
+
+function pwDuplicateNews(id) {
+  const u = pwUser_();
+  const ss = pwSs_();
+  return withLock_(() => {
+    const sh = pwNewsSheet_(ss), row = pwFind_(sh, id);
+    if (!row) throw new Error('ไม่พบประกาศนี้');
+    const r = sh.getRange(row, 1, 1, PW_COLS).getValues()[0];
+    r[0] = 'ANN-' + Date.now(); r[2] = 'สำเนา - ' + pwStr_(r[2]); r[19] = u.name; r[20] = 'HIDDEN'; r[21] = ''; r[23] = pwNow_();
+    sh.appendRow(r);
+    return { id: r[0] };
+  });
+}
+
+function pwReorder_(sh, ids, width, reverse) {
+  const n = sh.getLastRow() - 1;
+  if (n < 2) return;
+  width = Math.max(width, sh.getLastColumn());
+  const rows = sh.getRange(2, 1, n, width).getValues();
+  const pos = {};
+  (reverse ? ids.slice().reverse() : ids).forEach((id, i) => { pos[pwStr_(id)] = i; });
+  const big = reverse ? -1 : 1e9;
+  rows.sort((a, b) => (pos.hasOwnProperty(pwStr_(a[0])) ? pos[pwStr_(a[0])] : big) - (pos.hasOwnProperty(pwStr_(b[0])) ? pos[pwStr_(b[0])] : big));
+  sh.getRange(2, 1, n, width).setValues(rows);
+}
+function pwOrderNews(ids) {
+  pwUser_();
+  const ss = pwSs_();
+  return withLock_(() => { pwReorder_(pwNewsSheet_(ss), ids || [], PW_COLS, true); return true; });
+}
+
+function pwSaveSlide(o) {
+  const u = pwUser_();
+  o = o || {};
+  if (!pwStr_(o.imageUrl)) throw new Error('กรุณาเลือกรูปภาพสไลด์');
+  const ss = pwSs_();
+  return withLock_(() => {
+    const sh = pwSlideSheet_(ss);
+    const body = [pwStr_(o.imageUrl), pwStr_(o.title), pwStr_(o.subtitle), pwStr_(o.link), pwStr_(o.linkText), o.isHidden ? 'HIDDEN' : 'VISIBLE', u.name, pwNow_()];
+    const row = o.id ? pwFind_(sh, o.id) : 0;
+    let id = o.id;
+    if (row) sh.getRange(row, 2, 1, body.length).setValues([body]);
+    else { id = 'SLD-' + Date.now(); sh.appendRow([id].concat(body)); }
+    audit_(row ? 'update' : 'create', 'WebSlide', id, { title: o.title });
+    return { id: id };
+  });
+}
+function pwDeleteSlide(id) {
+  pwUser_();
+  const ss = pwSs_();
+  return withLock_(() => {
+    const sh = pwSlideSheet_(ss), row = pwFind_(sh, id);
+    if (!row) throw new Error('ไม่พบสไลด์นี้');
+    sh.deleteRow(row);
+    return true;
+  });
+}
+function pwFlagSlide(id, hidden) {
+  pwUser_();
+  const ss = pwSs_();
+  return withLock_(() => {
+    const sh = pwSlideSheet_(ss), row = pwFind_(sh, id);
+    if (!row) throw new Error('ไม่พบสไลด์นี้');
+    sh.getRange(row, 7).setValue(hidden ? 'HIDDEN' : 'VISIBLE');
+    return true;
+  });
+}
+function pwOrderSlides(ids) {
+  pwUser_();
+  const ss = pwSs_();
+  return withLock_(() => { pwReorder_(pwSlideSheet_(ss), ids || [], 9, false); return true; });
+}
+
+function pwUpload(dataUrl, fileName) {
+  pwUser_();
+  const parts = String(dataUrl).split(',');
+  const type = (parts[0].match(/:(.*?);/) || [])[1] || '';
+  if (type.indexOf('image') !== 0) throw new Error('รองรับเฉพาะไฟล์รูปภาพ');
+  const blob = Utilities.newBlob(Utilities.base64Decode(parts[1]), type, fileName || 'image.jpg');
+  let folder;
+  try { folder = DriveApp.getFolderById(PW_IMG_FOLDER); } catch (e) { folder = DriveApp.getRootFolder(); }
+  const f = folder.createFile(blob);
+  f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return { url: 'https://drive.google.com/thumbnail?id=' + f.getId() + '&sz=w2000' };
+}

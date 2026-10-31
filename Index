@@ -1186,5 +1186,6 @@
   <?!= include('LedgerUI'); ?>
   <?!= include('ElectricUI'); ?>
   <?!= include('IncomingUI'); ?>
+  <?!= include('PrWebUI'); ?>
 </body>
 </html>
