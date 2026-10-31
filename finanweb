@@ -508,24 +508,6 @@
 
   <main class="pg">
 
-    <section class="svc" id="services">
-      <div class="wrap">
-        <div class="sh rv"><h2>บริการข้อมูล</h2></div>
-        <div class="svcs">
-          <a class="sv rv" href="https://drive.google.com/drive/folders/1MAVZSuX1EqYbylITkW2Agn09qH5XHEIA?usp=sharing" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-file"/></svg><h3>แบบฟอร์มต่างๆ สำหรับครูและบุคลากร</h3></a>
-          <a class="sv rv" href="https://drive.google.com/drive/folders/15tkyyaOcauqCc4JJLilAJgmJBd_7ROIN?usp=sharing" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-receipt"/></svg><h3>ตัวอย่างการกรอกแบบฟอร์ม</h3></a>
-          <a class="sv rv" href="https://schoolbillingdev31.com/SBMVSK/Pages/PrintReportPayInForStudent.aspx" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-card"/></svg><h3>การชำระเงินบำรุงการศึกษา</h3></a>
-          <a class="sv rv" href="https://script.google.com/a/macros/mvsk.ac.th/s/AKfycbxYvQpKdRqI3dPfDj_GhFnIceZ6VBC44qI3IzZSN94rjI4ETdT9dym1nOK44cgriRjoxA/exec" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-sitemap"/></svg><h3>โครงสร้างฝ่ายการเงินและบัญชี</h3></a>
-        </div>
-        <div class="quick rv">
-          <a href="https://drive.google.com/file/d/1zjeZ-AjS92v2coOzxFu01LRL7OB4D1jd/view?usp=sharing" target="_blank" rel="noopener"><svg class="ic"><use href="#i-download"/></svg>คู่มือการเบิกเงินเยี่ยมบ้าน<svg class="ic sm"><use href="#i-arrow"/></svg></a>
-          <a href="https://drive.google.com/file/d/13f1lR8pkpezsddCNb_ex1gvfWb1TZvUf/view?usp=drive_link" target="_blank" rel="noopener"><svg class="ic"><use href="#i-file"/></svg>ประกาศหลักเกณฑ์ มว 69<svg class="ic sm"><use href="#i-arrow"/></svg></a>
-          <a href="#payment" data-go="payment"><svg class="ic"><use href="#i-coins"/></svg>ขั้นตอนชำระเงินบำรุงการศึกษา<svg class="ic sm"><use href="#i-arrow"/></svg></a>
-          <a href="https://script.google.com/a/macros/mvsk.ac.th/s/AKfycbyZJdbVKke-UxMNIs3YzrC_syttaATtJUjXPetrssfBIqf_IDbW-PuaHi8nXS-UyKZZDQ/exec"><svg class="ic"><use href="#i-home"/></svg>กลับหน้ากลุ่มบริหารงานงบประมาณ<svg class="ic sm"><use href="#i-arrow"/></svg></a>
-        </div>
-      </div>
-    </section>
-
     <section id="guides">
       <div class="wrap">
         <div class="sh rv"><h2>งานการเงินและบัญชี</h2></div>
@@ -592,6 +574,24 @@
           </div>
         </div>
         <div class="center rv"><a class="btn-out" href="https://schoolbillingdev31.com/SBMVSK/Pages/PrintReportPayInForStudent.aspx" target="_blank" rel="noopener">ไปที่ระบบชำระเงิน<svg class="ic sm"><use href="#i-external"/></svg></a></div>
+      </div>
+    </section>
+
+    <section id="services">
+      <div class="wrap">
+        <div class="sh rv"><h2>บริการข้อมูล</h2></div>
+        <div class="svcs">
+          <a class="sv rv" href="https://drive.google.com/drive/folders/1MAVZSuX1EqYbylITkW2Agn09qH5XHEIA?usp=sharing" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-file"/></svg><h3>แบบฟอร์มต่างๆ สำหรับครูและบุคลากร</h3></a>
+          <a class="sv rv" href="https://drive.google.com/drive/folders/15tkyyaOcauqCc4JJLilAJgmJBd_7ROIN?usp=sharing" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-receipt"/></svg><h3>ตัวอย่างการกรอกแบบฟอร์ม</h3></a>
+          <a class="sv rv" href="https://schoolbillingdev31.com/SBMVSK/Pages/PrintReportPayInForStudent.aspx" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-card"/></svg><h3>การชำระเงินบำรุงการศึกษา</h3></a>
+          <a class="sv rv" href="https://script.google.com/a/macros/mvsk.ac.th/s/AKfycbxYvQpKdRqI3dPfDj_GhFnIceZ6VBC44qI3IzZSN94rjI4ETdT9dym1nOK44cgriRjoxA/exec" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-sitemap"/></svg><h3>โครงสร้างฝ่ายการเงินและบัญชี</h3></a>
+        </div>
+        <div class="quick rv">
+          <a href="https://drive.google.com/file/d/1zjeZ-AjS92v2coOzxFu01LRL7OB4D1jd/view?usp=sharing" target="_blank" rel="noopener"><svg class="ic"><use href="#i-download"/></svg>คู่มือการเบิกเงินเยี่ยมบ้าน<svg class="ic sm"><use href="#i-arrow"/></svg></a>
+          <a href="https://drive.google.com/file/d/13f1lR8pkpezsddCNb_ex1gvfWb1TZvUf/view?usp=drive_link" target="_blank" rel="noopener"><svg class="ic"><use href="#i-file"/></svg>ประกาศหลักเกณฑ์ มว 69<svg class="ic sm"><use href="#i-arrow"/></svg></a>
+          <a href="#payment" data-go="payment"><svg class="ic"><use href="#i-coins"/></svg>ขั้นตอนชำระเงินบำรุงการศึกษา<svg class="ic sm"><use href="#i-arrow"/></svg></a>
+          <a href="https://script.google.com/a/macros/mvsk.ac.th/s/AKfycbyZJdbVKke-UxMNIs3YzrC_syttaATtJUjXPetrssfBIqf_IDbW-PuaHi8nXS-UyKZZDQ/exec"><svg class="ic"><use href="#i-home"/></svg>กลับหน้ากลุ่มบริหารงานงบประมาณ<svg class="ic sm"><use href="#i-arrow"/></svg></a>
+        </div>
       </div>
     </section>
 
@@ -700,7 +700,7 @@
       g.innerHTML = list.map(function (f) {
         var att = f.type === 'pdf' ? '' : ' allow="autoplay" allowfullscreen';
         return '<article class="nc rv"><div class="media' + (f.type === 'pdf' ? ' doc' : '') + '"><iframe src="' + esc(f.embed) + '"' + att + ' loading="lazy" title="' + esc(f.title) + '"></iframe></div>' +
-          '<div class="nb"><h3 class="tt">' + esc(f.title) + '</h3>' +
+          '<div class="nb">' + (f.date ? '<span class="dt">' + ico('calendar') + esc(String(f.date).replace(/^วันที่\s*/, '').replace(/พ\.ศ\.\s*/, '')) + '</span>' : '') + '<h3 class="tt">' + esc(f.title) + '</h3>' +
           (f.link ? '<a class="rm" href="' + esc(safeUrl(f.link)) + '" target="_blank" rel="noopener">' + esc(f.linkText || 'เปิดดู') + ico('arrow') + '</a>' : '') + '</div></article>';
       }).join('');
       reveal();

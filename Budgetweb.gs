@@ -88,9 +88,9 @@ function getFinItems() {
   const sh = sheet_('งานการเงิน');
   if (!sh) return null;
   if (sh.getLastRow() < 2) return [];
-  return sh.getRange(2, 1, sh.getLastRow() - 1, 7).getValues()
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 10).getValues()
     .filter(r => str_(r[0]) && str_(r[3]) && str_(r[6]) !== 'HIDDEN')
-    .map(r => ({ type: str_(r[1]) === 'pdf' ? 'pdf' : 'video', title: str_(r[2]), embed: embedUrl_(r[3]), linkText: str_(r[4]), link: str_(r[5]) }));
+    .map(r => ({ type: str_(r[1]) === 'pdf' ? 'pdf' : 'video', title: str_(r[2]), date: str_(r[9]), embed: embedUrl_(r[3]), linkText: str_(r[4]), link: str_(r[5]) }));
 }
 
 function getHomeData() {

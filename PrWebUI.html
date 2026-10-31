@@ -204,7 +204,8 @@ document.body.insertAdjacentHTML('beforeend', `
       <div class="modal-body">
         <div class="row g-3">
           <div class="col-sm-4"><label class="flabel" for="pwFType">ประเภท</label><select class="sel w-100" id="pwFType"><option value="video">วิดีโอ</option><option value="pdf">เอกสาร PDF</option></select></div>
-          <div class="col-sm-8"><label class="flabel" for="pwFTitle">หัวข้อ *</label><input class="inp" id="pwFTitle" maxlength="150"></div>
+          <div class="col-sm-4"><label class="flabel" for="pwFDate">วันที่</label><input class="inp" type="date" id="pwFDate"></div>
+          <div class="col-12"><label class="flabel" for="pwFTitle">หัวข้อ *</label><input class="inp" id="pwFTitle" maxlength="150"></div>
           <div class="col-12"><label class="flabel" for="pwFFile">ลิงก์ไฟล์ Google Drive * (แชร์ให้ทุกคนที่มีลิงก์ดูได้)</label><input class="inp" id="pwFFile" placeholder="drive.google.com/file/d/..."></div>
           <div class="col-sm-8"><label class="flabel" for="pwFLink">ลิงก์ปุ่ม</label><input class="inp" id="pwFLink" placeholder="เว้นว่าง = ไม่มีปุ่ม"></div>
           <div class="col-sm-4"><label class="flabel" for="pwFLinkT">ชื่อปุ่ม</label><input class="inp" id="pwFLinkT" placeholder="เช่น ประกาศฉบับเต็ม"></div>
@@ -341,7 +342,7 @@ function renderPwFin() {
   $('pwFin').innerHTML = !L.length ? '<div class="cardx pw-empty" style="grid-column:1/-1">ยังไม่มีรายการ — กด "เพิ่มรายการ" เพื่อใส่วิดีโอหรือ PDF จาก Google Drive</div>' :
     L.map((s, i) => `<div class="pw-slide ${s.isHidden ? 'dim' : ''}">
       <div class="im" style="${pwBg(s.thumb)}"><span class="no">${i + 1}</span><span class="ty">${s.type === 'pdf' ? 'PDF' : 'วิดีโอ'}</span></div>
-      <div class="bd"><div class="grow"><div class="t">${esc(s.title || '(ไม่มีหัวข้อ)')}</div><div class="s">${esc(s.linkText ? 'ปุ่ม: ' + s.linkText : '')}</div></div>
+      <div class="bd"><div class="grow"><div class="t">${esc(s.title || '(ไม่มีหัวข้อ)')}</div><div class="s">${esc([s.date, s.linkText ? 'ปุ่ม: ' + s.linkText : ''].filter(Boolean).join(' · '))}</div></div>
         <div class="pw-act">
           <button class="pw-ib" data-pwfmv="${i}|-1" ${!i ? 'disabled' : ''} title="เลื่อนก่อน">${ic('up')}</button>
           <button class="pw-ib" data-pwfmv="${i}|1" ${i === L.length - 1 ? 'disabled' : ''} title="เลื่อนหลัง">${ic('down')}</button>
@@ -521,13 +522,16 @@ $('pwSlideForm').onsubmit = e => {
 function pwOpenFin(s) {
   PW.edit = s;
   $('pwFinH').textContent = s ? 'แก้ไขรายการ งานการเงินและบัญชี' : 'เพิ่มรายการ งานการเงินและบัญชี';
+  const y = s ? pwYmd(s.date) : PW.data.today;
+  $('pwFDate').value = y || ''; $('pwFDate').dataset.raw = s && !y ? s.date : '';
   $('pwFType').value = s ? s.type : 'video'; $('pwFTitle').value = s ? s.title : ''; $('pwFFile').value = s ? s.fileUrl : '';
   $('pwFLink').value = s ? s.link : ''; $('pwFLinkT').value = s ? s.linkText : ''; $('pwFVis').checked = s ? !s.isHidden : true;
   modal('pwFinModal').show();
 }
+$('pwFDate').onchange = function () { this.dataset.raw = ''; };
 $('pwFinForm').onsubmit = e => {
   e.preventDefault();
-  const o = { id: PW.edit ? PW.edit.id : '', type: $('pwFType').value, title: $('pwFTitle').value.trim(), fileUrl: $('pwFFile').value.trim(),
+  const o = { id: PW.edit ? PW.edit.id : '', type: $('pwFType').value, date: $('pwFDate').dataset.raw || pwThai($('pwFDate').value), title: $('pwFTitle').value.trim(), fileUrl: $('pwFFile').value.trim(),
     link: $('pwFLink').value.trim(), linkText: $('pwFLinkT').value.trim(), isHidden: !$('pwFVis').checked };
   if (!o.title || !o.fileUrl) return toast('กรุณาใส่หัวข้อและลิงก์ไฟล์', true);
   $('pwFinSave').disabled = true;
