@@ -337,6 +337,9 @@
     .quick a:hover .ic:last-child { transform: translateX(4px); color: var(--gold); }
 
     .svcs.c3 { grid-template-columns: repeat(3, 1fr); }
+    #loan .svcs { gap: 20px; }
+    #loan .sv, #loan .sv:first-child { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 24px 26px; transition: transform .35s var(--ease), box-shadow .35s var(--ease), border-color .35s; }
+    #loan .sv:hover { transform: translateY(-4px); border-color: var(--gold); box-shadow: 0 14px 30px rgba(19, 41, 75, .10); }
     .sv .ds { color: var(--ink-3); font-size: 15px; margin-top: -6px; }
     .sh .link-more { order: 2; }
 
@@ -434,6 +437,7 @@
       .sv:nth-child(3) { border-left: 0; padding-left: 0; }
       .svcs.c3 { grid-template-columns: 1fr; }
       .svcs.c3 .sv { border-left: 0; padding-left: 0; }
+      #loan .sv { padding: 20px 22px; border: 1px solid var(--line); }
       .quick { grid-template-columns: repeat(2, 1fr); }
       .feat { gap: 22px; }
       .ngrid { grid-template-columns: repeat(2, 1fr); }
