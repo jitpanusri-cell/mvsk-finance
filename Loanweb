@@ -2105,6 +2105,8 @@ window.__PUBLIC_API = function (fn, args) {
   .pub-bar a { color: inherit; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; }
   .pub-note { background: #FFF7E0; border: 1px solid #F0D58A; color: #7A5A00; border-radius: 10px; padding: 6px 12px; }
   @media print { .pub-bar { display: none !important; } }
+  .pub-direct #page-docs { display: none !important; }
+  .pub-direct .main { min-height: 0; padding: 0; }
 </style>
 <script>
 /* =========================================================
@@ -8965,10 +8967,18 @@ function ktPrintOfficial() {
   bar.className = 'pub-bar';
   bar.innerHTML = '<a href="' + (C.backUrl || '#') + '" target="_top">&larr; กลับหน้างานการเงินและบัญชี</a><span class="pub-note">กรอกแล้วพิมพ์ได้ทันที · ไม่บันทึกข้อมูลเข้าระบบ</span>';
   var pg = document.getElementById('page-docs'); pg.insertBefore(bar, pg.firstChild);
-  loadDocs().then(function () {
-    var t = window.__LOAN_T, b = t && document.querySelector('#dcCards [data-go="' + t + '"]');
-    if (b) b.click();
+  /* เปิดจากการ์ดหน้างานการเงิน (?t=) → เด้งเข้าหน้ากรอกทันที ไม่แวะหน้ารวม ปิดหน้ากรอกแล้วกลับหน้างานการเงิน */
+  var t = window.__LOAN_T, card = t && document.querySelector('#dcCards [data-go="' + t + '"]');
+  if (card) document.body.classList.add('pub-direct');
+  function goBack() {
+    var a = document.createElement('a'); a.href = C.backUrl || '#'; a.target = '_top';
+    document.body.appendChild(a); a.click();
+  }
+  document.addEventListener('hidden.bs.modal', function () {
+    if (!card) return;
+    setTimeout(function () { if (!document.querySelector('.modal.show')) goBack(); }, 50);
   });
+  loadDocs().then(function () { if (card) card.click(); });
 })();
 </script>
 

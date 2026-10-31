@@ -379,6 +379,21 @@
     .mx { position: fixed; top: 16px; right: 20px; width: 44px; height: 44px; border: 0; cursor: pointer; border-radius: 50%; background: #fff; display: grid; place-items: center; color: var(--navy); z-index: 10002; }
     @media (max-width: 640px) { .modal { padding: 0; } .sheet { border-radius: 0; } .sheet .bd { padding: 20px 18px 28px; } .sheet h2 { font-size: 22px; } }
 
+    /* การ์ด ทำสัญญายืม ส่งคืน เบิกเงิน */
+    .lcards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .lc { --c: #2f6fdf; --cb: #e8f0fd; background: #fff; border: 1px solid var(--line); border-top: 6px solid var(--c); border-radius: 18px; padding: 26px 28px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); transition: transform .35s var(--ease), box-shadow .35s var(--ease); }
+    .lc.t2 { --c: #1f8a4c; --cb: #e6f4ec; } .lc.t3 { --c: #d0702a; --cb: #fdefe4; }
+    .lc:hover { transform: translateY(-6px); box-shadow: 0 18px 36px rgba(19, 41, 75, .12); }
+    .lc .li { width: 52px; height: 52px; border-radius: 14px; background: var(--cb); color: var(--c); display: grid; place-items: center; margin-bottom: 12px; }
+    .lc .li .ic { width: 26px; height: 26px; }
+    .lc .lk { color: var(--c); font-family: 'IBM Plex Sans Thai'; font-weight: 600; font-size: 14px; }
+    .lc h3 { font-size: 24px; font-weight: 600; color: var(--ink); }
+    .lc .ld { color: var(--ink-2); font-size: 15px; padding-bottom: 12px; border-bottom: 1px dashed var(--line); }
+    .lc .lg { margin-top: 10px; color: var(--c); font-family: 'IBM Plex Sans Thai'; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+    .lc .lg .ic { transition: transform .25s var(--ease); }
+    .lc:hover .lg .ic { transform: translateX(4px); }
+    @media (max-width: 860px) { .lcards { grid-template-columns: 1fr; gap: 16px; } }
+
     /* คู่มือ / หลักเกณฑ์ (การ์ดแบบเดียวกับข่าว) */
     .feat { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
     .nc { background: #fff; border-radius: 22px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 8px 24px rgba(16, 24, 40, .06); transition: transform .45s var(--ease), box-shadow .45s var(--ease); }
@@ -552,18 +567,18 @@
 
     <section class="svc" id="loan">
       <div class="wrap">
-        <div class="sh rv"><h2>ยืม ส่งคืน เบิก เงินงบประมาณ</h2><a class="link-more" href="<?= getScriptUrl(); ?>?page=Loan" target="_top">กรอกแบบฟอร์ม<svg class="ic"><use href="#i-arrow"/></svg></a></div>
-        <div class="svcs c3">
-          <a class="sv rv" href="<?= getScriptUrl(); ?>?page=Loan&t=loan" target="_top"><svg class="ic lg"><use href="#i-coins"/></svg><h3>สัญญายืมเงิน</h3><span class="go">ทำสัญญายืม<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
-          <a class="sv rv" href="<?= getScriptUrl(); ?>?page=Loan&t=return" target="_top"><svg class="ic lg"><use href="#i-refresh"/></svg><h3>ส่งคืนเงินยืม</h3><span class="go">ส่งใช้เงินยืม<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
-          <a class="sv rv" href="<?= getScriptUrl(); ?>?page=Loan&t=adv" target="_top"><svg class="ic lg"><use href="#i-receipt"/></svg><h3>ขอเบิกเงิน</h3><span class="go">ขอเบิกเงิน<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
+        <div class="sh rv"><h2>ทำสัญญายืม ส่งคืน เบิกเงิน</h2></div>
+        <div class="lcards">
+          <a class="lc t1 rv" href="<?= getScriptUrl(); ?>?page=Loan&t=loan" target="_top"><span class="li"><svg class="ic"><use href="#i-file"/></svg></span><span class="lk">ขั้นที่ 1</span><h3>สัญญายืมเงิน</h3><span class="ld">ส่งคืนภายใน 30 วัน · ไปราชการ 15 วันหลังกลับ</span><span class="lg">เริ่มกรอกสัญญา<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
+          <a class="lc t2 rv" href="<?= getScriptUrl(); ?>?page=Loan&t=return" target="_top"><span class="li"><svg class="ic"><use href="#i-check"/></svg></span><span class="lk">ขั้นที่ 2</span><h3>ส่งคืนเงินยืม</h3><span class="ld">หลักฐาน + เงินสดคืน = ยอดยืม</span><span class="lg">ส่งคืนเงินยืม<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
+          <a class="lc t3 rv" href="<?= getScriptUrl(); ?>?page=Loan&t=adv" target="_top"><span class="li"><svg class="ic"><use href="#i-download"/></svg></span><span class="lk">สำรองจ่าย</span><h3>เบิกเงิน</h3><span class="ld">สำรองจ่ายไปก่อน แล้วนำหลักฐานมาเบิก</span><span class="lg">ขอเบิกเงิน<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
         </div>
       </div>
     </section>
 
     <section class="news" id="news" hidden>
       <div class="wrap">
-        <div class="sh rv"><h2>ประชาสัมพันธ์งานการเงิน</h2><a class="link-more" href="<?= getScriptUrl(); ?>" target="_top">ข่าวทั้งหมด<svg class="ic"><use href="#i-arrow"/></svg></a></div>
+        <div class="sh rv"><h2>ประชาสัมพันธ์งานการเงินและบัญชี</h2><a class="link-more" href="<?= getScriptUrl(); ?>" target="_top">ข่าวทั้งหมด<svg class="ic"><use href="#i-arrow"/></svg></a></div>
         <div class="ngrid" id="newsGrid"></div>
       </div>
     </section>
@@ -722,7 +737,7 @@
       }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
       var i = 0;
       els.forEach(function (el) {
-        if (el.classList.contains('sv') || el.classList.contains('st') || el.classList.contains('nc')) el.style.transitionDelay = (i++ % 4) * 0.08 + 's';
+        if (el.classList.contains('sv') || el.classList.contains('st') || el.classList.contains('nc') || el.classList.contains('lc')) el.style.transitionDelay = (i++ % 4) * 0.08 + 's';
         io.observe(el);
       });
     }
