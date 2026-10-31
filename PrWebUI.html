@@ -175,7 +175,7 @@ document.body.insertAdjacentHTML('beforeend', `
             <label class="flabel">รูปภาพ (เพิ่มได้หลายรูป · ระบบตัดเป็น 1000 × 750 · รูปแรกเป็นรูปหน้าปก · เลื่อนสไลด์ทุก 7 วินาที)</label>
             <div class="pw-gal" id="pwGal"></div>
             <div class="d-flex gap-2 mt-2 flex-wrap">
-              <label class="btnx sec sm" style="cursor:pointer">${ic('upload')}เลือกรูป (หลายรูปได้)<input type="file" id="pwFile" accept="image/*" multiple hidden></label>
+              <label class="btnx sec sm" style="cursor:pointer">${ic('upload')}เลือกรูป (หลายรูปได้)<input type="file" id="pwFile" accept="image/&#42;" multiple hidden></label>
               <input class="inp" id="pwImg" placeholder="หรือวางลิงก์รูปแล้วกด เพิ่ม" style="max-width:340px;min-height:36px">
               <button type="button" class="btnx sec sm" id="pwImgAdd">เพิ่ม</button>
             </div>
@@ -229,7 +229,7 @@ document.body.insertAdjacentHTML('beforeend', `
             <div class="pw-img">
               <div class="pv slide" id="pwSImgPv" style="width:280px"></div>
               <div style="flex:1;min-width:220px">
-                <input type="file" class="inp" id="pwSFile" accept="image/*" style="padding-top:9px">
+                <input type="file" class="inp" id="pwSFile" accept="image/&#42;" style="padding-top:9px">
                 <input class="inp mt-2" id="pwSImg" placeholder="หรือวางลิงก์รูป">
               </div>
             </div>
