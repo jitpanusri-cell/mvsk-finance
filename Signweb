@@ -1,0 +1,19 @@
+<script>
+function loginAndRedirect() {
+
+  google.script.run.withSuccessHandler(function(res) {
+
+    if (!res) {
+      alert("ระบบไม่ตอบกลับ");
+      return;
+    }
+
+    if (res.ok) {
+      window.open(res.url + "?page=Teacher", "_top");
+    } else {
+      alert(res.message);
+    }
+
+  }).checkLogin();
+}
+</script>
