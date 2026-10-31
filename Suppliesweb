@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>งานพัสดุและสินทรัพย์ - โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</title>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    html, body { 
+      height: 100%; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; 
+    }
+    body { 
+      font-family: 'Prompt', sans-serif; 
+      background-color: #f0f4f8; 
+      color: #1e293b;
+    }
+    
+    .main-container { 
+      max-width: 1140px; 
+      margin: 0 auto; 
+      background-color: #ffffff;
+      min-height: 100vh;
+      box-shadow: 0 0 20px rgba(0,0,0,0.05);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ==========================================
+       SECTION 1: HEADER
+       ========================================== */
+    .site-header {
+      background: linear-gradient(-45deg, #002b5e, #1e3a8a, #004a9f, #1e293b);
+      background-size: 300% 300%;
+      animation: gradientMove 15s ease infinite; 
+      padding: 35px 15px; 
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      color: #ffffff;
+      position: relative;
+      overflow: hidden; 
+      border-bottom: 5px solid #fbbc04; 
+      z-index: 10;
+    }
+
+    .site-header::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 50%; height: 100%;
+      background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
+      transform: skewX(-25deg);
+      animation: shineSweep 15s infinite ease-in-out; 
+      z-index: 1;
+    }
+
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    @keyframes shineSweep {
+      0% { left: -100%; }
+      40% { left: 200%; } 
+      100% { left: 200%; } 
+    }
+
+    .header-content { z-index: 2; position: relative; }
+    
+    .site-header img.logo {
+      width: 90px; 
+      height: auto;
+      margin-bottom: 15px;
+      filter: drop-shadow(0 6px 10px rgba(0,0,0,0.3));
+    }
+
+    .dept-title {
+      font-size: 28px; 
+      font-weight: 700;
+      color: #fbbc04; 
+      text-shadow: 0 2px 10px rgba(251, 188, 4, 0.4), 0 2px 4px rgba(0,0,0,0.6);
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+      word-break: keep-all; 
+    }
+
+    .school-subtitle-th {
+      display: block; 
+      font-size: 16px;
+      font-weight: 500;
+      color: #ffffff;
+      letter-spacing: 0.5px;
+      word-break: keep-all;
+      margin-top: 5px;
+    }
+
+    .school-subtitle-en {
+      display: block; 
+      font-size: 11px;
+      font-weight: 300;
+      color: #e2e8f0;
+      letter-spacing: 0.5px;
+      word-break: keep-all;
+      margin-top: 3px;
+      text-transform: uppercase;
+    }
+
+    /* ==========================================
+       SECTION: เนื้อหาหลัก & BACKGROUND ORBS
+       ========================================== */
+    .content-wrapper { 
+      padding: 30px 15px 60px 15px; 
+      position: relative;
+      z-index: 2;
+    }
+
+    .content-wrapper::before {
+      content: '';
+      position: absolute;
+      top: 100px; left: -100px;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(251,188,4,0.12) 0%, rgba(255,255,255,0) 70%);
+      border-radius: 50%;
+      z-index: -1;
+    }
+    .content-wrapper::after {
+      content: '';
+      position: absolute;
+      bottom: 100px; right: -100px;
+      width: 350px; height: 350px;
+      background: radial-gradient(circle, rgba(0,43,94,0.08) 0%, rgba(255,255,255,0) 70%);
+      border-radius: 50%;
+      z-index: -1;
+    }
+
+    .section-title {
+      background: rgba(0, 43, 94, 0.7); 
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: #ffffff; 
+      font-size: 18px; 
+      font-weight: 600; 
+      padding: 12px 20px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-left: 6px solid #fbbc04;
+      margin-bottom: 20px; 
+      margin-top: 15px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+      display: flex; 
+      align-items: center;
+      word-break: keep-all;
+    }
+
+    /* ==========================================
+       GLASSMORPHISM MENU CARDS 
+       ========================================== */
+    .menu-grid {
+      display: grid; 
+      grid-template-columns: 1fr; 
+      gap: 15px; 
+      margin-bottom: 40px;
+    }
+    
+    .menu-card {
+      background: rgba(255, 255, 255, 0.1); 
+      backdrop-filter: blur(25px); 
+      -webkit-backdrop-filter: blur(25px);
+      border: 0.5px solid rgba(255, 255, 255, 0.3); 
+      border-radius: 20px; 
+      padding: 24px;
+      text-align: left; 
+      text-decoration: none; 
+      color: #1e293b;
+      position: relative;
+      min-height: 140px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.03), inset 0 0 1px rgba(255,255,255,0.4);
+      transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    
+    .card-title { 
+      font-size: 16px; 
+      font-weight: 600; 
+      line-height: 1.4; 
+      color: #0f172a;
+      word-break: keep-all;
+    }
+    
+    .card-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-top: 15px;
+    }
+    
+    .icon-wrapper { 
+      width: 42px; height: 42px;
+      background: rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(5px);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+      border: 0.5px solid rgba(255,255,255,0.2);
+    }
+    .icon-svg { width: 22px; height: 22px; fill: #002b5e; transition: fill 0.3s; }
+    
+    .arrow-circle {
+      width: 32px; height: 32px;
+      background: rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #64748b;
+      font-size: 16px;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+
+    .menu-card:hover { 
+      background: rgba(0, 43, 94, 0.5); 
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-4px);
+    }
+    .menu-card:hover .card-title { color: #ffffff; }
+    .menu-card:hover .icon-wrapper { background: rgba(255, 255, 255, 0.1); border-color: rgba(255,255,255,0.1); }
+    .menu-card:hover .icon-svg { fill: #fbbc04; }
+    .menu-card:hover .arrow-circle { background: #fbbc04; color: #002b5e; transform: translateX(3px); }
+
+    /* ==========================================
+       FOOTER
+       ========================================== */
+    .footer-bar { 
+      background: #1e293b; 
+      padding: 25px 15px; text-align: center; 
+      font-size: 13px; color: #e2e8f0; 
+      word-break: keep-all; line-height: 1.6; border-top: 4px solid #0f172a;
+      position: relative;
+      z-index: 10;
+    }
+
+    /* ==========================================
+       DESKTOP OPTIMIZATION (จอใหญ่)
+       ========================================== */
+    @media (min-width: 768px) {
+      .site-header { padding: 60px 40px; }
+      .site-header img.logo { width: 120px; margin-bottom: 20px; }
+      .dept-title { font-size: 48px; margin-bottom: 12px; }
+      .school-subtitle-th { font-size: 22px; }
+      .school-subtitle-en { font-size: 14px; }
+      
+      .content-wrapper { padding: 50px; }
+      .section-title { font-size: 22px; padding: 18px 30px; margin-bottom: 30px; }
+      
+      .menu-grid { grid-template-columns: repeat(2, 1fr); gap: 30px; max-width: 900px; margin: 0 auto 50px auto; } 
+      .menu-card { min-height: 200px; padding: 35px; border-radius: 24px; }
+      .card-title { font-size: 20px; }
+      .icon-wrapper { width: 56px; height: 56px; }
+      .icon-svg { width: 30px; height: 30px; }
+      
+      .footer-bar { font-size: 14px; padding: 30px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="main-container">
+    
+    <div class="site-header">
+      <div class="header-content">
+        <img src="https://www.mvsk.ac.th/images/logo.png" alt="MVSK LOGO" class="logo" onerror="this.src='https://lh3.googleusercontent.com/d/1PVf5EA7ntHrhJBLbwOuobqWfd9mvscY8'">
+        <h1 class="dept-title">งานพัสดุและสินทรัพย์</h1>
+        <span class="school-subtitle-th">โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</span>
+        <span class="school-subtitle-en">MAHAVAJIRAVUDH CHANGWATSONGKHLA SCHOOL</span>
+      </div>
+    </div>
+
+    <div class="content-wrapper">
+      
+      <div class="section-title">เอกสารและแบบฟอร์ม</div>
+      
+      <div class="menu-grid">
+        <a href="https://drive.google.com/drive/folders/1HpR_5SEKs0a236PJB6Kkex8PgrqAiZB8?usp=drive_link" target="_blank" class="menu-card">
+          <div class="card-title">แบบฟอร์ม ว119</div>
+          <div class="card-bottom">
+            <div class="icon-wrapper">
+              <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+            </div>
+            <div class="arrow-circle">→</div>
+          </div>
+        </a>
+        
+        <a href="https://drive.google.com/drive/folders/1nxE8cd2eVIBejf8ZolpLUKpIRj_LrDld?usp=drive_link" target="_blank" class="menu-card">
+          <div class="card-title">แบบฟอร์ม<br>ขออนุมัติจัดซื้อจัดจ้าง</div>
+          <div class="card-bottom">
+            <div class="icon-wrapper">
+              <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+            </div>
+            <div class="arrow-circle">→</div>
+          </div>
+        </a>
+      </div>
+
+    </div> 
+    
+    <div class="footer-bar">
+      <strong>📞 ติดต่อสอบถามข้อมูลเพิ่มเติม</strong><br>
+      งานพัสดุและสินทรัพย์ โรงเรียนมหาวชิราวุธ จังหวัดสงขลา <br>
+      โทรศัพท์: 074-311006
+    </div>
+
+  </div>
+</body>
+</html>
