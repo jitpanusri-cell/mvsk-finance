@@ -11,9 +11,6 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     
-    html, body { 
-      height: 100%; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; 
-    }
     body { 
       font-family: 'Prompt', sans-serif; 
       background-color: #f8f9fb; 
@@ -360,6 +357,28 @@
     .nc:hover .rm { color: var(--gold); }
     .nc:hover .rm .ic { transform: translateX(6px); }
 
+    /* ป๊อปอัพอ่านข่าว */
+    .modal { position: fixed; inset: 0; z-index: 10001; background: rgba(11, 26, 51, .6); display: none; justify-content: center; align-items: flex-start; padding: 48px 16px; overflow-y: auto; opacity: 0; transition: opacity .25s; }
+    .modal.on { display: flex; } .modal.show { opacity: 1; }
+    .sheet { background: #fff; width: 100%; max-width: 860px; border-radius: 22px; overflow: hidden; transform: translateY(16px); transition: transform .3s var(--ease); font-family: 'Sarabun', sans-serif; color: var(--ink); line-height: 1.65; }
+    .modal.show .sheet { transform: none; }
+    .sheet .ph .im { opacity: 0; transition: opacity .6s var(--ease); } .sheet .ph .im.on { opacity: 1; }
+    .sheet .nav2 { position: absolute; top: 50%; transform: translateY(-50%); z-index: 3; width: 44px; height: 44px; border: 0; cursor: pointer; border-radius: 50%; background: rgba(255, 255, 255, .9); color: var(--navy); display: grid; place-items: center; box-shadow: 0 4px 12px rgba(0, 0, 0, .15); }
+    .sheet .nav2.l { left: 14px; } .sheet .nav2.r { right: 14px; }
+    .sheet .bd { padding: 28px 36px 36px; }
+    .sheet h2 { font-family: 'IBM Plex Sans Thai'; font-size: 26px; color: var(--navy); font-weight: 600; line-height: 1.35; }
+    .sheet .content { margin-top: 18px; font-size: 16.5px; line-height: 1.8; overflow-wrap: anywhere; }
+    .sheet .content ul, .sheet .content ol { padding-left: 1.4em; }
+    .sheet .content a { color: #1d4ed8; text-decoration: underline; }
+    .sheet .dl { margin-top: 24px; border-top: 1px solid var(--line); }
+    .sheet .dl a { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); color: var(--navy); font-weight: 500; text-decoration: none; }
+    .sheet .dl a:hover { color: var(--gold); }
+    .sheet .dl a .ic:last-child { margin-left: auto; }
+    .sheet .ft { display: flex; justify-content: flex-end; margin-top: 28px; }
+    .sheet .btn-out { background: none; cursor: pointer; font-size: 15px; }
+    .mx { position: fixed; top: 16px; right: 20px; width: 44px; height: 44px; border: 0; cursor: pointer; border-radius: 50%; background: #fff; display: grid; place-items: center; color: var(--navy); z-index: 10002; }
+    @media (max-width: 640px) { .modal { padding: 0; } .sheet { border-radius: 0; } .sheet .bd { padding: 20px 18px 28px; } .sheet h2 { font-size: 22px; } }
+
     /* คู่มือ / หลักเกณฑ์ (การ์ดแบบเดียวกับข่าว) */
     .feat { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
     .nc { background: #fff; border-radius: 22px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 8px 24px rgba(16, 24, 40, .06); transition: transform .45s var(--ease), box-shadow .45s var(--ease); }
@@ -487,16 +506,9 @@
 
   <main class="pg">
 
-    <section id="news" hidden>
-      <div class="wrap">
-        <div class="sh rv"><h2>ประชาสัมพันธ์งานการเงิน</h2><a class="link-more" href="<?= getScriptUrl(); ?>" target="_top">ข่าวทั้งหมด<svg class="ic"><use href="#i-arrow"/></svg></a></div>
-        <div class="ngrid" id="newsGrid"></div>
-      </div>
-    </section>
-
     <section class="svc" id="services">
       <div class="wrap">
-        <div class="sh rv"><h2>บริการข้อมูล</h2><p>แบบฟอร์ม ตัวอย่าง และช่องทางชำระเงินสำหรับครู บุคลากร และผู้ปกครอง</p></div>
+        <div class="sh rv"><h2>บริการข้อมูล</h2></div>
         <div class="svcs">
           <a class="sv rv" href="https://drive.google.com/drive/folders/1MAVZSuX1EqYbylITkW2Agn09qH5XHEIA?usp=sharing" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-file"/></svg><h3>แบบฟอร์มต่างๆ สำหรับครูและบุคลากร</h3><span class="go">เปิดโฟลเดอร์แบบฟอร์ม<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
           <a class="sv rv" href="https://drive.google.com/drive/folders/15tkyyaOcauqCc4JJLilAJgmJBd_7ROIN?usp=sharing" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-receipt"/></svg><h3>ตัวอย่างการกรอกแบบฟอร์ม</h3><span class="go">ดูตัวอย่าง<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
@@ -512,20 +524,9 @@
       </div>
     </section>
 
-    <section class="loan" id="loan">
-      <div class="wrap">
-        <div class="sh rv"><h2>ยืม ส่งคืน เบิก เงินงบประมาณ</h2><a class="link-more" href="#" data-sys="docs">เข้าสู่ระบบ<svg class="ic"><use href="#i-arrow"/></svg></a><p>กรอกข้อมูลครั้งเดียว ระบบจัดทำเอกสารราชการให้พร้อมพิมพ์ และบันทึกเข้าระบบการเงินทุกรายการ (เข้าด้วยบัญชี @mvsk.ac.th)</p></div>
-        <div class="svcs c3">
-          <a class="sv rv" href="#" data-sys="docs"><svg class="ic lg"><use href="#i-coins"/></svg><h3>สัญญายืมเงิน</h3><p class="ds">ยืมเพื่อจัดกิจกรรม/โครงการ หรือเดินทางไปราชการ พร้อมสัญญาการยืมเงิน (แบบ 206)</p><span class="go">ทำสัญญายืม<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
-          <a class="sv rv" href="#" data-sys="docs"><svg class="ic lg"><use href="#i-refresh"/></svg><h3>ส่งคืนเงินยืม</h3><p class="ds">ส่งใช้เงินยืมพร้อมหลักฐานการจ่าย ภายใน 30 วัน (กิจกรรม) หรือ 15 วัน (เดินทาง)</p><span class="go">ส่งใช้เงินยืม<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
-          <a class="sv rv" href="#" data-sys="docs"><svg class="ic lg"><use href="#i-receipt"/></svg><h3>ขอเบิกเงิน</h3><p class="ds">เบิกค่าจัดกิจกรรม จัดซื้อ หรือค่าเดินทางไปราชการ โดยไม่ต้องยืม</p><span class="go">ขอเบิกเงิน<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
-        </div>
-      </div>
-    </section>
-
     <section id="guides">
       <div class="wrap">
-        <div class="sh rv"><h2>คู่มือและหลักเกณฑ์การเบิกจ่าย</h2></div>
+        <div class="sh rv"><h2>งานการเงินและบัญชี</h2></div>
         <div class="feat">
           <article class="nc rv">
             <div class="media">
@@ -533,7 +534,6 @@
             </div>
             <div class="nb">
               <h3 class="tt">วิดีโอแนะนำขั้นตอนการเบิกเงินเยี่ยมบ้าน</h3>
-              <p class="ex">ดูขั้นตอนการจัดทำเอกสารและการเบิกเงินค่าเยี่ยมบ้านนักเรียนตั้งแต่ต้นจนจบ</p>
               <a class="rm" href="https://drive.google.com/file/d/1zjeZ-AjS92v2coOzxFu01LRL7OB4D1jd/view?usp=sharing" target="_blank" rel="noopener">คู่มือการเบิกเงิน<svg class="ic"><use href="#i-arrow"/></svg></a>
             </div>
           </article>
@@ -543,11 +543,28 @@
             </div>
             <div class="nb">
               <h3 class="tt">หลักเกณฑ์และอัตราการเบิกจ่าย (มว 69)</h3>
-              <p class="ex">อัตราค่าใช้จ่ายและเงื่อนไขการเบิกจ่ายตามประกาศของโรงเรียน</p>
               <a class="rm" href="https://drive.google.com/file/d/13f1lR8pkpezsddCNb_ex1gvfWb1TZvUf/view?usp=drive_link" target="_blank" rel="noopener">ประกาศฉบับเต็ม<svg class="ic"><use href="#i-arrow"/></svg></a>
             </div>
           </article>
         </div>
+      </div>
+    </section>
+
+    <section class="svc" id="loan">
+      <div class="wrap">
+        <div class="sh rv"><h2>ยืม ส่งคืน เบิก เงินงบประมาณ</h2><a class="link-more" href="#" data-sys="docs">เปิดระบบ<svg class="ic"><use href="#i-arrow"/></svg></a></div>
+        <div class="svcs c3">
+          <a class="sv rv" href="#" data-sys="docs"><svg class="ic lg"><use href="#i-coins"/></svg><h3>สัญญายืมเงิน</h3><span class="go">ทำสัญญายืม<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
+          <a class="sv rv" href="#" data-sys="docs"><svg class="ic lg"><use href="#i-refresh"/></svg><h3>ส่งคืนเงินยืม</h3><span class="go">ส่งใช้เงินยืม<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
+          <a class="sv rv" href="#" data-sys="docs"><svg class="ic lg"><use href="#i-receipt"/></svg><h3>ขอเบิกเงิน</h3><span class="go">ขอเบิกเงิน<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="news" id="news" hidden>
+      <div class="wrap">
+        <div class="sh rv"><h2>ประชาสัมพันธ์งานการเงิน</h2><a class="link-more" href="<?= getScriptUrl(); ?>" target="_top">ข่าวทั้งหมด<svg class="ic"><use href="#i-arrow"/></svg></a></div>
+        <div class="ngrid" id="newsGrid"></div>
       </div>
     </section>
 
@@ -595,6 +612,10 @@
     <div class="bt"><div class="wrap"><span>© 2569 กลุ่มบริหารงานงบประมาณ โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</span><img src="https://hits.sh/mvsk.ac.th/budget_home.svg?style=flat&label=views&color=13294b&labelColor=555555" alt="" height="20"></div></div>
   </footer>
 
+  <div class="modal" id="modal" role="dialog" aria-modal="true">
+    <button class="mx" data-close aria-label="ปิด"><svg class="ic"><use href="#i-x"/></svg></button>
+    <article class="sheet" id="sheet"></article>
+  </div>
   <span id="baseUrl" hidden><?= getScriptUrl(); ?></span>
   <script>
     function $(id) { return document.getElementById(id); }
@@ -619,22 +640,69 @@
     function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
     function ico(n, c) { return '<svg class="ic ' + (c || '') + '"><use href="#i-' + n + '"/></svg>'; }
     function plain(h) { var d = new DOMParser().parseFromString('<div>' + String(h || '').replace(/<br\s*\/?>/gi, ' ') + '</div>', 'text/html'); return (d.body.textContent || '').replace(/[\u2600-\u27BF\uFE0F]|[\uD83C-\uDBFF][\uDC00-\uDFFF]/g, '').replace(/\s+/g, ' ').trim(); }
-    var BASE = ($('baseUrl').textContent || '').trim(), SYS = '';
+    var BASE = ($('baseUrl').textContent || '').trim(), SYS = '', NEWS = [];
+    function safeUrl(u) { return /^(https?:|mailto:)/i.test(String(u || '').trim()) ? u : '#'; }
+    var OK = 'B STRONG I EM U BR P DIV SPAN FONT UL OL LI A H1 H2 H3 H4 BLOCKQUOTE HR SMALL SUB SUP'.split(' ');
+    function clean(html) {
+      var doc = new DOMParser().parseFromString('<div>' + (html || '') + '</div>', 'text/html'), root = doc.body.firstChild;
+      (function walk(el) {
+        Array.prototype.slice.call(el.children).forEach(function (c) {
+          if (OK.indexOf(c.tagName) < 0) {
+            if (/^(SCRIPT|STYLE|IFRAME|OBJECT|EMBED|FORM|INPUT|TEXTAREA|BUTTON)$/.test(c.tagName)) { c.remove(); return; }
+            var sp = doc.createElement('span'); while (c.firstChild) sp.appendChild(c.firstChild); c.replaceWith(sp); walk(sp); return;
+          }
+          Array.prototype.slice.call(c.attributes).forEach(function (at) {
+            var n = at.name.toLowerCase();
+            if (n === 'href') { if (safeUrl(at.value) === '#') c.removeAttribute('href'); }
+            else if (n === 'style') c.setAttribute('style', (at.value.match(/(color|font-weight|font-size|text-align)\s*:[^;]+/gi) || []).join(';'));
+            else if (!(c.tagName === 'FONT' && /^(color|size|face)$/.test(n))) c.removeAttribute(at.name);
+          });
+          if (c.tagName === 'A') { c.setAttribute('target', '_blank'); c.setAttribute('rel', 'noopener'); }
+          walk(c);
+        });
+      })(root);
+      return root.innerHTML;
+    }
+    function openNews(id) {
+      var a = NEWS.filter(function (x) { return x.id === id; })[0]; if (!a) return;
+      var I = (a.images && a.images.length) ? a.images : (a.imageUrl ? [a.imageUrl] : []), links = a.links || [];
+      var date = String(a.date || '').replace(/^วันที่\s*/, '').replace(/พ\.ศ\.\s*/, '');
+      $('sheet').innerHTML = (I.length ? '<div class="ph" data-k="0" data-n="' + I.length + '">' + I.map(function (u, i) { return '<div class="im' + (i ? '' : ' on') + '" style="background-image:url(&quot;' + esc(u) + '&quot;)"></div>'; }).join('') +
+          (I.length > 1 ? '<button class="nav2 l" data-gal="-1" aria-label="รูปก่อนหน้า"><svg class="ic sm" style="transform:rotate(180deg)"><use href="#i-arrow"/></svg></button><button class="nav2 r" data-gal="1" aria-label="รูปถัดไป">' + ico('arrow', 'sm') + '</button>' : '') + '</div>' : '') +
+        '<div class="bd">' + (date ? '<span class="dt">' + ico('calendar') + esc(date) + '</span>' : '') + '<h2>' + esc(a.title) + '</h2>' +
+        '<div class="content">' + clean(a.details) + '</div>' +
+        (links.length ? '<div class="dl">' + links.map(function (l) { return '<a href="' + esc(safeUrl(l.url)) + '" target="_blank" rel="noopener">' + ico('file') + esc(l.name) + ico('download', 'sm') + '</a>'; }).join('') + '</div>' : '') +
+        '<div class="ft"><button class="btn-out" data-close>ปิด</button></div></div>';
+      var m = $('modal'); m.classList.add('on'); document.body.style.overflow = 'hidden';
+      requestAnimationFrame(function () { m.classList.add('show'); m.scrollTop = 0; });
+    }
+    function closeNews() { var m = $('modal'); if (!m.classList.contains('on')) return; m.classList.remove('show'); setTimeout(function () { m.classList.remove('on'); }, 250); document.body.style.overflow = ''; }
+    function gal(ph, k) {
+      var n = Number(ph.dataset.n), i = ((Number(ph.dataset.k) + k) % n + n) % n; ph.dataset.k = i;
+      ph.querySelectorAll('.im').forEach(function (el, j) { el.classList.toggle('on', j === i); });
+    }
+    document.addEventListener('click', function (e) {
+      var t = e.target, g = t.closest('[data-gal]');
+      if (g) { gal(g.closest('.ph'), Number(g.dataset.gal)); return; }
+      var o = t.closest('[data-open]'); if (o) { openNews(o.dataset.open); return; }
+      if (t.closest('[data-close]') || t === $('modal')) closeNews();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeNews(); });
 
     function renderNews(list) {
       var L = (list || []).filter(function (a) { return a.type === 'finance-alert'; })
         .sort(function (a, b) { return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0); }).slice(0, 3);
-      if (!L.length) return;
+      NEWS = L; if (!L.length) return;
       $('newsGrid').innerHTML = L.map(function (a) {
         var img = (a.images && a.images[0]) || a.imageUrl || '';
         var date = String(a.date || '').replace(/^วันที่\s*/, '').replace(/พ\.ศ\.\s*/, '');
         var ex = plain(a.details);
-        return '<a class="nc rv" target="_top" href="' + esc(BASE + '?news=' + encodeURIComponent(a.id)) + '">' +
+        return '<article class="nc rv" data-open="' + esc(a.id) + '">' +
           '<div class="ph">' + (img ? '<div class="im" style="background-image:url(&quot;' + esc(img) + '&quot;)"></div>' : '<div class="none">' + ico('megaphone') + '</div>') +
           '<div class="badges">' + (a.pinned ? '<span class="pin">' + ico('pin', 'sm') + 'ปักหมุด</span>' : '') + '<span>งานการเงิน</span></div></div>' +
           '<div class="nb">' + (date ? '<span class="dt">' + ico('calendar') + esc(date) + '</span>' : '') +
           '<h3 class="tt">' + esc(a.title) + '</h3>' + (ex ? '<p class="ex">' + esc(ex) + '</p>' : '') +
-          '<span class="rm">อ่านต่อ' + ico('arrow') + '</span></div></a>';
+          '<span class="rm">อ่านต่อ' + ico('arrow') + '</span></div></article>';
       }).join('');
       $('news').hidden = false;
       reveal();

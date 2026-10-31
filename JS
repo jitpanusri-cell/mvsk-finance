@@ -287,7 +287,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderShell();
     renderGFy();
     renderTermSeg();
-    const start = await startPageParam();
+    const start = (await startPageParam()) || (S.boot.user.pages.includes('dashboard') ? '' : S.boot.user.pages[0]);
     if (start) { loading(false); go(start); } else await loadDashboard();
     swrPrune();
     setTimeout(swrPrefetch, 800);
