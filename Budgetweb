@@ -24,33 +24,43 @@
     .ic.sm { width: 16px; height: 16px; } .ic.lg { width: 30px; height: 30px; stroke-width: 1.3; }
     .wrap { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
 
-    .util { background: var(--navy-2); color: #b9c3d3; font-size: 13.5px; }
-    .util .wrap { display: flex; justify-content: flex-end; gap: 22px; height: 34px; align-items: center; }
-    .util a:hover { color: #fff; }
-    .util .staff { color: var(--gold-2); display: inline-flex; align-items: center; gap: 6px; }
 
-    .head { position: sticky; top: 0; z-index: 60; background: #fff; transition: box-shadow .3s; }
-    .head.scrolled { box-shadow: 0 1px 0 var(--line), 0 6px 20px rgba(11, 26, 51, .06); }
-    .head .wrap { display: flex; align-items: center; gap: 28px; height: 88px; transition: height .3s var(--ease); }
-    .head.scrolled .wrap { height: 68px; }
-    .brand { display: flex; align-items: center; gap: 14px; }
-    .brand img { width: 54px; height: 54px; object-fit: contain; transition: width .3s, height .3s; }
-    .head.scrolled .brand img { width: 44px; height: 44px; }
-    .brand b { display: block; font-family: 'IBM Plex Sans Thai'; font-weight: 600; font-size: 19px; color: var(--navy); line-height: 1.25; }
-    .brand small { display: block; font-size: 11.5px; letter-spacing: 1.6px; color: var(--ink-3); text-transform: uppercase; }
-    .nav { margin-left: auto; display: flex; gap: 4px; }
-    .nav a { position: relative; padding: 10px 14px; font-family: 'IBM Plex Sans Thai'; font-size: 15.5px; color: var(--ink); }
-    .nav a::after { content: ''; position: absolute; left: 14px; right: 14px; bottom: 4px; height: 2px; background: var(--gold); transform: scaleX(0); transform-origin: left; transition: transform .3s var(--ease); }
-    .nav a:hover::after { transform: scaleX(1); }
-    .burger { display: none; margin-left: auto; padding: 8px; color: var(--navy); }
+    .dynamic-header-wrapper { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); width: 95%; max-width: 1400px; z-index: 60; transition: all .5s cubic-bezier(.4, 0, .2, 1); }
+    .dynamic-island { background: rgba(15, 23, 42, .65); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, .12); border-radius: 60px; padding: 8px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 8px 32px rgba(0, 0, 0, .3); }
+    .dynamic-header-wrapper.scrolled { top: 12px; max-width: 1200px; }
+    .dynamic-header-wrapper.scrolled .dynamic-island { background: rgba(15, 23, 42, .9); }
+    .island-brand { display: flex; align-items: center; gap: 12px; padding-right: 20px; border-right: 1px solid rgba(255, 255, 255, .1); }
+    .island-logo-img { width: 38px; height: 38px; object-fit: contain; transition: transform .3s; }
+    .island-brand:hover .island-logo-img { transform: scale(1.1) rotate(5deg); }
+    .brand-group { color: #fff; font-weight: 600; font-size: 14px; display: block; font-family: 'IBM Plex Sans Thai'; }
+    .brand-school { color: #fbbc04; font-size: 11px; display: block; }
+    .island-menu-container { display: flex; align-items: center; flex-grow: 1; justify-content: flex-end; }
+    .island-nav { display: flex; gap: 8px; align-items: center; }
+    .island-nav a { color: rgba(255, 255, 255, .8); font-size: 14px; padding: 8px 16px; border-radius: 30px; transition: all .3s; font-family: 'IBM Plex Sans Thai'; }
+    .island-nav a:hover { color: #0f172a; background: #fbbc04; font-weight: 500; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(251, 188, 4, .3); }
+    .island-staff-area { margin-left: 12px; padding-left: 12px; border-left: 1px solid rgba(255, 255, 255, .1); }
+    .island-staff-btn { display: inline-block; background: rgba(251, 188, 4, .1); color: #fbbc04; border: 1px solid rgba(251, 188, 4, .4); padding: 8px 20px; border-radius: 30px; font-family: 'IBM Plex Sans Thai'; font-size: 13px; transition: all .3s cubic-bezier(.4, 0, .2, 1); }
+    .island-staff-btn:hover { background: #fbbc04; color: #0f172a; box-shadow: 0 6px 15px rgba(251, 188, 4, .4); transform: translateY(-2px); font-weight: 600; }
+    .mobile-menu-toggle { display: none; color: #fbbc04; padding: 4px; }
+    .mobile-menu-toggle .ic { width: 26px; height: 26px; }
+    @keyframes slideDownNav { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+    @media (max-width: 1024px) {
+      .island-menu-container { display: none; flex-direction: column; position: absolute; top: 75px; left: 5%; width: 90%; background: rgba(15, 23, 42, .98); border-radius: 24px; padding: 20px; box-shadow: 0 10px 25px rgba(0, 0, 0, .5); }
+      .island-menu-container.show { display: flex; animation: slideDownNav .3s cubic-bezier(.16, 1, .3, 1) forwards; }
+      .island-nav { flex-direction: column; width: 100%; gap: 8px; }
+      .island-nav a, .island-staff-btn { width: 100%; text-align: center; padding: 12px; }
+      .island-staff-area { width: 100%; border-left: 0; padding: 10px 0 0; margin: 10px 0 0; border-top: 1px solid rgba(255, 255, 255, .1); }
+      .mobile-menu-toggle { display: block; }
+    }
+    @media (max-width: 640px) { .dynamic-header-wrapper { top: 12px; } .dynamic-island { padding: 8px 16px; } .island-brand { border-right: 0; padding-right: 0; } }
 
-    .hero { position: relative; height: min(78vh, 720px); min-height: 460px; overflow: hidden; background: var(--navy-2); }
+    .hero { position: relative; height: min(92vh, 860px); min-height: 520px; overflow: hidden; background: var(--navy-2); }
     .slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.2s var(--ease); }
     .slide.on { opacity: 1; z-index: 1; }
     .slide .bg { position: absolute; inset: 0; background: center / cover no-repeat; transform: scale(1.06); }
     .slide.on .bg { animation: kb 9s linear forwards; }
     @keyframes kb { from { transform: scale(1.06); } to { transform: scale(1.0); } }
-    .slide::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11, 26, 51, 0) 45%, rgba(11, 26, 51, .55) 100%); }
+    .slide::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11, 26, 51, .45) 0%, rgba(11, 26, 51, 0) 28%, rgba(11, 26, 51, 0) 50%, rgba(11, 26, 51, .55) 100%); }
     .cap { position: absolute; z-index: 3; left: 0; right: 0; bottom: 72px; }
     .cap .box { max-width: 620px; background: rgba(255, 255, 255, .96); padding: 26px 32px 28px; border-left: 4px solid var(--gold); }
     .cap .kick { font-size: 13px; letter-spacing: 1.5px; color: var(--gold); font-weight: 600; text-transform: uppercase; }
@@ -178,11 +188,6 @@
     #toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--navy-2); color: #fff; padding: 10px 20px; display: none; z-index: 200; }
 
     @media (max-width: 1080px) {
-      .nav { position: fixed; inset: 0 0 0 auto; width: 300px; background: #fff; flex-direction: column; padding: 90px 24px; box-shadow: -10px 0 30px rgba(0, 0, 0, .12); transform: translateX(100%); transition: transform .35s var(--ease); z-index: 70; }
-      .nav.open { transform: none; }
-      .nav a { padding: 14px 0; border-bottom: 1px solid var(--line); }
-      .nav a::after { display: none; }
-      .burger { display: block; position: relative; z-index: 80; }
       .feat { grid-template-columns: 1fr; gap: 32px; }
       .grid { grid-template-columns: repeat(2, 1fr); }
       .svcs { grid-template-columns: repeat(2, 1fr); gap: 32px 0; }
@@ -191,10 +196,6 @@
     }
     @media (max-width: 640px) {
       .wrap { padding: 0 18px; }
-      .util .hide-m { display: none; }
-      .head .wrap { height: 70px; }
-      .brand img { width: 42px; height: 42px; }
-      .brand b { font-size: 16px; } .brand small { display: none; }
       .hero { height: 70vh; min-height: 420px; }
       .cap { bottom: 64px; }
       .cap .box { padding: 18px 20px; margin-right: 12px; }
@@ -215,28 +216,22 @@
 <body>
   <?!= include('Icons'); ?>
 
-  <div class="util">
-    <div class="wrap">
-      <a class="hide-m" href="tel:074311006">074-311006</a>
-      <a href="https://www.mvsk.ac.th/" target="_blank" rel="noopener">เว็บไซต์โรงเรียน</a>
-      <a class="staff" id="staffLink" href="<?= staffUrl ?>"><svg class="ic sm"><use href="#i-lock"/></svg>เจ้าหน้าที่</a>
-    </div>
-  </div>
-
-  <header class="head" id="head">
-    <div class="wrap">
-      <a class="brand" href="<?= getScriptUrl(); ?>">
-        <img src="https://drive.google.com/thumbnail?id=1PVf5EA7ntHrhJBLbwOuobqWfd9mvscY8&sz=w200" alt="ตราโรงเรียนมหาวชิราวุธ">
-        <span><b>กลุ่มบริหารงานงบประมาณ</b><small>Mahavajiravudh Changwatsongkhla School</small></span>
+  <header class="dynamic-header-wrapper" id="head">
+    <div class="dynamic-island">
+      <a href="<?= getScriptUrl(); ?>" class="island-brand">
+        <img src="https://drive.google.com/thumbnail?id=1PVf5EA7ntHrhJBLbwOuobqWfd9mvscY8&sz=w500" alt="Logo" class="island-logo-img">
+        <div><span class="brand-group">กลุ่มบริหารงานงบประมาณ</span><span class="brand-school">โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</span></div>
       </a>
-      <nav class="nav" id="nav">
-        <a href="<?= getScriptUrl(); ?>?page=finan">งานการเงินและบัญชี</a>
-        <a href="<?= getScriptUrl(); ?>?page=Supplies">งานพัสดุและสินทรัพย์</a>
-        <a href="#news" data-go="news">ข่าวประชาสัมพันธ์</a>
-        <a href="#services" data-go="services">บริการ</a>
-        <a href="#contact" data-go="contact">ติดต่อ</a>
-      </nav>
-      <button class="burger" id="burger" aria-label="เมนู"><svg class="ic"><use href="#i-menu"/></svg></button>
+      <button class="mobile-menu-toggle" id="burger" aria-label="เมนู"><svg class="ic"><use href="#i-menu"/></svg></button>
+      <div class="island-menu-container" id="nav">
+        <nav class="island-nav">
+          <a href="<?= getScriptUrl(); ?>?page=finan">งานการเงินและบัญชี</a>
+          <a href="<?= getScriptUrl(); ?>?page=Supplies">งานพัสดุและสินทรัพย์</a>
+          <a href="https://www.mvsk.ac.th/" target="_blank" rel="noopener">นักเรียน</a>
+          <a href="https://www.mvsk.ac.th/" target="_blank" rel="noopener">ครู</a>
+        </nav>
+        <div class="island-staff-area"><a class="island-staff-btn" id="staffLink" href="<?= staffUrl ?>">เจ้าหน้าที่</a></div>
+      </div>
     </div>
   </header>
 
@@ -447,7 +442,7 @@
     document.addEventListener('click', function (e) {
       var t = e.target;
       if (t.closest('a.file')) return;
-      var g = t.closest('[data-go]'); if (g) { e.preventDefault(); $(g.dataset.go).scrollIntoView({ behavior: 'smooth' }); $('nav').classList.remove('open'); return; }
+      var g = t.closest('[data-go]'); if (g) { e.preventDefault(); $(g.dataset.go).scrollIntoView({ behavior: 'smooth' }); $('nav').classList.remove('show'); return; }
       var o = t.closest('[data-open]'); if (o) { openNews(o.dataset.open); return; }
       if (t.closest('[data-close]') || t === $('modal')) { closeNews(); return; }
       if (t.closest('#copyLink')) { copy(BASE + '?news=' + encodeURIComponent(ST.openId)); return; }
@@ -458,16 +453,16 @@
     $('prev').onclick = function () { show(ST.cur - 1); };
     $('next').onclick = function () { show(ST.cur + 1); };
     $('moreBtn').onclick = function () { ST.shown += PAGE; renderAll(); };
-    $('burger').onclick = function () { $('nav').classList.toggle('open'); };
+    $('burger').onclick = function () { $('nav').classList.toggle('show'); };
     var qt; $('q').oninput = function () { var v = this.value; clearTimeout(qt); qt = setTimeout(function () { ST.q = v.trim(); ST.shown = PAGE; renderAll(); }, 180); };
-    window.addEventListener('scroll', function () { $('head').classList.toggle('scrolled', window.scrollY > 10); }, { passive: true });
+    window.addEventListener('scroll', function () { $('head').classList.toggle('scrolled', window.scrollY > 20); }, { passive: true });
     (function swipe() {
       var x0 = null, h = $('hero');
       h.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
       h.addEventListener('touchend', function (e) { if (x0 == null) return; var dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 50) show(ST.cur + (dx < 0 ? 1 : -1)); x0 = null; });
     })();
     document.addEventListener('visibilitychange', function () { if (document.hidden) clearTimeout(ST.timer); else show(ST.cur); });
-    if (!$('staffLink').getAttribute('href')) $('staffLink').style.display = 'none';
+    if (!$('staffLink').getAttribute('href')) $('staffLink').onclick = function (e) { e.preventDefault(); toast('ยังไม่ได้ผูกเว็บกับระบบการเงิน (ระบบการเงิน > เว็บไซต์ > ตั้งค่า)'); };
 
     renderSlides(); observe();
     google.script.run.withSuccessHandler(function (d) {
