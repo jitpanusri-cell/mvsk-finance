@@ -56,7 +56,8 @@ function getAnnouncements() {
       if (!links.length && r[6]) { try { links = JSON.parse(r[6]) || []; } catch (e) { links = []; } }
       const m = str_(r[0]).match(/^ANN-(\d{10,})/);
       return {
-        id: str_(r[0]), date: str_(r[1]), title: str_(r[2]), details: str_(r[3]), imageUrl: str_(r[4]),
+        id: str_(r[0]), date: str_(r[1]), title: str_(r[2]), details: str_(r[3]), imageUrl: str_(r[4]).split(/\s*\n\s*/)[0] || '',
+        images: str_(r[4]).split(/\s*\n\s*/).filter(String),
         type: ANN_TYPES.indexOf(str_(r[5])) >= 0 ? str_(r[5]) : 'alert', links: links,
         pinned: str_(r[21]) === 'PIN', createdAt: m ? Number(m[1]) : 0
       };

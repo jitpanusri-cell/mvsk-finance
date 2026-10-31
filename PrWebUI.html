@@ -47,6 +47,14 @@ tr.pw-dim td{opacity:.6}
 .pw-img{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
 .pw-img .pv{width:200px;border:1px dashed var(--line);border-radius:10px;background:#FAFBFC center/cover no-repeat;display:grid;place-items:center;color:var(--ink3);flex:none;font-size:12.5px;text-align:center}
 .pw-img .pv.news{aspect-ratio:4/3}
+.pw-gal{display:flex;flex-wrap:wrap;gap:10px}
+.pw-gal .g{position:relative;width:150px;aspect-ratio:4/3;border-radius:10px;background:#EEF1F6 center/cover no-repeat;border:1px solid var(--line);overflow:hidden}
+.pw-gal .g.up{display:grid;place-items:center;font-size:12.5px;color:var(--ink2)}
+.pw-gal .g .cv{position:absolute;left:6px;top:6px;background:var(--gold);color:#fff;font-size:11px;font-weight:700;border-radius:99px;padding:1px 8px}
+.pw-gal .g .bt{position:absolute;right:4px;bottom:4px;display:flex;gap:3px}
+.pw-gal .g .bt button{width:26px;height:26px;border:0;border-radius:7px;background:rgba(255,255,255,.92);display:grid;place-items:center;color:var(--ink);cursor:pointer}
+.pw-gal .g .bt button .i{width:14px;height:14px}
+.pw-gal .none{color:var(--ink3);font-size:13.5px;padding:8px 0}
 .pw-img .pv.slide{aspect-ratio:16/9}
 .pw-lrow{display:grid;grid-template-columns:1fr 1.5fr auto;gap:8px;margin-bottom:8px;align-items:center}
 .pw-lrow .b{display:flex;gap:4px}
@@ -63,6 +71,7 @@ const PW_MONTH = ['มกราคม', 'กุมภาพันธ์', 'ม�
 const PW = { data: null, tab: 'news', dirtyNews: false, dirtySlides: false, edit: null };
 (function () {
   const add = (k, v) => { ICON[k] = ICON[k] || v; };
+  add('upload', '<path d="M12 15V3"/><path d="m7.5 7.5 4.5-4.5 4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>');
   add('web', '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/>');
   add('pin', '<path d="M9 3h6l-1 6 3.5 3v2h-11v-2L10 9z"/><path d="M12 14v7"/>');
   add('eye', '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>');
@@ -161,13 +170,12 @@ document.body.insertAdjacentHTML('beforeend', `
             <div class="pw-ed" id="pwBody" contenteditable="true" data-ph="พิมพ์รายละเอียด"></div>
           </div>
           <div class="col-12">
-            <label class="flabel">รูปภาพ (ระบบตัดเป็น 1000 × 750 ให้อัตโนมัติ)</label>
-            <div class="pw-img">
-              <div class="pv news" id="pwImgPv"></div>
-              <div style="flex:1;min-width:220px">
-                <input type="file" class="inp" id="pwFile" accept="image/*" style="padding-top:9px">
-                <div class="d-flex gap-2 mt-2"><input class="inp" id="pwImg" placeholder="หรือวางลิงก์รูป"><button type="button" class="btnx sec" id="pwImgClr">ลบรูป</button></div>
-              </div>
+            <label class="flabel">รูปภาพ (เพิ่มได้หลายรูป · ระบบตัดเป็น 1000 × 750 · รูปแรกเป็นรูปหน้าปก · เลื่อนสไลด์ทุก 7 วินาที)</label>
+            <div class="pw-gal" id="pwGal"></div>
+            <div class="d-flex gap-2 mt-2 flex-wrap">
+              <label class="btnx sec sm" style="cursor:pointer">${ic('upload')}เลือกรูป (หลายรูปได้)<input type="file" id="pwFile" accept="image/*" multiple hidden></label>
+              <input class="inp" id="pwImg" placeholder="หรือวางลิงก์รูปแล้วกด เพิ่ม" style="max-width:340px;min-height:36px">
+              <button type="button" class="btnx sec sm" id="pwImgAdd">เพิ่ม</button>
             </div>
           </div>
           <div class="col-12">
@@ -276,7 +284,7 @@ function renderPwNews() {
       if (a.pinned) s += ' <span class="pw-tag pin">ปักหมุด</span>';
       return `<tr class="${a.isHidden || pwExp(a) ? 'pw-dim' : ''}">
         <td><div class="pw-ord"><button class="pw-ib" data-pwmv="${i}|-1" ${!can || !i ? 'disabled' : ''}>${ic('up')}</button><button class="pw-ib" data-pwmv="${i}|1" ${!can || i === list.length - 1 ? 'disabled' : ''}>${ic('down')}</button></div></td>
-        <td><div class="pw-th" style="${pwBg(a.imageUrl)}">${a.imageUrl ? '' : ic('image')}</div></td>
+        <td><div class="pw-th" style="${pwBg(a.images[0])}">${a.images[0] ? (a.images.length > 1 ? '<span class="pill" style="margin:auto 4px 4px auto;align-self:end;font-size:11px">' + a.images.length + '</span>' : '') : ic('image')}</div></td>
         <td><div class="pw-t">${esc(a.title)}</div><div class="pw-sub"><span class="pw-tag ${esc(a.type)}">${esc(PW_TYPE[a.type])}</span>${a.date ? '<span>' + esc(a.date) + '</span>' : ''}${a.links.length ? '<span>· ไฟล์ ' + a.links.length + '</span>' : ''}${a.expire && !pwExp(a) ? '<span>· ถึง ' + esc(a.expire) + '</span>' : ''}</div></td>
         <td class="pw-hide-m">${s}</td>
         <td class="pw-hide-m small-x muted">${esc(a.by)}<br>${esc(a.updatedAt)}</td>
@@ -359,9 +367,36 @@ function pwBindImg(fileId, urlId, pvId, w, h, saveId) {
     });
   };
 }
-pwBindImg('pwFile', 'pwImg', 'pwImgPv', 1000, 750, 'pwNewsSave');
 pwBindImg('pwSFile', 'pwSImg', 'pwSImgPv', 1920, 1080, 'pwSlideSave');
-$('pwImgClr').onclick = () => { $('pwImg').value = ''; $('pwFile').value = ''; pwSetPv($('pwImgPv'), ''); };
+PW.imgs = [];
+function pwRenderGal() {
+  const up = PW.uploading || 0;
+  $('pwGal').innerHTML = (!PW.imgs.length && !up ? '<div class="none">ยังไม่มีรูป</div>' : '') +
+    PW.imgs.map((u, i) => `<div class="g" style="${pwBg(u)}">${i ? '' : '<span class="cv">ปก</span>'}<div class="bt">
+      <button type="button" data-gi="${i}|-1" title="เลื่อนก่อน" ${i ? '' : 'hidden'}>${ic('up')}</button>
+      <button type="button" data-gi="${i}|1" title="เลื่อนหลัง" ${i < PW.imgs.length - 1 ? '' : 'hidden'}>${ic('down')}</button>
+      <button type="button" data-gx="${i}" title="ลบรูป">${ic('x')}</button></div></div>`).join('') +
+    Array.from({ length: up }, () => '<div class="g up">กำลังอัปโหลด…</div>').join('');
+  $('pwNewsSave').disabled = up > 0;
+}
+$('pwGal').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.gx != null) PW.imgs.splice(Number(b.dataset.gx), 1);
+  else if (b.dataset.gi) { const [i, k] = b.dataset.gi.split('|').map(Number); [PW.imgs[i], PW.imgs[i + k]] = [PW.imgs[i + k], PW.imgs[i]]; }
+  pwRenderGal();
+};
+$('pwImgAdd').onclick = () => { const u = $('pwImg').value.trim(); if (!/^https?:/i.test(u)) return toast('ลิงก์รูปต้องขึ้นต้นด้วย https', true); PW.imgs.push(u); $('pwImg').value = ''; pwRenderGal(); };
+$('pwFile').onchange = function () {
+  const files = [...this.files]; this.value = '';
+  files.forEach(f => {
+    PW.uploading = (PW.uploading || 0) + 1; pwRenderGal();
+    pwCrop(f, 1000, 750, data => {
+      rawApi('pwUpload', data, f.name.replace(/\.\w+$/, '') + '.jpg')
+        .then(r => { if (r && r.url) PW.imgs.push(r.url); }, e => toast('อัปโหลด ' + f.name + ' ไม่สำเร็จ: ' + e.message, true))
+        .finally(() => { PW.uploading--; pwRenderGal(); });
+    });
+  });
+};
 
 function pwLinkRow(name, url) {
   if ($('pwLinks').children.length >= 6) return toast('สูงสุด 6 ไฟล์', true);
@@ -403,7 +438,7 @@ function pwOpenNews(a) {
   $('pwDate').value = y || ''; $('pwDate').dataset.raw = a && !y ? a.date : '';
   $('pwExp').value = a ? a.expire : '';
   $('pwBody').innerHTML = a ? a.details : '';
-  $('pwImg').value = a ? a.imageUrl : ''; $('pwFile').value = ''; pwSetPv($('pwImgPv'), $('pwImg').value);
+  PW.imgs = a ? (a.images || []).slice() : []; PW.uploading = 0; $('pwImg').value = ''; pwRenderGal();
   $('pwLinks').innerHTML = ''; (a ? a.links : []).forEach(l => pwLinkRow(l.name, l.url)); if (!a) pwLinkRow();
   $('pwVis').checked = a ? !a.isHidden : true; $('pwPin').checked = a ? a.pinned : false;
   modal('pwNewsModal').show();
@@ -416,7 +451,7 @@ $('pwNewsForm').onsubmit = e => {
   const o = {
     id: PW.edit ? PW.edit.id : '', title: $('pwTitle').value, type: $('pwType').value,
     date: $('pwDate').dataset.raw || pwThai($('pwDate').value), expire: $('pwExp').value,
-    details: $('pwBody').innerHTML.trim(), imageUrl: $('pwImg').value.trim(), links: links,
+    details: $('pwBody').innerHTML.trim(), imageUrl: PW.imgs.join('\n'), links: links,
     isHidden: !$('pwVis').checked, pinned: $('pwPin').checked
   };
   $('pwNewsSave').disabled = true;

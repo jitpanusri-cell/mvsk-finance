@@ -65,6 +65,7 @@ function pwRowToNews_(r) {
   const id = pwStr_(r[0]), m = id.match(/^ANN-(\d{10,})/);
   return {
     id: id, date: pwStr_(r[1]), title: pwStr_(r[2]), details: pwStr_(r[3]), imageUrl: pwStr_(r[4]),
+    images: pwStr_(r[4]).split(/\s*\n\s*/).filter(String),
     type: PW_TYPES.indexOf(pwStr_(r[5])) >= 0 ? pwStr_(r[5]) : 'general', links: links,
     by: pwStr_(r[19]), isHidden: pwStr_(r[20]) === 'HIDDEN', pinned: pwStr_(r[21]) === 'PIN',
     expire: pwYmd_(r[22]), updatedAt: pwStr_(r[23]), createdAt: m ? Number(m[1]) : 0
