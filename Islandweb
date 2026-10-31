@@ -1,5 +1,5 @@
 <!-- Island: แถบเมนูลอย (Dynamic Island) ใช้ร่วมกันทุกหน้าเว็บ (Budget / finan / Supplies)
-     เรียกใช้: <?!= island('ชื่อหน้า'); ?>  (ฟังก์ชัน island ใน Budgetweb.gs) — แก้ที่ไฟล์นี้ที่เดียว -->
+     เรียกใช้ด้วยฟังก์ชัน island(ชื่อหน้า) ใน Budgetweb.gs — แก้ที่ไฟล์นี้ที่เดียว -->
 <style>
     .dynamic-header-wrapper, .dynamic-header-wrapper * { box-sizing: border-box; }
     :where(.dynamic-header-wrapper) a { color: inherit; text-decoration: none; }
