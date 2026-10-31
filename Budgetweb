@@ -250,7 +250,7 @@
           <a href="https://www.mvsk.ac.th/" target="_blank" rel="noopener">นักเรียน</a>
           <a href="https://www.mvsk.ac.th/" target="_blank" rel="noopener">ครู</a>
         </nav>
-        <div class="island-staff-area"><a class="island-staff-btn" id="staffLink" href="<?= staffUrl ?>">เจ้าหน้าที่</a></div>
+        <div class="island-staff-area"><a class="island-staff-btn" id="staffLink" href="<?= typeof staffUrl !== 'undefined' ? staffUrl : '' ?>">เจ้าหน้าที่</a></div>
       </div>
     </div>
   </header>
