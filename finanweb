@@ -529,7 +529,8 @@
     <section id="guides">
       <div class="wrap">
         <div class="sh rv"><h2>งานการเงินและบัญชี</h2></div>
-        <div class="feat">
+        <div class="feat" id="finGrid"></div>
+        <template id="finDefault">
           <article class="nc rv">
             <div class="media">
               <iframe src="https://drive.google.com/file/d/1yf_RcVuuSQNfriKsG_hX4cQYFwiPmiLn/preview" allow="autoplay" allowfullscreen loading="lazy" title="วิดีโอแนะนำขั้นตอนการเบิกเงินเยี่ยมบ้าน"></iframe>
@@ -548,7 +549,7 @@
               <a class="rm" href="https://drive.google.com/file/d/13f1lR8pkpezsddCNb_ex1gvfWb1TZvUf/view?usp=drive_link" target="_blank" rel="noopener">ประกาศฉบับเต็ม<svg class="ic"><use href="#i-arrow"/></svg></a>
             </div>
           </article>
-        </div>
+        </template>
       </div>
     </section>
 
@@ -691,6 +692,20 @@
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeNews(); });
 
+    /* งานการเงินและบัญชี — จากชีต "งานการเงิน" (null = ยังไม่มีชีต ใช้รายการเดิม) */
+    function renderFin(list) {
+      var g = $('finGrid');
+      if (!list) { g.innerHTML = ''; g.appendChild($('finDefault').content.cloneNode(true)); reveal(); return; }
+      if (!list.length) { $('guides').hidden = true; return; }
+      g.innerHTML = list.map(function (f) {
+        var att = f.type === 'pdf' ? '' : ' allow="autoplay" allowfullscreen';
+        return '<article class="nc rv"><div class="media' + (f.type === 'pdf' ? ' doc' : '') + '"><iframe src="' + esc(f.embed) + '"' + att + ' loading="lazy" title="' + esc(f.title) + '"></iframe></div>' +
+          '<div class="nb"><h3 class="tt">' + esc(f.title) + '</h3>' +
+          (f.link ? '<a class="rm" href="' + esc(safeUrl(f.link)) + '" target="_blank" rel="noopener">' + esc(f.linkText || 'เปิดดู') + ico('arrow') + '</a>' : '') + '</div></article>';
+      }).join('');
+      reveal();
+    }
+
     function renderNews(list) {
       var L = (list || []).filter(function (a) { return a.type === 'finance-alert'; })
         .sort(function (a, b) { return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0); }).slice(0, 3);
@@ -713,7 +728,9 @@
     if (window.google && google.script && google.script.run) google.script.run.withSuccessHandler(function (d) {
       d = d || {};
       renderNews(d.news);
-    }).getHomeData();
+      renderFin(d.fin === undefined ? null : d.fin);
+    }).withFailureHandler(function () { renderFin(null); }).getHomeData();
+    else renderFin(null);
 
     var io = null;
     function reveal() {

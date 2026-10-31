@@ -74,13 +74,34 @@ function getSlides() {
     .map(r => ({ imageUrl: str_(r[1]), title: str_(r[2]), subtitle: str_(r[3]), link: str_(r[4]), linkText: str_(r[5]) }));
 }
 
+/* ส่วน "งานการเงินและบัญชี" (ชีต งานการเงิน — จัดการได้ที่ระบบการเงิน > เว็บไซต์ หรือแก้ในชีตตรง)
+ * คืน null ถ้ายังไม่มีชีต (หน้าเว็บใช้รายการเดิม) */
+function embedUrl_(u) {
+  u = str_(u);
+  const d = u.match(/\/d\/([\w-]{20,})/) || u.match(/[?&]id=([\w-]{20,})/);
+  if (/drive\.google\.com|docs\.google\.com/.test(u) && d) return 'https://drive.google.com/file/d/' + d[1] + '/preview';
+  const y = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
+  if (y) return 'https://www.youtube.com/embed/' + y[1];
+  return u;
+}
+function getFinItems() {
+  const sh = sheet_('งานการเงิน');
+  if (!sh) return null;
+  if (sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 7).getValues()
+    .filter(r => str_(r[0]) && str_(r[3]) && str_(r[6]) !== 'HIDDEN')
+    .map(r => ({ type: str_(r[1]) === 'pdf' ? 'pdf' : 'video', title: str_(r[2]), embed: embedUrl_(r[3]), linkText: str_(r[4]), link: str_(r[5]) }));
+}
+
 function getHomeData() {
   let news = [], slides = [];
   try { news = getAnnouncements(); } catch (e) { }
   try { slides = getSlides(); } catch (e) { }
   let staffUrl = '';
   try { staffUrl = getConf_('staffUrl'); } catch (e) { }
-  return { news: news, slides: slides, staffUrl: staffUrl };
+  let fin = null;
+  try { fin = getFinItems(); } catch (e) { }
+  return { news: news, slides: slides, staffUrl: staffUrl, fin: fin };
 }
 
 /* ---------- หน้า "ยืม ส่งคืน เบิก" สาธารณะ (ไฟล์ Loan สร้างจาก tools/build_loanweb.py) ----------

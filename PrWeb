@@ -2,6 +2,7 @@ const PW_ROLES = ['admin', 'finance', 'account', 'exec'];
 const PW_NEWS = 'ประชาสัมพันธ์';
 const PW_SLIDES = 'สไลด์';
 const PW_CONF = 'ตั้งค่าเว็บ';
+const PW_FIN = 'งานการเงิน';   // ส่วน "งานการเงินและบัญชี" บนหน้าเว็บงานการเงิน (วิดีโอ/PDF จาก Drive)
 const PW_COLS = 24;
 const PW_TYPES = ['alert', 'finance-alert', 'supplies-alert', 'general', 'document'];
 const PW_IMG_FOLDER = '1HSaggL6ChoYQX1W4HbZS-g-5EHe_oGkA';
@@ -47,6 +48,35 @@ function pwNewsSheet_(ss) {
 function pwSlideSheet_(ss) {
   return pwHead_(ss.getSheetByName(PW_SLIDES) || ss.insertSheet(PW_SLIDES),
     ['รหัส', 'รูปภาพ', 'หัวข้อ', 'ข้อความรอง', 'ลิงก์ปุ่ม', 'ชื่อปุ่ม', 'สถานะ', 'ผู้บันทึก', 'แก้ไขล่าสุด']);
+}
+const PW_FIN_HEAD = ['รหัส', 'ประเภท (video/pdf)', 'หัวข้อ', 'ลิงก์ไฟล์ Google Drive', 'ชื่อปุ่ม', 'ลิงก์ปุ่ม', 'สถานะ', 'ผู้บันทึก', 'แก้ไขล่าสุด'];
+const PW_FIN_SEED = [
+  ['FIN-1', 'video', 'วิดีโอแนะนำขั้นตอนการเบิกเงินเยี่ยมบ้าน', 'https://drive.google.com/file/d/1yf_RcVuuSQNfriKsG_hX4cQYFwiPmiLn/view',
+    'คู่มือการเบิกเงิน', 'https://drive.google.com/file/d/1zjeZ-AjS92v2coOzxFu01LRL7OB4D1jd/view', 'VISIBLE', '', ''],
+  ['FIN-2', 'pdf', 'หลักเกณฑ์และอัตราการเบิกจ่าย (มว 69)', 'https://drive.google.com/file/d/10p8JXa1B-B_sxkrwkW7c30TKe8W_ob95/view',
+    'ประกาศฉบับเต็ม', 'https://drive.google.com/file/d/13f1lR8pkpezsddCNb_ex1gvfWb1TZvUf/view', 'VISIBLE', '', '']
+];
+/** ชีต งานการเงิน — สร้างครั้งแรกพร้อม 2 รายการเดิมของหน้าเว็บ */
+function pwFinSheet_(ss) {
+  let sh = ss.getSheetByName(PW_FIN);
+  if (sh) return pwHead_(sh, PW_FIN_HEAD);
+  sh = pwHead_(ss.insertSheet(PW_FIN), PW_FIN_HEAD);
+  sh.getRange(2, 1, PW_FIN_SEED.length, PW_FIN_HEAD.length).setValues(PW_FIN_SEED);
+  return sh;
+}
+function pwDriveId_(u) {
+  const m = String(u || '').match(/\/d\/([\w-]{20,})/) || String(u || '').match(/[?&]id=([\w-]{20,})/);
+  return m ? m[1] : '';
+}
+function pwReadFin_(sh) {
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh.getRange(2, 1, n, 9).getValues().filter(r => pwStr_(r[0])).map(r => {
+    const id = pwDriveId_(r[3]);
+    return { id: pwStr_(r[0]), type: pwStr_(r[1]) === 'pdf' ? 'pdf' : 'video', title: pwStr_(r[2]), fileUrl: pwStr_(r[3]),
+      linkText: pwStr_(r[4]), link: pwStr_(r[5]), isHidden: pwStr_(r[6]) === 'HIDDEN', by: pwStr_(r[7]), updatedAt: pwStr_(r[8]),
+      thumb: id ? 'https://drive.google.com/thumbnail?id=' + id + '&sz=w640' : '' };
+  });
 }
 function pwConfSheet_(ss) {
   return pwHead_(ss.getSheetByName(PW_CONF) || ss.insertSheet(PW_CONF), ['key', 'value']);
@@ -105,6 +135,7 @@ function getPwData() {
   out.webUrl = pwStr_(getSetting_('prWebUrl'));
   out.items = pwReadNews_(pwNewsSheet_(ss));
   out.slides = pwReadSlides_(pwSlideSheet_(ss));
+  out.fin = pwReadFin_(pwFinSheet_(ss));
   return out;
 }
 
@@ -122,7 +153,7 @@ function setPwSheet(urlOrId, webUrl) {
   if (id) {
     let ss;
     try { ss = SpreadsheetApp.openById(id); } catch (e) { throw new Error('เปิดชีตไม่ได้ ตรวจลิงก์และสิทธิ์แก้ไข'); }
-    pwNewsSheet_(ss); pwSlideSheet_(ss);
+    pwNewsSheet_(ss); pwSlideSheet_(ss); pwFinSheet_(ss);
   }
   pwSetSetting_('prSheetId', 'ชีตเว็บไซต์กลุ่มบริหารงานงบประมาณ (ID)', id);
   pwSetSetting_('prWebUrl', 'ลิงก์เว็บไซต์กลุ่มบริหารงานงบประมาณ', pwStr_(webUrl));
@@ -249,6 +280,51 @@ function pwOrderSlides(ids) {
   pwUser_();
   const ss = pwSs_();
   return withLock_(() => { pwReorder_(pwSlideSheet_(ss), ids || [], 9, false); return true; });
+}
+
+/* ---------- งานการเงินและบัญชี (วิดีโอ/PDF) ---------- */
+function pwSaveFin(o) {
+  const u = pwUser_();
+  o = o || {};
+  if (!pwStr_(o.title)) throw new Error('กรุณาระบุหัวข้อ');
+  if (!pwDriveId_(o.fileUrl)) throw new Error('กรุณาวางลิงก์ไฟล์ Google Drive (วิดีโอหรือ PDF)');
+  const ss = pwSs_();
+  return withLock_(() => {
+    const sh = pwFinSheet_(ss);
+    const body = [o.type === 'pdf' ? 'pdf' : 'video', pwStr_(o.title), pwStr_(o.fileUrl), pwStr_(o.linkText), pwStr_(o.link),
+      o.isHidden ? 'HIDDEN' : 'VISIBLE', u.name, pwNow_()];
+    const row = o.id ? pwFind_(sh, o.id) : 0;
+    let id = o.id;
+    if (row) sh.getRange(row, 2, 1, body.length).setValues([body]);
+    else { id = 'FIN-' + Date.now(); sh.appendRow([id].concat(body)); }
+    audit_(row ? 'update' : 'create', 'WebFin', id, { title: o.title });
+    return { id: id };
+  });
+}
+function pwDeleteFin(id) {
+  pwUser_();
+  const ss = pwSs_();
+  return withLock_(() => {
+    const sh = pwFinSheet_(ss), row = pwFind_(sh, id);
+    if (!row) throw new Error('ไม่พบรายการนี้');
+    sh.deleteRow(row);
+    return true;
+  });
+}
+function pwFlagFin(id, hidden) {
+  pwUser_();
+  const ss = pwSs_();
+  return withLock_(() => {
+    const sh = pwFinSheet_(ss), row = pwFind_(sh, id);
+    if (!row) throw new Error('ไม่พบรายการนี้');
+    sh.getRange(row, 7).setValue(hidden ? 'HIDDEN' : 'VISIBLE');
+    return true;
+  });
+}
+function pwOrderFin(ids) {
+  pwUser_();
+  const ss = pwSs_();
+  return withLock_(() => { pwReorder_(pwFinSheet_(ss), ids || [], 9, false); return true; });
 }
 
 function pwUpload(dataUrl, fileName) {

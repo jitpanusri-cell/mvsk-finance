@@ -29,6 +29,7 @@ tr.pw-dim td{opacity:.6}
 .pw-slides{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
 .pw-slide{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
 .pw-slide.dim{opacity:.6}
+.pw-slide .ty{position:absolute;right:10px;top:10px;background:#fff;color:var(--ink);font-size:12px;font-weight:600;border-radius:99px;padding:2px 9px}
 .pw-slide .im{aspect-ratio:16/9;background:#EEF1F6 center/cover no-repeat;position:relative}
 .pw-slide .no{position:absolute;left:10px;top:10px;background:rgba(22,38,61,.8);color:#fff;font-size:12px;font-weight:700;border-radius:99px;padding:2px 9px}
 .pw-slide .bd{padding:12px 14px;display:flex;gap:10px;align-items:flex-start}
@@ -117,7 +118,7 @@ document.querySelector('main.main').insertAdjacentHTML('beforeend', `
     </div>
   </div>
   <div class="seg pw-tabs" id="pwTabs" role="tablist">
-    <button data-t="news" class="on">ข่าวประชาสัมพันธ์</button><button data-t="slides">ภาพสไลด์หน้าแรก</button><button data-t="conf">ตั้งค่า</button>
+    <button data-t="news" class="on">ข่าวประชาสัมพันธ์</button><button data-t="slides">ภาพสไลด์หน้าแรก</button><button data-t="fin">งานการเงินและบัญชี</button><button data-t="conf">ตั้งค่า</button>
   </div>
   <div id="pwNotLinked" hidden class="cardx mb-grid"></div>
   <div data-pwt="news">
@@ -131,6 +132,7 @@ document.querySelector('main.main').insertAdjacentHTML('beforeend', `
     </div>
   </div>
   <div data-pwt="slides" hidden><div class="pw-slides" id="pwSlides"></div></div>
+  <div data-pwt="fin" hidden><div class="pw-slides" id="pwFin"></div></div>
   <div data-pwt="conf" hidden>
     <div class="cardx mb-grid" style="max-width:720px">
       <div class="mb-3" id="pwConfInfo"></div>
@@ -195,6 +197,26 @@ document.body.insertAdjacentHTML('beforeend', `
     </form>
   </div>
 </div>
+<div class="modal fade" id="pwFinModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <form class="modal-content" id="pwFinForm" style="border-radius:16px">
+      <div class="modal-header"><h3 class="modal-title" style="font-size:18px" id="pwFinH"></h3><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="ปิด"></button></div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-sm-4"><label class="flabel" for="pwFType">ประเภท</label><select class="sel w-100" id="pwFType"><option value="video">วิดีโอ</option><option value="pdf">เอกสาร PDF</option></select></div>
+          <div class="col-sm-8"><label class="flabel" for="pwFTitle">หัวข้อ *</label><input class="inp" id="pwFTitle" maxlength="150"></div>
+          <div class="col-12"><label class="flabel" for="pwFFile">ลิงก์ไฟล์ Google Drive * (แชร์ให้ทุกคนที่มีลิงก์ดูได้)</label><input class="inp" id="pwFFile" placeholder="drive.google.com/file/d/..."></div>
+          <div class="col-sm-8"><label class="flabel" for="pwFLink">ลิงก์ปุ่ม</label><input class="inp" id="pwFLink" placeholder="เว้นว่าง = ไม่มีปุ่ม"></div>
+          <div class="col-sm-4"><label class="flabel" for="pwFLinkT">ชื่อปุ่ม</label><input class="inp" id="pwFLinkT" placeholder="เช่น ประกาศฉบับเต็ม"></div>
+        </div>
+      </div>
+      <div class="modal-footer justify-content-between">
+        <label class="d-flex align-items-center gap-2"><input type="checkbox" id="pwFVis" checked> แสดงบนเว็บ</label>
+        <div class="d-flex gap-2"><button type="button" class="btnx sec" data-bs-dismiss="modal">ยกเลิก</button><button class="btnx pri" id="pwFinSave">บันทึก</button></div>
+      </div>
+    </form>
+  </div>
+</div>
 <div class="modal fade" id="pwSlideModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <form class="modal-content" id="pwSlideForm" style="border-radius:16px">
@@ -227,9 +249,9 @@ document.body.insertAdjacentHTML('beforeend', `
 
 function loadPw() {
   loading(true);
-  api('getPwData').then(d => { PW.data = d; PW.dirtyNews = PW.dirtySlides = false; renderPw(); loading(false); }).catch(fail);
+  api('getPwData').then(d => { PW.data = d; PW.dirtyNews = PW.dirtySlides = PW.dirtyFin = false; renderPw(); loading(false); }).catch(fail);
 }
-function pwReload() { return rawApi('getPwData').then(d => { PW.data = d; PW.dirtyNews = PW.dirtySlides = false; renderPw(); }); }
+function pwReload() { return rawApi('getPwData').then(d => { PW.data = d; PW.dirtyNews = PW.dirtySlides = PW.dirtyFin = false; renderPw(); }); }
 function pwRun(fn, ...args) { loading(true); return rawApi(fn, ...args).then(r => { loading(false); SWR.writeAt = Date.now(); S._lastLoad = {}; return r; }, e => { fail(e); throw e; }); }
 
 function pwThai(ymd) { if (!ymd) return ''; const p = ymd.split('-'); return 'วันที่ ' + Number(p[2]) + ' ' + PW_MONTH[Number(p[1]) - 1] + ' พ.ศ. ' + (Number(p[0]) + 543); }
@@ -252,12 +274,13 @@ function renderPw() {
   $('pwOpenWeb').hidden = !D.webUrl;
   if (D.webUrl) { $('pwOpenWeb').href = D.webUrl; $('pwOpenWeb').innerHTML = ic('ext') + 'เปิดหน้าเว็บ'; }
   $('pwAdd').hidden = !D.linked || t === 'conf';
-  $('pwAdd').innerHTML = ic('plus') + (t === 'slides' ? 'เพิ่มสไลด์' : 'สร้างประกาศ');
-  $('pwSaveOrder').hidden = !(t === 'news' ? PW.dirtyNews : t === 'slides' ? PW.dirtySlides : false);
+  $('pwAdd').innerHTML = ic('plus') + (t === 'slides' ? 'เพิ่มสไลด์' : t === 'fin' ? 'เพิ่มรายการ' : 'สร้างประกาศ');
+  $('pwSaveOrder').hidden = !(t === 'news' ? PW.dirtyNews : t === 'slides' ? PW.dirtySlides : t === 'fin' ? PW.dirtyFin : false);
   if (!$('pwTy').options[1]) $('pwTy').insertAdjacentHTML('beforeend', Object.keys(PW_TYPE).map(k => `<option value="${k}">${PW_TYPE[k]}</option>`).join(''));
   if (!$('pwType').options[0]) $('pwType').innerHTML = Object.keys(PW_TYPE).map(k => `<option value="${k}">${PW_TYPE[k]}</option>`).join('');
   if (t === 'news') renderPwNews();
   if (t === 'slides') renderPwSlides();
+  if (t === 'fin') renderPwFin();
   if (t === 'conf') {
     $('pwConfInfo').innerHTML = D.linked ? `ผูกกับ <a href="${esc(D.sheetUrl)}" target="_blank" rel="noopener"><b>${esc(D.sheetName)}</b></a>` : '';
     ['pwSheet', 'pwWeb', 'pwConfSave'].forEach(id => $(id).disabled = !D.canAdmin);
@@ -313,12 +336,27 @@ function renderPwSlides() {
         </div></div></div>`).join('');
 }
 
+function renderPwFin() {
+  const L = PW.data.fin || [];
+  $('pwFin').innerHTML = !L.length ? '<div class="cardx pw-empty" style="grid-column:1/-1">ยังไม่มีรายการ — กด "เพิ่มรายการ" เพื่อใส่วิดีโอหรือ PDF จาก Google Drive</div>' :
+    L.map((s, i) => `<div class="pw-slide ${s.isHidden ? 'dim' : ''}">
+      <div class="im" style="${pwBg(s.thumb)}"><span class="no">${i + 1}</span><span class="ty">${s.type === 'pdf' ? 'PDF' : 'วิดีโอ'}</span></div>
+      <div class="bd"><div class="grow"><div class="t">${esc(s.title || '(ไม่มีหัวข้อ)')}</div><div class="s">${esc(s.linkText ? 'ปุ่ม: ' + s.linkText : '')}</div></div>
+        <div class="pw-act">
+          <button class="pw-ib" data-pwfmv="${i}|-1" ${!i ? 'disabled' : ''} title="เลื่อนก่อน">${ic('up')}</button>
+          <button class="pw-ib" data-pwfmv="${i}|1" ${i === L.length - 1 ? 'disabled' : ''} title="เลื่อนหลัง">${ic('down')}</button>
+          <button class="pw-ib" data-pwfhide="${esc(s.id)}" title="${s.isHidden ? 'แสดง' : 'ซ่อน'}">${ic(s.isHidden ? 'eyeoff' : 'eye')}</button>
+          <button class="pw-ib" data-pwfedit="${esc(s.id)}" title="แก้ไข">${ic('edit')}</button>
+          <button class="pw-ib del" data-pwfdel="${esc(s.id)}" title="ลบ">${ic('trash')}</button>
+        </div></div></div>`).join('');
+}
+
 $('pwTabs').onclick = e => { const b = e.target.closest('button'); if (b) { PW.tab = b.dataset.t; renderPw(); } };
 ['pwQ', 'pwSt', 'pwTy'].forEach(id => $(id).addEventListener('input', renderPwNews));
-$('pwAdd').onclick = () => PW.tab === 'slides' ? pwOpenSlide(null) : pwOpenNews(null);
+$('pwAdd').onclick = () => PW.tab === 'slides' ? pwOpenSlide(null) : PW.tab === 'fin' ? pwOpenFin(null) : pwOpenNews(null);
 $('pwSaveOrder').onclick = () => {
-  const news = PW.tab === 'news';
-  pwRun(news ? 'pwOrderNews' : 'pwOrderSlides', (news ? PW.data.items : PW.data.slides).map(x => x.id))
+  const t = PW.tab, fn = t === 'news' ? 'pwOrderNews' : t === 'fin' ? 'pwOrderFin' : 'pwOrderSlides';
+  pwRun(fn, (t === 'news' ? PW.data.items : t === 'fin' ? PW.data.fin : PW.data.slides).map(x => x.id))
     .then(() => { toast('บันทึกลำดับแล้ว'); return pwReload(); });
 };
 $('pwConfSave').onclick = () => pwRun('setPwSheet', $('pwSheet').value, $('pwWeb').value).then(d => { PW.data = d; PW.tab = d.linked ? 'news' : 'conf'; renderPw(); toast('บันทึกแล้ว'); });
@@ -336,6 +374,10 @@ $('page-webpr').addEventListener('click', e => {
   else if (d.pwdel) { const a = find(d.pwdel); if (confirm('ลบประกาศ "' + a.title + '" ?')) pwRun('pwDeleteNews', a.id).then(() => { toast('ลบแล้ว'); return pwReload(); }); }
   else if (d.pwshide) { const s = findS(d.pwshide); pwRun('pwFlagSlide', s.id, !s.isHidden).then(pwReload); }
   else if (d.pwsedit) pwOpenSlide(findS(d.pwsedit));
+  else if (d.pwfmv) { const [i, k] = d.pwfmv.split('|').map(Number); swap(PW.data.fin, i, k); PW.dirtyFin = true; renderPw(); }
+  else if (d.pwfhide) { const s = PW.data.fin.find(a => a.id === d.pwfhide); pwRun('pwFlagFin', s.id, !s.isHidden).then(pwReload); }
+  else if (d.pwfedit) pwOpenFin(PW.data.fin.find(a => a.id === d.pwfedit));
+  else if (d.pwfdel) { if (confirm('ลบรายการนี้?')) pwRun('pwDeleteFin', d.pwfdel).then(() => { toast('ลบแล้ว'); return pwReload(); }); }
   else if (d.pwsdel) { if (confirm('ลบสไลด์นี้?')) pwRun('pwDeleteSlide', d.pwsdel).then(() => { toast('ลบแล้ว'); return pwReload(); }); }
 });
 
@@ -474,5 +516,21 @@ $('pwSlideForm').onsubmit = e => {
   if (!o.imageUrl) return toast('กรุณาเลือกรูป', true);
   $('pwSlideSave').disabled = true;
   pwRun('pwSaveSlide', o).then(() => { modal('pwSlideModal').hide(); toast('บันทึกแล้ว'); return pwReload(); }).finally(() => $('pwSlideSave').disabled = false);
+};
+
+function pwOpenFin(s) {
+  PW.edit = s;
+  $('pwFinH').textContent = s ? 'แก้ไขรายการ งานการเงินและบัญชี' : 'เพิ่มรายการ งานการเงินและบัญชี';
+  $('pwFType').value = s ? s.type : 'video'; $('pwFTitle').value = s ? s.title : ''; $('pwFFile').value = s ? s.fileUrl : '';
+  $('pwFLink').value = s ? s.link : ''; $('pwFLinkT').value = s ? s.linkText : ''; $('pwFVis').checked = s ? !s.isHidden : true;
+  modal('pwFinModal').show();
+}
+$('pwFinForm').onsubmit = e => {
+  e.preventDefault();
+  const o = { id: PW.edit ? PW.edit.id : '', type: $('pwFType').value, title: $('pwFTitle').value.trim(), fileUrl: $('pwFFile').value.trim(),
+    link: $('pwFLink').value.trim(), linkText: $('pwFLinkT').value.trim(), isHidden: !$('pwFVis').checked };
+  if (!o.title || !o.fileUrl) return toast('กรุณาใส่หัวข้อและลิงก์ไฟล์', true);
+  $('pwFinSave').disabled = true;
+  pwRun('pwSaveFin', o).then(() => { modal('pwFinModal').hide(); toast('บันทึกแล้ว'); return pwReload(); }).finally(() => $('pwFinSave').disabled = false);
 };
 </script>
