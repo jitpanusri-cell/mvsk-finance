@@ -91,6 +91,8 @@ function pwReadFin_(sh) {
       date: pwStr_(r[9]), thumb: id ? 'https://drive.google.com/thumbnail?id=' + id + '&sz=w640' : '' };
   });
 }
+/* เลขรุ่นข้อมูลเว็บ: เปลี่ยนทุกครั้งที่แก้ผ่านเมนูนี้ → หน้าเว็บล้างแคช (getHomeData ใน Budgetweb.gs) แสดงของใหม่ทันที */
+function pwBump_(ss) { try { pwSetConf_(ss, 'webRev', String(Date.now())); } catch (e) { } }
 function pwConfSheet_(ss) {
   return pwHead_(ss.getSheetByName(PW_CONF) || ss.insertSheet(PW_CONF), ['key', 'value']);
 }
@@ -185,6 +187,7 @@ function pwSaveNews(o) {
   for (let i = 0; i < 6; i++) flat.push(links[i] ? pwStr_(links[i].url) : '', links[i] ? pwStr_(links[i].name) : '');
   const type = PW_TYPES.indexOf(o.type) >= 0 ? o.type : 'general';
   const ss = pwSs_();
+  pwBump_(ss);
   return withLock_(() => {
     const sh = pwNewsSheet_(ss);
     const body = [pwStr_(o.date), title, String(o.details || ''), pwStr_(o.imageUrl), type, JSON.stringify(links)].concat(flat)
@@ -201,6 +204,7 @@ function pwSaveNews(o) {
 function pwDeleteNews(id) {
   pwUser_();
   const ss = pwSs_();
+  pwBump_(ss);
   return withLock_(() => {
     const sh = pwNewsSheet_(ss), row = pwFind_(sh, id);
     if (!row) throw new Error('ไม่พบประกาศนี้');
@@ -215,6 +219,7 @@ function pwFlagNews(id, field, value) {
   const col = field === 'hidden' ? 21 : field === 'pinned' ? 22 : 0;
   if (!col) throw new Error('คำสั่งไม่ถูกต้อง');
   const ss = pwSs_();
+  pwBump_(ss);
   return withLock_(() => {
     const sh = pwNewsSheet_(ss), row = pwFind_(sh, id);
     if (!row) throw new Error('ไม่พบประกาศนี้');
@@ -227,6 +232,7 @@ function pwFlagNews(id, field, value) {
 function pwDuplicateNews(id) {
   const u = pwUser_();
   const ss = pwSs_();
+  pwBump_(ss);
   return withLock_(() => {
     const sh = pwNewsSheet_(ss), row = pwFind_(sh, id);
     if (!row) throw new Error('ไม่พบประกาศนี้');
@@ -251,6 +257,7 @@ function pwReorder_(sh, ids, width, reverse) {
 function pwOrderNews(ids) {
   pwUser_();
   const ss = pwSs_();
+  pwBump_(ss);
   return withLock_(() => { pwReorder_(pwNewsSheet_(ss), ids || [], PW_COLS, true); return true; });
 }
 
@@ -259,6 +266,7 @@ function pwSaveSlide(o) {
   o = o || {};
   if (!pwStr_(o.imageUrl)) throw new Error('กรุณาเลือกรูปภาพสไลด์');
   const ss = pwSs_();
+  pwBump_(ss);
   return withLock_(() => {
     const sh = pwSlideSheet_(ss);
     const body = [pwStr_(o.imageUrl), pwStr_(o.title), pwStr_(o.subtitle), pwStr_(o.link), pwStr_(o.linkText), o.isHidden ? 'HIDDEN' : 'VISIBLE', u.name, pwNow_()];
@@ -273,6 +281,7 @@ function pwSaveSlide(o) {
 function pwDeleteSlide(id) {
   pwUser_();
   const ss = pwSs_();
+  pwBump_(ss);
   return withLock_(() => {
     const sh = pwSlideSheet_(ss), row = pwFind_(sh, id);
     if (!row) throw new Error('ไม่พบสไลด์นี้');
@@ -283,6 +292,7 @@ function pwDeleteSlide(id) {
 function pwFlagSlide(id, hidden) {
   pwUser_();
   const ss = pwSs_();
+  pwBump_(ss);
   return withLock_(() => {
     const sh = pwSlideSheet_(ss), row = pwFind_(sh, id);
     if (!row) throw new Error('ไม่พบสไลด์นี้');
@@ -293,6 +303,7 @@ function pwFlagSlide(id, hidden) {
 function pwOrderSlides(ids) {
   pwUser_();
   const ss = pwSs_();
+  pwBump_(ss);
   return withLock_(() => { pwReorder_(pwSlideSheet_(ss), ids || [], 9, false); return true; });
 }
 
@@ -306,6 +317,7 @@ function pwSaveFin(o, kind) {
   if (sup ? !/^https?:/i.test(pwStr_(o.fileUrl)) : !pwDriveId_(o.fileUrl))
     throw new Error(sup ? 'กรุณาวางลิงก์เอกสาร (ขึ้นต้นด้วย https)' : 'กรุณาวางลิงก์ไฟล์ Google Drive (วิดีโอหรือ PDF)');
   const ss = pwSs_();
+  pwBump_(ss);
   return withLock_(() => {
     const sh = pwFinSheet_(ss, kind);
     const body = [sup ? 'link' : o.type === 'pdf' ? 'pdf' : 'video', pwStr_(o.title), pwStr_(o.fileUrl), pwStr_(o.linkText), pwStr_(o.link),
@@ -321,6 +333,7 @@ function pwSaveFin(o, kind) {
 function pwDeleteFin(id, kind) {
   pwUser_();
   const ss = pwSs_();
+  pwBump_(ss);
   return withLock_(() => {
     const sh = pwFinSheet_(ss, kind), row = pwFind_(sh, id);
     if (!row) throw new Error('ไม่พบรายการนี้');
@@ -331,6 +344,7 @@ function pwDeleteFin(id, kind) {
 function pwFlagFin(id, hidden, kind) {
   pwUser_();
   const ss = pwSs_();
+  pwBump_(ss);
   return withLock_(() => {
     const sh = pwFinSheet_(ss, kind), row = pwFind_(sh, id);
     if (!row) throw new Error('ไม่พบรายการนี้');
@@ -341,6 +355,7 @@ function pwFlagFin(id, hidden, kind) {
 function pwOrderFin(ids, kind) {
   pwUser_();
   const ss = pwSs_();
+  pwBump_(ss);
   return withLock_(() => { pwReorder_(pwFinSheet_(ss, kind), ids || [], 10, false); return true; });
 }
 

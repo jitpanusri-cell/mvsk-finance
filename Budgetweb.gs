@@ -101,7 +101,21 @@ function getFinItems(name) {
     .map(r => ({ type: str_(r[1]) === 'pdf' || str_(r[1]) === 'link' ? str_(r[1]) : 'video', title: str_(r[2]), date: str_(r[9]), url: str_(r[3]), embed: embedUrl_(r[3]), linkText: str_(r[4]), link: str_(r[5]) }));
 }
 
+/* ข้อมูลหน้าเว็บ (ข่าว สไลด์ งานการเงิน งานพัสดุ) — แคช 5 นาที ล้างอัตโนมัติเมื่อแก้ผ่านระบบการเงิน (webRev เปลี่ยน)
+ * ถ้าแก้ในชีตตรง ๆ หน้าเว็บจะเปลี่ยนภายใน 5 นาที */
 function getHomeData() {
+  let rev = '';
+  try { rev = getConf_('webRev'); } catch (e) { }
+  const cache = CacheService.getScriptCache(), key = 'home_' + rev;
+  try { const c = cache.get(key); if (c) return JSON.parse(c); } catch (e) { }
+  const out = buildHomeData_();
+  try {
+    const j = JSON.stringify(out);
+    if (Utilities.newBlob(j).getBytes().length < 100000) cache.put(key, j, 300);
+  } catch (e) { }
+  return out;
+}
+function buildHomeData_() {
   let news = [], slides = [];
   try { news = getAnnouncements(); } catch (e) { }
   try { slides = getSlides(); } catch (e) { }
