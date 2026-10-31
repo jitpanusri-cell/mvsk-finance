@@ -18,7 +18,6 @@ function doGet(e) {
   const p = pages[page] || pages.Budget;
   let t;
   try { t = HtmlService.createTemplateFromFile(p[0]); } catch (err) { t = HtmlService.createTemplateFromFile('Budget'); }
-  t.staffUrl = getConf_('staffUrl');
   return t.evaluate().setTitle(p[1])
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
@@ -76,5 +75,7 @@ function getHomeData() {
   let news = [], slides = [];
   try { news = getAnnouncements(); } catch (e) { }
   try { slides = getSlides(); } catch (e) { }
-  return { news: news, slides: slides };
+  let staffUrl = '';
+  try { staffUrl = getConf_('staffUrl'); } catch (e) { }
+  return { news: news, slides: slides, staffUrl: staffUrl };
 }

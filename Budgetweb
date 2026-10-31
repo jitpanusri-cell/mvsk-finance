@@ -250,7 +250,7 @@
           <a href="https://www.mvsk.ac.th/" target="_blank" rel="noopener">นักเรียน</a>
           <a href="https://www.mvsk.ac.th/" target="_blank" rel="noopener">ครู</a>
         </nav>
-        <div class="island-staff-area"><a class="island-staff-btn" id="staffLink" href="<?= typeof staffUrl !== 'undefined' ? staffUrl : '' ?>">เจ้าหน้าที่</a></div>
+        <div class="island-staff-area"><a class="island-staff-btn" id="staffLink" href="#">เจ้าหน้าที่</a></div>
       </div>
     </div>
   </header>
@@ -505,11 +505,12 @@
       h.addEventListener('touchend', function (e) { if (x0 == null) return; var dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 50) show(ST.cur + (dx < 0 ? 1 : -1)); x0 = null; });
     })();
     document.addEventListener('visibilitychange', function () { if (document.hidden) clearTimeout(ST.timer); else show(ST.cur); });
-    if (!$('staffLink').getAttribute('href')) $('staffLink').onclick = function (e) { e.preventDefault(); toast('ยังไม่ได้ผูกเว็บกับระบบการเงิน (ระบบการเงิน > เว็บไซต์ > ตั้งค่า)'); };
+    $('staffLink').onclick = function (e) { if (this.getAttribute('href') === '#') { e.preventDefault(); toast('ยังไม่ได้ผูกเว็บกับระบบการเงิน (ระบบการเงิน > เว็บไซต์ > ตั้งค่า)'); } };
 
     renderSlides(); observe();
     google.script.run.withSuccessHandler(function (d) {
       d = d || {};
+      if (d.staffUrl) $('staffLink').setAttribute('href', d.staffUrl);
       ST.news = (d.news || []).map(function (a) { a.links = a.links || []; a._t = plain(a.details); return a; });
       ST.slides = (d.slides || []).filter(function (s) { return s.imageUrl; });
       if (ST.slides.length) renderSlides();
