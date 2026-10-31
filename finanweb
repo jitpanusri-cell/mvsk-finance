@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>งานการเงินและบัญชี - โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</title>
-  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
   
   <base target="_top">
   
@@ -256,425 +256,187 @@
       .island-staff-area { width: 100%; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 10px; padding-left: 0; }
       .island-staff-btn { width: 100%; padding: 12px; }
     }
-
     /* ==========================================
-       2. CSS สำหรับเนื้อหาเว็บไซต์ (ขยายเต็มหน้าจอคอมและมือถือ)
+       2. HERO (ส่วนหัวสีน้ำเงิน-เทา คงเดิม)
        ========================================== */
-    .main-container { 
-      width: 100%; 
-      margin: 0 auto; 
-      background-color: #f8f9fb;
-      min-height: 100vh;
-      padding-bottom: 50px;
-      position: relative;
-      overflow: hidden; 
+    :root {
+      --navy: #13294b; --navy-2: #0b1a33; --gold: #c79a2e; --gold-2: #e0b85a;
+      --ink: #1b2432; --ink-2: #4a5568; --ink-3: #8a94a6; --line: #e3e7ed; --soft: #f5f6f8;
+      --ease: cubic-bezier(.22, .61, .36, 1);
     }
+    html { scroll-behavior: smooth; }
+    .main-container { width: 100%; position: relative; overflow: hidden; }
 
-    /* HEADER สีน้ำเงิน-เทา ขยายเต็มความกว้างจอจอภาพ */
     .site-header {
       background: linear-gradient(-45deg, #002b5e, #555555, #004a9f, #333333);
       background-size: 300% 300%;
-      animation: gradientMove 15s ease infinite; 
+      animation: gradientMove 15s ease infinite;
       padding: 120px 20px 60px 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      color: #ffffff;
-      position: relative;
-      overflow: hidden; 
-      border-bottom: 5px solid #fbbc04; 
-      z-index: 10;
-      width: 100%;
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+      color: #ffffff; position: relative; overflow: hidden;
+      border-bottom: 5px solid #fbbc04; z-index: 10; width: 100%;
     }
-
-    @keyframes gradientMove {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-
+    @keyframes gradientMove { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
     .site-header::before {
-      content: '';
-      position: absolute;
-      top: 0; left: -100%;
-      width: 50%; height: 100%;
+      content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
       background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0) 100%);
-      transform: skewX(-25deg);
-      animation: shineSweep 15s infinite ease-in-out; 
-      z-index: 1;
+      transform: skewX(-25deg); animation: shineSweep 15s infinite ease-in-out; z-index: 1;
     }
-
-    @keyframes shineSweep {
-      0% { left: -100%; }
-      10% { left: 150%; }
-      100% { left: 150%; }
-    }
-
-    .header-content { 
-      max-width: 1200px;
-      margin: 0 auto;
-      width: 100%;
-      z-index: 2; 
-      position: relative; 
-    }
-    
-    .site-header img.logo-main {
-      width: 90px;
-      height: auto;
-      margin-bottom: 15px;
-      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
-    }
-
-    .finance-title {
-      font-size: 32px;
-      font-weight: 700;
-      color: #fbbc04; 
-      text-shadow: 0 2px 10px rgba(251, 188, 4, 0.3), 0 2px 4px rgba(0,0,0,0.8);
-      margin-bottom: 12px;
-      letter-spacing: 1px;
-      word-break: keep-all; 
-    }
-
-    .school-subtitle-th {
-      display: block; 
-      font-size: 16px;
-      font-weight: 500;
-      color: #ffffff;
-      letter-spacing: 0.5px;
-      word-break: keep-all;
-      margin-top: 5px;
-    }
-
-    .school-subtitle-en {
-      display: block; 
-      font-size: 11px;
-      font-weight: 300;
-      color: #e2e8f0;
-      letter-spacing: 1px;
-      word-break: keep-all;
-      margin-top: 3px;
-      text-transform: uppercase;
-    }
-
-    /* คอนเทนเนอร์เนื้อหาจำกัดความกว้างตรงกลางให้อ่านง่าย */
-    .content-wrapper { 
-      padding: 20px; 
-      max-width: 1200px;
-      margin: 0 auto;
-      width: 100%;
-      position: relative;
-      z-index: 2;
-    }
-
-    .section-title {
-      background-color: #264a75; 
-      color: #ffffff; 
-      font-size: 16px; 
-      font-weight: 600; 
-      padding: 15px 20px;
-      border-radius: 8px; 
-      border-left: 6px solid #fbbc04; 
-      margin-bottom: 20px; 
-      margin-top: 30px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-      display: flex; 
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap; /* ปรับให้ปุ่มตัดลงมาบรรทัดใหม่ได้ถ้าหน้าจอเล็ก */
-      gap: 10px;
-      word-break: keep-all;
-    }
-    .content-wrapper .section-title:first-child { margin-top: 10px; }
-
-    .title-link-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background-color: rgba(255, 255, 255, 0.15);
-      color: #ffffff;
-      text-decoration: none;
-      font-size: 12px;
-      font-weight: 400;
-      padding: 6px 14px;
-      border-radius: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      transition: all 0.3s ease;
-      white-space: nowrap;
-    }
-
-    .title-link-btn:hover {
-      background-color: #fbbc04;
-      color: #002b5e;
-      border-color: #fbbc04;
-      box-shadow: 0 2px 8px rgba(251, 188, 4, 0.4);
-      transform: translateY(-1px);
-    }
-
-    .title-link-btn svg {
-      width: 13px;
-      height: 13px;
-      fill: currentColor;
-    }
-
-    /* ==========================================
-       MENU GRID & CARDS 
-       ========================================== */
-    .menu-grid {
-      display: grid; 
-      grid-template-columns: repeat(2, 1fr); 
-      gap: 14px; 
-      margin-bottom: 30px;
-    }
-    .menu-card {
-      background: #ffffff; 
-      border: 1px solid #eef0f3; 
-      border-radius: 12px; 
-      padding: 16px; /* ปรับลด padding สำหรับมือถือ */
-      text-align: left; 
-      text-decoration: none; 
-      color: #2c3e50;
-      position: relative;
-      min-height: 120px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.02); 
-      transition: all 0.3s ease-in-out;
-    }
-    
-    .menu-card:hover { 
-      transform: translateY(-4px);
-      background: #ffffff;
-      box-shadow: 0 10px 25px rgba(0,43,94,0.08); 
-      border-color: rgba(0,43,94,0.1);
-    }
-    
-    .card-title { 
-      font-size: 13px; /* ปรับให้เล็กลงนิดหน่อยบนมือถือ */
-      font-weight: 700; 
-      line-height: 1.4; 
-      color: #1a2b3c;
-      word-break: keep-all;
-    }
-    
-    .card-bottom {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      margin-top: 10px;
-    }
-    
-    .icon-wrapper { 
-      width: 32px; height: 32px; /* ย่อไอคอนลงเล็กน้อยบนมือถือ */
-      background-color: #f0f4f8; 
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      transition: background-color 0.3s;
-    }
-    .icon-svg { width: 16px; height: 16px; fill: #003366; transition: fill 0.3s; } 
-    
-    .arrow-circle {
-      width: 26px; height: 26px;
-      background: #f4f6f8;
-      border: 1px solid #e2e8f0;
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      color: #64748b;
-      font-size: 12px;
-      font-weight: bold;
-      transition: all 0.3s;
-    }
-
-    .menu-card:hover .arrow-circle { 
-      background: #fbbc04; 
-      color: #003366; 
-      border-color: #fbbc04;
-      transform: translateX(3px);
-    }
-    .menu-card:hover .icon-wrapper { background-color: #003366; }
-    .menu-card:hover .icon-svg { fill: #ffffff; }
-
-    /* ==========================================
-       SECTION: วิดีโอ / เอกสาร (ปรับโครงสร้างให้ดูง่ายขึ้นบนโทรศัพท์)
-       ========================================== */
-    .video-wrapper {
-      background: #000; border-radius: 8px; overflow: hidden;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 25px; border: 1px solid #eee;
-      width: 100%;
-    }
-    
-    /* แก้ไขปัญหาวิดีโอ Google Drive โดนตัดขอบ แสดงผลไม่ครบในหน้าจอมือถือ */
-    .responsive-video { 
-      position: relative; 
-      padding-bottom: 65%; /* ปรับเพิ่มจาก 56.25% เพื่อชดเชยพื้นที่ให้แถบควบคุม Google Drive บนมือถือ */
-      min-height: 260px; /* บังคับความสูงขั้นต่ำ ป้องกัน iframe แคบเกินไปบนจอมือถือเล็กๆ */
-      height: 0; 
-    }
-    .responsive-video iframe { 
-      position: absolute; 
-      top: 0; left: 0; 
-      width: 100%; height: 100%; 
-      border: none; 
-    }
-
-    /* ปรับปรุงขนาด doc-box บนหน้าจอโทรศัพท์ให้อ่านง่ายขึ้น ไม่แคบเกินไป */
-    .doc-box { 
-      border: 1px solid #eee; border-radius: 8px; overflow: hidden; margin-bottom: 25px; 
-      box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-      height: 400px; /* ปรับเพิ่มความสูงจาก 300px เป็น 400px ให้เห็นเอกสารมากขึ้นบนมือถือ */
-      width: 100%;
-      position: relative;
-      -webkit-overflow-scrolling: touch; /* เลื่อนไฟล์ PDF บน iOS ได้ดีขึ้น */
-    }
-    .responsive-doc { position: relative; height: 100%; width: 100%; }
-    .doc-box iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
-
-    .payment-box { 
-      border: 1px solid #eee; border-radius: 8px; overflow: hidden; background: #ffffff; 
-      box-shadow: 0 4px 12px rgba(0,0,0,0.02);
-    }
-    .step-item { display: flex; align-items: flex-start; padding: 16px; border-bottom: 1px solid #eee; }
-    .step-item:last-child { border-bottom: none; }
-    .step-num { 
-      background: #002b5e; color: #fbbc04; font-size: 15px; font-weight: 700; 
-      min-width: 30px; height: 30px; border-radius: 6px; 
-      display: flex; align-items: center; justify-content: center; margin-right: 12px; 
-    }
-    .step-text { flex: 1; }
-    .step-text h4 { font-size: 14px; font-weight: 600; color: #222; margin-bottom: 4px; word-break: keep-all; }
-    .step-text p { font-size: 12px; color: #555; line-height: 1.5; word-break: keep-all; }
-
-    /* ปรับปรุงความสวยงามเฉพาะหน้าจอมือถือ (ปรับมุมมองโทรศัพท์) */
+    @keyframes shineSweep { 0% { left: -100%; } 10% { left: 150%; } 100% { left: 150%; } }
+    .header-content { max-width: 1200px; margin: 0 auto; width: 100%; z-index: 2; position: relative; }
+    .site-header img.logo-main { width: 90px; height: auto; margin: 0 auto 15px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4)); }
+    .finance-title { font-size: 32px; font-weight: 700; color: #fbbc04; text-shadow: 0 2px 10px rgba(251, 188, 4, 0.3), 0 2px 4px rgba(0,0,0,0.8); margin-bottom: 12px; letter-spacing: 1px; word-break: keep-all; }
+    .school-subtitle-th { display: block; font-size: 16px; font-weight: 500; color: #ffffff; letter-spacing: 0.5px; word-break: keep-all; margin-top: 5px; }
+    .school-subtitle-en { display: block; font-size: 11px; font-weight: 300; color: #e2e8f0; letter-spacing: 1px; word-break: keep-all; margin-top: 3px; text-transform: uppercase; }
     @media (max-width: 767px) {
-      .site-header { padding: 90px 15px 40px 15px; } /* ลด padding ด้านบนไม่ให้กินพื้นที่จอเยอะไป */
-      .finance-title { font-size: 26px; } /* ปรับขนาดฟอนต์หัวข้อให้พอดีจอมือถือ */
+      .site-header { padding: 90px 15px 40px 15px; }
+      .finance-title { font-size: 26px; }
       .school-subtitle-th { font-size: 15px; }
       .school-subtitle-en { font-size: 10px; }
-      .section-title { font-size: 15px; padding: 12px 15px; }
       .dynamic-island { padding: 8px 15px; }
     }
-
-    /* DESKTOP OPTIMIZATION (ขยายขนาดเอกสารและวิดีโอเมื่อเปิดบนคอมพิวเตอร์) */
     @media (min-width: 768px) {
-      .site-header { padding: 140px 40px 70px 40px; } 
+      .site-header { padding: 140px 40px 70px 40px; }
       .site-header img.logo-main { width: 110px; margin-bottom: 20px; }
       .finance-title { font-size: 46px; margin-bottom: 15px; }
       .school-subtitle-th { font-size: 22px; }
       .school-subtitle-en { font-size: 14px; margin-top: 5px; }
-      
-      .content-wrapper { padding: 40px 20px; }
-      .section-title { font-size: 19px; padding: 16px 25px; margin-bottom: 25px; flex-wrap: nowrap;}
-      
-      .menu-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
-      .menu-card { min-height: 140px; padding: 22px; }
-      .card-title { font-size: 15px; }
-      
-      .icon-wrapper { width: 36px; height: 36px; }
-      .icon-svg { width: 18px; height: 18px; }
-      .arrow-circle { width: 28px; height: 28px; font-size: 13px; }
-
-      /* จำกัดขนาดและปรับอัตราส่วนวิดีโอบนหน้าจอคอมพิวเตอร์กลับเป็น 16:9 ปกติ */
-      .video-wrapper { max-width: 600px; margin: 0 auto 35px auto; }
-      .responsive-video { padding-bottom: 56.25%; min-height: auto; }
-      
-      /* ปรับขนาดกล่อง PDF ขยายใหญ่ขึ้นในหน้าจอคอมพิวเตอร์ตามเดิม */
-      .doc-box { max-width: 800px; height: 500px; margin: 0 auto 35px auto; }
-      
-      .step-item { padding: 20px 25px; }
-      .step-num { min-width: 32px; height: 32px; font-size: 15px; }
-      .step-text h4 { font-size: 17px; }
-      .step-text p { font-size: 15px; }
     }
 
     /* ==========================================
-       CSS สำหรับ FOOTER 
+       3. เนื้อหา — โครงสร้างเดียวกับหน้าหลัก (Budget)
        ========================================== */
-    .site-footer {
-      background: rgba(15, 23, 42, 0.95); 
-      color: #e2e8f0;
-      padding: 40px 15px 20px;
-      border-top: 4px solid #fbbc04;
-      font-size: 13px;
-      line-height: 1.6;
-      width: 100%;
-      font-family: 'Prompt', sans-serif; 
-      box-sizing: border-box;
-    }
+    .ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .ic.sm { width: 16px; height: 16px; } .ic.lg { width: 30px; height: 30px; stroke-width: 1.3; }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
+    .pg { font-family: 'Sarabun', sans-serif; font-size: 16px; line-height: 1.65; color: var(--ink); background: #fff; }
+    .pg h2, .pg h3, .pg h4, .hd { font-family: 'IBM Plex Sans Thai', 'Sarabun', sans-serif; line-height: 1.35; }
+    .pg a { color: inherit; text-decoration: none; }
+    .pg section { padding: 72px 0; scroll-margin-top: 90px; }
+    .sh { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 32px; flex-wrap: wrap; }
+    .sh h2 { font-size: 34px; font-weight: 600; color: var(--navy); position: relative; padding-bottom: 10px; }
+    .sh h2::after { content: ''; position: absolute; left: 0; bottom: 0; width: 56px; height: 3px; background: var(--gold); transform: scaleX(0); transform-origin: left; transition: transform .9s .2s var(--ease); }
+    .sh.in h2::after { transform: scaleX(1); }
+    .sh p { color: var(--ink-3); flex-basis: 100%; margin-top: -8px; }
+    .link-more { display: inline-flex; align-items: center; gap: 8px; font-family: 'IBM Plex Sans Thai'; font-weight: 500; color: var(--navy); }
+    .link-more .ic { transition: transform .25s var(--ease); }
+    .link-more:hover .ic { transform: translateX(4px); }
 
-    .site-footer * {
-      box-sizing: border-box;
-    }
+    /* บริการข้อมูล */
+    .svc { background: var(--soft); }
+    .svcs { display: grid; grid-template-columns: repeat(4, 1fr); }
+    .sv { padding: 10px 28px 14px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; }
+    .sv:first-child { border-left: 0; padding-left: 0; }
+    .sv .ic.lg { color: var(--gold); transition: transform .4s var(--ease); }
+    .sv h3 { font-size: 20px; font-weight: 600; color: var(--navy); }
+    .sv .go { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 14.5px; margin-top: auto; }
+    .sv:hover .ic.lg { transform: translateY(-4px); }
+    .sv:hover .go { color: var(--gold); }
+    .quick { margin-top: 56px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 32px; }
+    .quick a { display: flex; align-items: center; gap: 12px; padding: 16px 0; border-top: 1px solid #d6dbe3; font-family: 'IBM Plex Sans Thai'; font-weight: 500; color: var(--navy); }
+    .quick a .ic:last-child { margin-left: auto; color: var(--ink-3); transition: transform .25s var(--ease); }
+    .quick a:hover .ic:last-child { transform: translateX(4px); color: var(--gold); }
 
-    .footer-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 25px;
-      max-width: 1000px;
-      margin: 0 auto;
-    }
+    .svcs.c3 { grid-template-columns: repeat(3, 1fr); }
+    .sv .ds { color: var(--ink-3); font-size: 15px; margin-top: -6px; }
+    .sh .link-more { order: 2; }
 
-    .footer-col h3 {
-      color: #fbbc04;
-      font-size: 15px;
-      margin-bottom: 12px;
-      font-weight: 600;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      padding-bottom: 8px;
-      margin-top: 0;
-    }
+    /* ประชาสัมพันธ์งานการเงิน */
+    .ngrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+    .ngrid .nc { cursor: pointer; color: inherit; }
+    .ph { position: relative; overflow: hidden; background: #e9edf3; aspect-ratio: 4 / 3; border-radius: 0 0 22px 22px; }
+    .ph .im { position: absolute; inset: 0; background: center / cover no-repeat; transition: transform .9s var(--ease); }
+    .nc:hover .ph .im { transform: scale(1.06); }
+    .ph .none { position: absolute; inset: 0; display: grid; place-items: center; color: #b3bccb; }
+    .ph .none .ic { width: 46px; height: 46px; stroke-width: 1.2; }
+    .ph .badges { position: absolute; left: 16px; top: 16px; display: flex; gap: 6px; z-index: 2; }
+    .ph .badges span { background: rgba(255, 255, 255, .94); color: #a15c07; font-family: 'IBM Plex Sans Thai'; font-size: 12.5px; font-weight: 600; padding: 4px 11px; border-radius: 99px; display: inline-flex; gap: 5px; align-items: center; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
+    .ph .badges .pin { background: var(--gold); color: #fff; }
+    .dt { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; background: #eef1f7; color: var(--navy); font-family: 'IBM Plex Sans Thai'; font-weight: 600; font-size: 14px; padding: 6px 14px 6px 12px; border-radius: 99px; margin-bottom: 14px; transition: background .3s, color .3s; }
+    .dt .ic { width: 17px; height: 17px; }
+    .nc:hover .dt { background: var(--navy); color: #fff; }
+    .ngrid .tt { font-size: 18px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .ngrid .ex { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .nc:hover .rm { color: var(--gold); }
+    .nc:hover .rm .ic { transform: translateX(6px); }
 
-    .footer-col p, .footer-col ul {
-      color: #cbd5e1;
-      list-style: none;
-      margin: 0; 
-      padding: 0;
-    }
+    /* คู่มือ / หลักเกณฑ์ (การ์ดแบบเดียวกับข่าว) */
+    .feat { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+    .nc { background: #fff; border-radius: 22px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 8px 24px rgba(16, 24, 40, .06); transition: transform .45s var(--ease), box-shadow .45s var(--ease); }
+    .nc:hover { transform: translateY(-6px); box-shadow: 0 2px 4px rgba(16, 24, 40, .04), 0 22px 44px rgba(19, 41, 75, .16); }
+    .media { position: relative; overflow: hidden; background: #0f172a; aspect-ratio: 4 / 3; border-radius: 0 0 22px 22px; }
+    .media.doc { background: #e9edf3; }
+    .media iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    .media .badges { position: absolute; left: 16px; top: 16px; z-index: 2; pointer-events: none; }
+    .media .badges span { background: rgba(255, 255, 255, .94); color: var(--navy); font-family: 'IBM Plex Sans Thai'; font-size: 12.5px; font-weight: 600; padding: 4px 11px; border-radius: 99px; display: inline-flex; gap: 5px; align-items: center; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
+    .nb { padding: 24px 26px 26px; display: flex; flex-direction: column; flex: 1; }
+    .tt { color: var(--ink); font-family: 'IBM Plex Sans Thai'; font-weight: 500; font-size: 22px; line-height: 1.45; }
+    .ex { color: var(--ink-3); margin-top: 8px; font-size: 15.5px; }
+    .rm { margin-top: auto; padding-top: 20px; display: inline-flex; align-items: center; gap: 10px; font-family: 'IBM Plex Sans Thai'; font-weight: 600; color: var(--navy); font-size: 16px; }
+    .rm .ic { transition: transform .35s var(--ease); }
+    .rm:hover { color: var(--gold); }
+    .rm:hover .ic { transform: translateX(6px); }
 
-    .footer-col li { margin-bottom: 8px; }
-    .footer-col strong { color: #ffffff; font-weight: 500;}
+    /* ขั้นตอนการชำระเงิน */
+    .pay { background: var(--soft); }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); counter-reset: s; }
+    .st { padding: 10px 28px 14px; border-left: 1px solid var(--line); }
+    .st:first-child { border-left: 0; padding-left: 0; }
+    .st .no { font-family: 'IBM Plex Sans Thai'; font-size: 40px; font-weight: 600; color: var(--gold); line-height: 1; display: block; margin-bottom: 14px; }
+    .st h3 { font-size: 20px; font-weight: 600; color: var(--navy); margin-bottom: 8px; }
+    .st p { color: var(--ink-2); font-size: 15.5px; }
+    .st p a { color: var(--navy); font-weight: 600; border-bottom: 1px solid var(--gold); }
+    .st b { color: var(--navy); font-weight: 600; }
+    .center { text-align: center; margin-top: 44px; }
+    .btn-out { display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--navy); color: var(--navy); padding: 11px 26px; font-family: 'IBM Plex Sans Thai'; font-weight: 500; transition: all .25s; }
+    .btn-out:hover { background: var(--navy); color: #fff; }
 
-    .site-footer a, 
-    .site-footer a[href^="tel"], 
-    .site-footer a[href^="mailto"] {
-      color: #fbbc04; 
-      text-decoration: none;
-      font-weight: 500;
-      transition: color 0.3s;
-    }
-    
-    .site-footer a:hover {
-      color: #ffffff;
-      text-decoration: underline;
-    }
+    /* FOOTER (แบบหน้าหลัก) */
+    footer.ft { background: var(--navy-2); color: #aab5c7; font-size: 15px; font-family: 'Sarabun', sans-serif; line-height: 1.65; }
+    footer.ft a { color: inherit; text-decoration: none; }
+    footer.ft .cols { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 48px; padding: 56px 32px 40px; }
+    footer.ft .fb { display: flex; gap: 14px; align-items: center; margin-bottom: 18px; }
+    footer.ft .fb img { width: 52px; height: 52px; object-fit: contain; }
+    footer.ft .fb b { color: #fff; font-family: 'IBM Plex Sans Thai'; font-weight: 600; font-size: 18px; display: block; }
+    footer.ft h4 { color: #fff; font-family: 'IBM Plex Sans Thai'; font-size: 15px; font-weight: 600; margin-bottom: 14px; letter-spacing: .3px; }
+    footer.ft li { list-style: none; margin-bottom: 6px; }
+    footer.ft a:hover { color: #fff; }
+    footer.ft .bt { border-top: 1px solid rgba(255, 255, 255, .08); }
+    footer.ft .bt .wrap { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 16px; padding-bottom: 16px; font-size: 13.5px; }
 
-    .visitor-counter {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-top: 30px;
-      padding-top: 20px;
-      border-top: 1px solid rgba(255,255,255,0.1);
-      color: #cbd5e1;
-      font-size: 13px;
-    }
+    #prog { position: fixed; left: 0; top: 0; height: 3px; width: 100%; background: linear-gradient(90deg, #fbbc04, var(--gold)); transform-origin: left; transform: scaleX(0); z-index: 10000; }
+    .rv { opacity: 0; transform: translateY(24px); transition: opacity .8s var(--ease), transform .8s var(--ease); }
+    .rv.in { opacity: 1; transform: none; }
 
-    .counter-wrapper {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      margin-bottom: 12px;
+    @media (max-width: 1080px) {
+      .svcs { grid-template-columns: repeat(2, 1fr); gap: 32px 0; }
+      .sv:nth-child(3) { border-left: 0; padding-left: 0; }
+      .svcs.c3 { grid-template-columns: 1fr; }
+      .svcs.c3 .sv { border-left: 0; padding-left: 0; }
+      .quick { grid-template-columns: repeat(2, 1fr); }
+      .feat { gap: 22px; }
+      .ngrid { grid-template-columns: repeat(2, 1fr); }
     }
-
-    /* DESKTOP OPTIMIZATION สำหรับ FOOTER */
-    @media (min-width: 768px) {
-      .site-footer { padding: 50px 20px 20px; font-size: 15px; }
-      .footer-grid { grid-template-columns: repeat(3, 1fr); gap: 40px; }
+    @media (max-width: 860px) {
+      .steps { grid-template-columns: 1fr; gap: 28px; }
+      .st { border-left: 0; padding: 0; }
     }
+    @media (max-width: 640px) {
+      .wrap { padding: 0 18px; }
+      .pg section { padding: 52px 0; }
+      .sh h2 { font-size: 27px; }
+      .svcs, .quick, .feat, .ngrid { grid-template-columns: 1fr; }
+      .sv { border-left: 0; padding-left: 0; }
+      .tt { font-size: 19px; }
+      .nb { padding: 20px; }
+      footer.ft .cols { grid-template-columns: 1fr; gap: 28px; padding: 40px 18px 28px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .rv { opacity: 1; transform: none; } }
   </style>
 </head>
 <body>
+  <div id="prog"></div>
+  <?!= include('Icons'); ?>
 
   <div class="main-container">
 
@@ -721,170 +483,188 @@
       </div>
     </div>
 
-    <div class="content-wrapper">
-      
-      <div class="section-title">บริการข้อมูล (Data Service)</div>
-      
-      <div class="menu-grid">
-        <a href="https://drive.google.com/drive/folders/1MAVZSuX1EqYbylITkW2Agn09qH5XHEIA?usp=sharing" class="menu-card">
-          <div class="card-title">แบบฟอร์มต่างๆ<br>สำหรับครูและบุคลากร</div>
-          <div class="card-bottom">
-            <div class="icon-wrapper">
-              <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+  </div>
+
+  <main class="pg">
+
+    <section id="news" hidden>
+      <div class="wrap">
+        <div class="sh rv"><h2>ประชาสัมพันธ์งานการเงิน</h2><a class="link-more" href="<?= getScriptUrl(); ?>" target="_top">ข่าวทั้งหมด<svg class="ic"><use href="#i-arrow"/></svg></a></div>
+        <div class="ngrid" id="newsGrid"></div>
+      </div>
+    </section>
+
+    <section class="svc" id="services">
+      <div class="wrap">
+        <div class="sh rv"><h2>บริการข้อมูล</h2><p>แบบฟอร์ม ตัวอย่าง และช่องทางชำระเงินสำหรับครู บุคลากร และผู้ปกครอง</p></div>
+        <div class="svcs">
+          <a class="sv rv" href="https://drive.google.com/drive/folders/1MAVZSuX1EqYbylITkW2Agn09qH5XHEIA?usp=sharing" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-file"/></svg><h3>แบบฟอร์มต่างๆ สำหรับครูและบุคลากร</h3><span class="go">เปิดโฟลเดอร์แบบฟอร์ม<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
+          <a class="sv rv" href="https://drive.google.com/drive/folders/15tkyyaOcauqCc4JJLilAJgmJBd_7ROIN?usp=sharing" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-receipt"/></svg><h3>ตัวอย่างการกรอกแบบฟอร์ม</h3><span class="go">ดูตัวอย่าง<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
+          <a class="sv rv" href="https://schoolbillingdev31.com/SBMVSK/Pages/PrintReportPayInForStudent.aspx" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-card"/></svg><h3>การชำระเงินบำรุงการศึกษา</h3><span class="go">เข้าสู่ระบบชำระเงิน<svg class="ic sm"><use href="#i-external"/></svg></span></a>
+          <a class="sv rv" href="https://script.google.com/a/macros/mvsk.ac.th/s/AKfycbxYvQpKdRqI3dPfDj_GhFnIceZ6VBC44qI3IzZSN94rjI4ETdT9dym1nOK44cgriRjoxA/exec" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-sitemap"/></svg><h3>โครงสร้างฝ่ายการเงินและบัญชี</h3><span class="go">ดูโครงสร้าง<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
+        </div>
+        <div class="quick rv">
+          <a href="https://drive.google.com/file/d/1zjeZ-AjS92v2coOzxFu01LRL7OB4D1jd/view?usp=sharing" target="_blank" rel="noopener"><svg class="ic"><use href="#i-download"/></svg>คู่มือการเบิกเงินเยี่ยมบ้าน<svg class="ic sm"><use href="#i-arrow"/></svg></a>
+          <a href="https://drive.google.com/file/d/13f1lR8pkpezsddCNb_ex1gvfWb1TZvUf/view?usp=drive_link" target="_blank" rel="noopener"><svg class="ic"><use href="#i-file"/></svg>ประกาศหลักเกณฑ์ มว 69<svg class="ic sm"><use href="#i-arrow"/></svg></a>
+          <a href="#payment" data-go="payment"><svg class="ic"><use href="#i-coins"/></svg>ขั้นตอนชำระเงินบำรุงการศึกษา<svg class="ic sm"><use href="#i-arrow"/></svg></a>
+          <a href="https://script.google.com/a/macros/mvsk.ac.th/s/AKfycbyZJdbVKke-UxMNIs3YzrC_syttaATtJUjXPetrssfBIqf_IDbW-PuaHi8nXS-UyKZZDQ/exec"><svg class="ic"><use href="#i-home"/></svg>กลับหน้ากลุ่มบริหารงานงบประมาณ<svg class="ic sm"><use href="#i-arrow"/></svg></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="loan" id="loan">
+      <div class="wrap">
+        <div class="sh rv"><h2>ยืม ส่งคืน เบิก เงินงบประมาณ</h2><a class="link-more" href="#" data-sys="docs">เข้าสู่ระบบ<svg class="ic"><use href="#i-arrow"/></svg></a><p>กรอกข้อมูลครั้งเดียว ระบบจัดทำเอกสารราชการให้พร้อมพิมพ์ และบันทึกเข้าระบบการเงินทุกรายการ (เข้าด้วยบัญชี @mvsk.ac.th)</p></div>
+        <div class="svcs c3">
+          <a class="sv rv" href="#" data-sys="docs"><svg class="ic lg"><use href="#i-coins"/></svg><h3>สัญญายืมเงิน</h3><p class="ds">ยืมเพื่อจัดกิจกรรม/โครงการ หรือเดินทางไปราชการ พร้อมสัญญาการยืมเงิน (แบบ 206)</p><span class="go">ทำสัญญายืม<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
+          <a class="sv rv" href="#" data-sys="docs"><svg class="ic lg"><use href="#i-refresh"/></svg><h3>ส่งคืนเงินยืม</h3><p class="ds">ส่งใช้เงินยืมพร้อมหลักฐานการจ่าย ภายใน 30 วัน (กิจกรรม) หรือ 15 วัน (เดินทาง)</p><span class="go">ส่งใช้เงินยืม<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
+          <a class="sv rv" href="#" data-sys="docs"><svg class="ic lg"><use href="#i-receipt"/></svg><h3>ขอเบิกเงิน</h3><p class="ds">เบิกค่าจัดกิจกรรม จัดซื้อ หรือค่าเดินทางไปราชการ โดยไม่ต้องยืม</p><span class="go">ขอเบิกเงิน<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
+        </div>
+      </div>
+    </section>
+
+    <section id="guides">
+      <div class="wrap">
+        <div class="sh rv"><h2>คู่มือและหลักเกณฑ์การเบิกจ่าย</h2></div>
+        <div class="feat">
+          <article class="nc rv">
+            <div class="media">
+              <iframe src="https://drive.google.com/file/d/1yf_RcVuuSQNfriKsG_hX4cQYFwiPmiLn/preview" allow="autoplay" allowfullscreen loading="lazy" title="วิดีโอแนะนำขั้นตอนการเบิกเงินเยี่ยมบ้าน"></iframe>
             </div>
-            <div class="arrow-circle">→</div>
-          </div>
-        </a>
-        
-        <a href="https://drive.google.com/drive/folders/15tkyyaOcauqCc4JJLilAJgmJBd_7ROIN?usp=sharing" class="menu-card">
-          <div class="card-title">ตัวอย่าง<br>การกรอกแบบฟอร์ม</div>
-          <div class="card-bottom">
-            <div class="icon-wrapper">
-              <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+            <div class="nb">
+              <h3 class="tt">วิดีโอแนะนำขั้นตอนการเบิกเงินเยี่ยมบ้าน</h3>
+              <p class="ex">ดูขั้นตอนการจัดทำเอกสารและการเบิกเงินค่าเยี่ยมบ้านนักเรียนตั้งแต่ต้นจนจบ</p>
+              <a class="rm" href="https://drive.google.com/file/d/1zjeZ-AjS92v2coOzxFu01LRL7OB4D1jd/view?usp=sharing" target="_blank" rel="noopener">คู่มือการเบิกเงิน<svg class="ic"><use href="#i-arrow"/></svg></a>
             </div>
-            <div class="arrow-circle">→</div>
-          </div>
-        </a>
-        
-        <a href="https://schoolbillingdev31.com/SBMVSK/Pages/PrintReportPayInForStudent.aspx" class="menu-card">
-          <div class="card-title">การชำระเงิน<br>บำรุงการศึกษา</div>
-          <div class="card-bottom">
-            <div class="icon-wrapper">
-              <svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5-.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+          </article>
+          <article class="nc rv">
+            <div class="media doc">
+              <iframe src="https://drive.google.com/file/d/10p8JXa1B-B_sxkrwkW7c30TKe8W_ob95/preview" loading="lazy" title="หลักเกณฑ์และอัตราการเบิกจ่าย (มว 69)"></iframe>
             </div>
-            <div class="arrow-circle">→</div>
-          </div>
-        </a>
-        
-        <a href="https://script.google.com/a/macros/mvsk.ac.th/s/AKfycbxYvQpKdRqI3dPfDj_GhFnIceZ6VBC44qI3IzZSN94rjI4ETdT9dym1nOK44cgriRjoxA/exec" class="menu-card">
-          <div class="card-title">โครงสร้างฝ่ายการเงินและบัญชี</div>
-          <div class="card-bottom">
-            <div class="icon-wrapper">
-              <svg class="icon-svg" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            <div class="nb">
+              <h3 class="tt">หลักเกณฑ์และอัตราการเบิกจ่าย (มว 69)</h3>
+              <p class="ex">อัตราค่าใช้จ่ายและเงื่อนไขการเบิกจ่ายตามประกาศของโรงเรียน</p>
+              <a class="rm" href="https://drive.google.com/file/d/13f1lR8pkpezsddCNb_ex1gvfWb1TZvUf/view?usp=drive_link" target="_blank" rel="noopener">ประกาศฉบับเต็ม<svg class="ic"><use href="#i-arrow"/></svg></a>
             </div>
-            <div class="arrow-circle">→</div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="pay" id="payment">
+      <div class="wrap">
+        <div class="sh rv"><h2>ขั้นตอนการชำระเงินบำรุงการศึกษา</h2></div>
+        <div class="steps">
+          <div class="st rv">
+            <span class="no">01</span>
+            <h3>เข้าเว็บไซต์โรงเรียน</h3>
+            <p>เปิด <a href="https://www.mvsk.ac.th" target="_blank" rel="noopener">www.mvsk.ac.th</a> เลือกระบบการจัดการ E-Service &gt; ระบบชำระเงินบำรุงการศึกษา</p>
           </div>
-        </a>
-      </div>
-
-      <div class="section-title">
-        <span>วิดีโอแนะนำขั้นตอนการเบิกเงินเยี่ยมบ้าน</span>
-        <a href="https://drive.google.com/file/d/1zjeZ-AjS92v2coOzxFu01LRL7OB4D1jd/view?usp=sharing" class="title-link-btn">
-          คู่มือการเบิกเงิน
-          <svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.41l-9.29 9.29-1.42-1.42L17.59 5H14V3zM4 5h5V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-5h-2v5H4V5z"/></svg>
-        </a>
-      </div>
-      <div class="video-wrapper">
-        <div class="responsive-video">
-          <iframe src="https://drive.google.com/file/d/1yf_RcVuuSQNfriKsG_hX4cQYFwiPmiLn/preview" allowfullscreen></iframe>
-        </div>
-      </div>
-
-      <div class="section-title">
-        <span>หลักเกณฑ์และอัตราการเบิกจ่าย (มว 69)</span>
-        <a href="https://drive.google.com/file/d/13f1lR8pkpezsddCNb_ex1gvfWb1TZvUf/view?usp=drive_link" class="title-link-btn">
-          ประกาศฉบับเต็ม
-          <svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.41l-9.29 9.29-1.42-1.42L17.59 5H14V3zM4 5h5V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-5h-2v5H4V5z"/></svg>
-        </a>
-      </div>
-      
-      <div class="doc-box">
-        <div class="responsive-doc">
-          <iframe src="https://drive.google.com/file/d/10p8JXa1B-B_sxkrwkW7c30TKe8W_ob95/preview"></iframe>
-        </div>
-      </div>
-
-      <div class="section-title">ขั้นตอนการชำระเงินบำรุงการศึกษา</div>
-      <div class="payment-box">
-        <div class="step-item">
-          <div class="step-num">1</div>
-          <div class="step-text">
-            <h4>เข้าเว็บไซต์โรงเรียน</h4>
-            <p>เปิด <a href="https://www.mvsk.ac.th" style="color:#004a9f; text-decoration:none; font-weight:600;">www.mvsk.ac.th</a> เลือกระบบการจัดการ E-Service > ระบบชำระเงินบำรุงการศึกษา</p>
+          <div class="st rv">
+            <span class="no">02</span>
+            <h3>กรอกข้อมูลนักเรียน</h3>
+            <p>เลือกภาคเรียนและปีการศึกษา กรอก <b>เลขประจำตัวนักเรียน</b> และตรวจสอบความถูกต้องของชื่อ-นามสกุล</p>
+          </div>
+          <div class="st rv">
+            <span class="no">03</span>
+            <h3>ดำเนินการชำระเงิน</h3>
+            <p><b>วิธีที่ 1</b> สแกนชำระผ่าน Mobile Banking ได้ทุกธนาคาร<br><b>วิธีที่ 2</b> พิมพ์ใบ Pay in นำไปชำระที่ธนาคารกรุงไทยทุกสาขา</p>
           </div>
         </div>
-        <div class="step-item">
-          <div class="step-num">2</div>
-          <div class="step-text">
-            <h4>กรอกข้อมูลนักเรียน</h4>
-            <p>เลือกภาคเรียนและปีการศึกษา กรอก <strong style="color:#002b5e;">เลขประจำตัวนักเรียน</strong> และตรวจสอบความถูกต้องของชื่อ-นามสกุล</p>
-          </div>
-        </div>
-        <div class="step-item">
-          <div class="step-num">3</div>
-          <div class="step-text">
-            <h4>ดำเนินการชำระเงิน</h4>
-            <p><strong>วิธีที่ 1:</strong> สแกนชำระผ่าน Mobile Banking ได้ทุกธนาคาร<br>
-            <strong>วิธีที่ 2:</strong> พิมพ์เอกสารใบ Pay in เพื่อนำไปชำระที่ธนาคารกรุงไทยทุกสาขา</p>
-          </div>
-        </div>
+        <div class="center rv"><a class="btn-out" href="https://schoolbillingdev31.com/SBMVSK/Pages/PrintReportPayInForStudent.aspx" target="_blank" rel="noopener">ไปที่ระบบชำระเงิน<svg class="ic sm"><use href="#i-external"/></svg></a></div>
       </div>
+    </section>
 
-    </div> 
+  </main>
 
-  </div> 
-  
-  <footer class="site-footer">
-    <div class="footer-grid">
-      
-      <div class="footer-col">
-        <h3>📍 ที่อยู่ติดต่อ</h3>
-        <p>
-          <strong>โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</strong><br>
-          เลขที่ 19 ถนนราชดำเนิน ตำบลบ่อยาง <br>
-          อำเภอเมืองสงขลา จังหวัดสงขลา 90000
-        </p>
+  <footer class="ft" id="contact">
+    <div class="wrap cols">
+      <div>
+        <div class="fb"><img src="https://drive.google.com/thumbnail?id=1PVf5EA7ntHrhJBLbwOuobqWfd9mvscY8&sz=w200" alt=""><span><b>งานการเงินและบัญชี</b>กลุ่มบริหารงานงบประมาณ โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</span></div>
+        <p>เลขที่ 19 ถนนราชดำเนิน ตำบลบ่อยาง<br>อำเภอเมืองสงขลา จังหวัดสงขลา 90000</p>
       </div>
-
-      <div class="footer-col">
-        <h3>📞 หมายเลขโทรศัพท์</h3>
-        <ul>
-          <li><strong>โรงเรียน:</strong> <span>074-311006</span></li>
-          <li><strong>Fax:</strong> <span>074-326107</span></li>
-          <li><strong>โครงการ SMA:</strong> <span>074-315582</span></li>
-          <li><strong>โครงการ EGL:</strong> <span>074-311006</span> ต่อ 403</li>
-        </ul>
+      <div>
+        <h4>โทรศัพท์</h4>
+        <ul><li>โรงเรียน 074-311006</li><li>โทรสาร 074-326107</li><li>โครงการ SMA 074-315582</li><li>โครงการ EGL 074-311006 ต่อ 403</li></ul>
       </div>
-
-      <div class="footer-col">
-        <h3>✉️ ส่งเอกสารและอีเมล</h3>
-        <p>
-          <strong>ส่งเอกสารทางราชการ:</strong><br>
-          <a href="mailto:mvskschool@gmail.com">mvskschool@gmail.com</a>
-        </p>
+      <div>
+        <h4>ส่งเอกสารราชการ</h4>
+        <ul><li><a href="mailto:mvskschool@gmail.com">mvskschool@gmail.com</a></li></ul>
       </div>
-
     </div>
-
-    <div class="visitor-counter">
-      <div class="counter-wrapper">
-        <span style="font-weight: 500;">สถิติผู้เข้าชมเว็บไซต์:</span>
-        <img src="https://hits.sh/mvsk.ac.th/budget_home.svg?style=flat&label=Views&color=002b5e&labelColor=fbbc04" alt="Visitor Counter" style="border-radius: 4px; height: 22px;">
-      </div>
-      <p style="margin-top: 5px; font-size: 11px; color: #94a3b8;">© 2569 กลุ่มบริหารงานงบประมาณ โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</p>
-    </div>
+    <div class="bt"><div class="wrap"><span>© 2569 กลุ่มบริหารงานงบประมาณ โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</span><img src="https://hits.sh/mvsk.ac.th/budget_home.svg?style=flat&label=views&color=13294b&labelColor=555555" alt="" height="20"></div></div>
   </footer>
 
+  <span id="baseUrl" hidden><?= getScriptUrl(); ?></span>
   <script>
-    // เอฟเฟกต์การย่อขนาดเมื่อเลื่อนจอ
-    window.addEventListener('scroll', function() {
-      const header = document.getElementById('dynamicHeader');
-      if (header) { 
-        if (window.scrollY > 50) { 
-          header.classList.add('sticky-nav');
-        } else {
-          header.classList.remove('sticky-nav');
-        }
-      }
+    function $(id) { return document.getElementById(id); }
+    var ticking = false;
+    window.addEventListener('scroll', function () {
+      if (ticking) return; ticking = true;
+      requestAnimationFrame(function () {
+        var y = window.scrollY, H = document.documentElement.scrollHeight - innerHeight;
+        var h = $('dynamicHeader'); if (h) h.classList.toggle('sticky-nav', y > 50);
+        $('prog').style.transform = 'scaleX(' + (H > 0 ? y / H : 0) + ')';
+        ticking = false;
+      });
+    }, { passive: true });
+
+    function toggleMobileMenu() { var m = $('islandMenu'); if (m) m.classList.toggle('show'); }
+
+    document.addEventListener('click', function (e) {
+      var g = e.target.closest('[data-go]');
+      if (g) { e.preventDefault(); $(g.dataset.go).scrollIntoView({ behavior: 'smooth' }); }
     });
 
-    // ควบคุมเมนูมือถือ
-    function toggleMobileMenu() {
-      const menu = document.getElementById('islandMenu');
-      if (menu) {
-        menu.classList.toggle('show');
-      }
+    function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    function ico(n, c) { return '<svg class="ic ' + (c || '') + '"><use href="#i-' + n + '"/></svg>'; }
+    function plain(h) { var d = new DOMParser().parseFromString('<div>' + String(h || '').replace(/<br\s*\/?>/gi, ' ') + '</div>', 'text/html'); return (d.body.textContent || '').replace(/[\u2600-\u27BF\uFE0F]|[\uD83C-\uDBFF][\uDC00-\uDFFF]/g, '').replace(/\s+/g, ' ').trim(); }
+    var BASE = ($('baseUrl').textContent || '').trim(), SYS = '';
+
+    function renderNews(list) {
+      var L = (list || []).filter(function (a) { return a.type === 'finance-alert'; })
+        .sort(function (a, b) { return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0); }).slice(0, 3);
+      if (!L.length) return;
+      $('newsGrid').innerHTML = L.map(function (a) {
+        var img = (a.images && a.images[0]) || a.imageUrl || '';
+        var date = String(a.date || '').replace(/^วันที่\s*/, '').replace(/พ\.ศ\.\s*/, '');
+        var ex = plain(a.details);
+        return '<a class="nc rv" target="_top" href="' + esc(BASE + '?news=' + encodeURIComponent(a.id)) + '">' +
+          '<div class="ph">' + (img ? '<div class="im" style="background-image:url(&quot;' + esc(img) + '&quot;)"></div>' : '<div class="none">' + ico('megaphone') + '</div>') +
+          '<div class="badges">' + (a.pinned ? '<span class="pin">' + ico('pin', 'sm') + 'ปักหมุด</span>' : '') + '<span>งานการเงิน</span></div></div>' +
+          '<div class="nb">' + (date ? '<span class="dt">' + ico('calendar') + esc(date) + '</span>' : '') +
+          '<h3 class="tt">' + esc(a.title) + '</h3>' + (ex ? '<p class="ex">' + esc(ex) + '</p>' : '') +
+          '<span class="rm">อ่านต่อ' + ico('arrow') + '</span></div></a>';
+      }).join('');
+      $('news').hidden = false;
+      reveal();
     }
+
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest('[data-sys]');
+      if (a && !SYS) { e.preventDefault(); alert('ยังไม่ได้ผูกเว็บกับระบบการเงิน (ระบบการเงิน > เว็บไซต์ > ตั้งค่า)'); }
+    });
+    if (window.google && google.script && google.script.run) google.script.run.withSuccessHandler(function (d) {
+      d = d || {};
+      SYS = d.staffUrl || '';
+      if (SYS) document.querySelectorAll('[data-sys]').forEach(function (a) { a.href = SYS + (SYS.indexOf('?') < 0 ? '?' : '&') + 'page=' + a.dataset.sys; a.target = '_top'; });
+      renderNews(d.news);
+    }).getHomeData();
+
+    var io = null;
+    function reveal() {
+      var els = document.querySelectorAll('.rv:not(.in)');
+      if (!('IntersectionObserver' in window)) { els.forEach(function (el) { el.classList.add('in'); }); return; }
+      io = io || new IntersectionObserver(function (es) {
+        es.forEach(function (x) { if (x.isIntersecting) { x.target.classList.add('in'); io.unobserve(x.target); } });
+      }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+      var i = 0;
+      els.forEach(function (el) {
+        if (el.classList.contains('sv') || el.classList.contains('st') || el.classList.contains('nc')) el.style.transitionDelay = (i++ % 4) * 0.08 + 's';
+        io.observe(el);
+      });
+    }
+    reveal();
   </script>
 
 </body>

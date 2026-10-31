@@ -287,11 +287,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderShell();
     renderGFy();
     renderTermSeg();
-    await loadDashboard();
+    const start = await startPageParam();
+    if (start) { loading(false); go(start); } else await loadDashboard();
     swrPrune();
     setTimeout(swrPrefetch, 800);
   } catch (e) { fail(e); }
 });
+
+/* ลิงก์ตรงเข้าเมนู เช่น ?page=docs (จากหน้าเว็บงานการเงิน) — เปิดได้เฉพาะเมนูที่ผู้ใช้มีสิทธิ์ */
+function startPageParam() {
+  return new Promise(res => {
+    try {
+      google.script.url.getLocation(l => {
+        const p = l && l.parameter ? String(l.parameter.page || '') : '';
+        res(p && p !== 'dashboard' && S.boot.user.pages.includes(p) && IMPLEMENTED.includes(p) ? p : '');
+      });
+    } catch (e) { res(''); }
+  });
+}
 
 /* ---------- เมนูซ้าย + ผู้ใช้ ---------- */
 function renderShell() {
