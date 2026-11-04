@@ -1574,18 +1574,29 @@ async function openStMemo() {
       { targetN: R.targetN, total: R.targetDue, targetG: R.targetG, targetF: R.targetF, mix: R.targetMix }, R.n === 1 ? M.borrow1 : 0) });
     docs.push({ t: `รายงานการจ่ายเงิน ครั้งที่ ${R.n}`, d: `โอน ${stDates(R.dates)} · สำเร็จ ${stNf(R.successN)} คน` + (R.outN ? ` · ค้าง ${stNf(R.outN)} คน` : ''), run: o => printStRptMemo(M, R, o) });
   });
-  if (M.next.targetN) docs.push({ t: `ขออนุมัติจ่ายเงิน ครั้งที่ ${M.next.n} (ครั้งถัดไป)`, d: `${stNf(M.next.targetN)} คน · ${stNf(M.next.total)} บาท` + (M.nextShort ? ` · ขาด ${stNf(M.nextShort)} บาท (มีข้อเสนอขอยืมเงิน)` : ''),
+  if (M.next.targetN) docs.push({ t: `ขออนุมัติจ่ายเงิน ครั้งที่ ${M.next.n} (ครั้งถัดไป)`, d: `${stNf(M.next.targetN)} คน · ${stNf(M.next.total)} บาท` + (M.nextShort ? ` · ขาด ${stNf(M.nextShort)} บาท` : ''),
     run: o => printStReqMemo(M, M.next.n, o, M.next, M.nextShort) });
   docs.push({ t: 'เอกสารหมายเลข 2 (ทุกห้อง)', d: 'แบบหลักฐานยืนยันการจัดหา', run: () => printForm2(stForm2Rooms()) });
   docs.push({ t: 'ตารางสรุป (แบบเดิม)', d: 'ตามแท็บที่เลือกบนหน้าจอ', run: () => printDisb() });
   let h = '';
   if (M.next.n > 1 && M.next.targetN) h += `ครั้งที่ ${M.next.n} แยกตามเหตุผล: ตีกลับ/โอนไม่สำเร็จ ${M.next.mix.returned.n} คน · นักเรียนเข้าใหม่ ${M.next.mix.new.n} คน · โอนผิดบัญชี ${M.next.mix.wrong.n} คน (ตั้งเหตุผลรายคนได้ที่รายชื่อ "ยังไม่รับเงิน")`;
   if (M.partial && M.partial.length) h += `<br><span class="neg">มีนักเรียน ${M.partial.length} คนที่ยกเลิกไว้แค่บางรายการเงิน: ${M.partial.slice(0, 5).map(s => esc(s.name) + ' (' + esc(s.cls) + ' ขาด' + s.missing.join('/') + ')').join(', ')}${M.partial.length > 5 ? ' …' : ''}</span>`;
-  if (!M.allocTotal && M.semester === 1) h += '<br><span class="neg">ยังไม่มียอดจัดสรรของภาคเรียนนี้ในเมนูหนังสือจัดสรร/รายรับ — ตัวเลขในเรื่องเดิมจะเป็น 0</span>';
+  if (!M.allocTotal) h += '<br><span class="neg">ยังไม่มียอดจัดสรรในเมนูหนังสือจัดสรร/รายรับ — กรอกยอดจัดสรรด้านบนก่อนพิมพ์</span>';
+  /* ยอดจัดสรร (เรื่องเดิม) และการยืมเงิน กรอกเองได้ */
+  $('fStAllocE').value = M.alloc.EQUIP || ''; $('fStAllocU').value = M.alloc.UNIFORM || '';
+  $('fStAllocUWrap').style.display = M.semester === 1 ? '' : 'none';
+  const bw = M.nextShort || M.borrow1 || 0;
+  $('fStBorrow').checked = bw > 0; $('fStBorrowAmt').value = bw || ''; $('fStBorrowFrom').value = 'กิจกรรมพัฒนาผู้เรียน';
+  const bwSync = () => { const d = $('fStBorrow').checked ? '' : 'none'; $('fStBorrowWrap').style.display = d; $('fStBorrowWrap2').style.display = d; };
+  $('fStBorrow').onchange = bwSync; bwSync();
+  $('fStBorrowHint').textContent = M.nextShort ? `เงินที่ได้รับยังไม่พอจ่ายครั้งที่ ${M.next.n} ขาด ${stNf(M.nextShort)} บาท` : (M.borrow1 ? `ครั้งที่ 1 ขาด ${stNf(M.borrow1)} บาท` : 'เงินที่ได้รับพอจ่าย');
   $('stMemoHint').innerHTML = h;
   $('stMemoDocs').innerHTML = docs.map((x, i) => `<button class="btnx sec" data-i="${i}" style="justify-content:flex-start;text-align:left;width:100%">${ic('print', 'sm')}<span><b>${x.t}</b><br><span class="small-x muted">${x.d}</span></span></button>`).join('');
   $('stMemoDocs').querySelectorAll('button').forEach(b => b.onclick = () => {
-    const o = { date: $('fStMemoDate').value || M.today, xfer: $('fStXferDate').value || M.today, asOf: $('fStAsOf').value || M.today, thai: $('fStThaiNum').checked, signer: $('fStSigner').value.trim() };
+    const o = { date: $('fStMemoDate').value || M.today, xfer: $('fStXferDate').value || M.today, asOf: $('fStAsOf').value || M.today, thai: $('fStThaiNum').checked, signer: $('fStSigner').value.trim(),
+      borrow: $('fStBorrow').checked ? (+$('fStBorrowAmt').value || 0) : 0, borrowFrom: $('fStBorrowFrom').value.trim() || 'กิจกรรมพัฒนาผู้เรียน' };
+    M.alloc = Object.assign({}, M.alloc, { EQUIP: +$('fStAllocE').value || 0 }, M.semester === 1 ? { UNIFORM: +$('fStAllocU').value || 0 } : {});
+    M.allocTotal = M.funds.reduce((x, f) => x + (+M.alloc[f] || 0), 0);
     try { localStorage.setItem('stMemoSigner', o.signer); } catch (e) {}
     modal('stMemoModal').hide();
     docs[+b.dataset.i].run(o);
@@ -1597,6 +1608,7 @@ async function openStMemo() {
 async function printStReqMemo(M, n, o, X, short) {
   const W = stFundWords(M), T = M.term, P = M.rounds.find(r => r.n === n - 1);
   X = X || M.next; if (short == null) short = M.nextShort;
+  if (o.borrow != null) short = o.borrow;
   const semY = `ภาคเรียนที่ ${M.semester} ปีการศึกษา ${M.acadYear}`;
   const base = `ตามที่${esc(M.school.name)} ได้รับจัดสรรและโอนเปลี่ยนแปลงงบประมาณรายจ่าย ประจำปีงบประมาณ พ.ศ. ${M.fy} ตามแผนงานสนับสนุนการจัดการศึกษาขั้นพื้นฐาน 15 ปี กิจกรรมสนับสนุนค่าใช้จ่ายในการจัดการศึกษาขั้นพื้นฐาน ภาคเรียนที่ ${T} (${stNf(M.pct)}%)`;
   let old, fact;
@@ -1608,7 +1620,7 @@ async function printStReqMemo(M, n, o, X, short) {
     fact = `งานการเงินงบประมาณ ขออนุมัติจ่ายเงิน${W.body} ครั้งที่ ${n} ภาคเรียนที่ ${T} ให้นักเรียนชั้น ม.1-ม.6 ${stMixText(X.mix, P.n, T)} เป็นจำนวนเงิน ${stBaht(X.total)} โดยวิธีโอนเข้าบัญชีนักเรียน ในวันที่ ${thDate(o.xfer)}`;
   }
   const propose = short
-    ? stSh('ข้อเสนอ/พิจารณา') + stP(`1. งานการเงินได้รับโอนเงินเปลี่ยนแปลงไม่เพียงพอต่อการเบิกจ่ายให้นักเรียน จำเป็นต้องขอยืมเงินจากกิจกรรมพัฒนาผู้เรียน จำนวน ${stBaht(short)}`) + stP('2. หากเห็นชอบตาม ข้อ 1 เพื่อโปรดพิจารณาอนุมัติ')
+    ? stSh('ข้อเสนอ/พิจารณา') + stP(`1. งานการเงินได้รับโอนเงินเปลี่ยนแปลงไม่เพียงพอต่อการเบิกจ่ายให้นักเรียน จำเป็นต้องขอยืมเงินจาก${esc(o.borrowFrom || 'กิจกรรมพัฒนาผู้เรียน')} จำนวน ${stBaht(short)}`) + stP('2. หากเห็นชอบตาม ข้อ 1 เพื่อโปรดพิจารณาอนุมัติ')
     : `<p class="ind" style="margin-top:3mm">จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ</p>`;
   let memo = `<div class="sheet memo" style="line-height:1.22">
     ${stMemoHead(M, `ขออนุมัติจ่ายเงิน${W.subj} ครั้งที่ ${n} ${semY}`, o.date)}
@@ -1632,7 +1644,7 @@ async function printStRptMemo(M, R, o) {
   let old;
   if (n === 1) {
     old = `ตามที่${esc(M.school.name)} ได้รับจัดสรรและโอนเปลี่ยนแปลงงบประมาณรายจ่าย งบประมาณปี ${M.fy} ตามแผนงานยุทธศาสตร์สร้างความเสมอภาคทางการศึกษา โครงการสนับสนุนค่าใช้จ่ายในการจัดการศึกษาตั้งแต่ระดับอนุบาลจนจบการศึกษาขั้นพื้นฐาน กิจกรรมการสนับสนุนค่าใช้จ่ายในการจัดการศึกษาขั้นพื้นฐาน ภาคเรียนที่ ${T} (${stNf(M.pct)}%) ` +
-      stAllocText(M, ' ', false) + (M.borrow1 ? ` และยืมเงินจากกิจกรรมพัฒนาผู้เรียน จำนวน ${stBaht(M.borrow1)}` : '');
+      stAllocText(M, ' ', false) + ((o.borrow != null ? o.borrow : M.borrow1) ? ` และยืมเงินจาก${esc(o.borrowFrom || 'กิจกรรมพัฒนาผู้เรียน')} จำนวน ${stBaht(o.borrow != null ? o.borrow : M.borrow1)}` : '');
   } else {
     old = `ตามที่งานการเงินงบประมาณ ขออนุมัติจ่ายเงิน${W.body} ครั้งที่ ${n} ภาคเรียนที่ ${T} ให้นักเรียนชั้น ม.1-ม.6 ${stMixText(R.targetMix, n - 1, T)} เป็นจำนวนเงิน ${stBaht(R.targetDue)} โดยวิธีโอนเข้าบัญชีนักเรียน ในวันที่ ${xfer} นั้น`;
   }

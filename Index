@@ -631,6 +631,14 @@
             <div class="col-sm-6"><label class="flabel" for="fStMemoDate">วันที่หนังสือ</label><input class="inp" type="date" id="fStMemoDate"></div>
             <div class="col-sm-6" id="fStXferWrap"><label class="flabel" for="fStXferDate">วันที่จะโอนเงินเข้าบัญชี</label><input class="inp" type="date" id="fStXferDate"></div>
             <div class="col-sm-6"><label class="flabel" for="fStAsOf">ข้อมูล ณ วันที่ (ท้ายตาราง)</label><input class="inp" type="date" id="fStAsOf"></div>
+            <div class="col-sm-6"><label class="flabel" for="fStAllocE">ยอดจัดสรร ค่าอุปกรณ์การเรียน (บาท)</label><input class="inp" type="number" step="0.01" id="fStAllocE"></div>
+            <div class="col-sm-6" id="fStAllocUWrap"><label class="flabel" for="fStAllocU">ยอดจัดสรร ค่าเครื่องแบบนักเรียน (บาท)</label><input class="inp" type="number" step="0.01" id="fStAllocU"></div>
+            <div class="col-12">
+              <label class="d-inline-flex align-items-center gap-2" style="min-height:36px"><input type="checkbox" id="fStBorrow" style="width:18px;height:18px"> ขอยืมเงินมาจ่ายก่อน (มีข้อเสนอขอยืมในบันทึก)</label>
+              <div class="small-x muted" id="fStBorrowHint"></div>
+            </div>
+            <div class="col-sm-6" id="fStBorrowWrap"><label class="flabel" for="fStBorrowAmt">ยืมจำนวน (บาท)</label><input class="inp" type="number" step="0.01" id="fStBorrowAmt"></div>
+            <div class="col-sm-6" id="fStBorrowWrap2"><label class="flabel" for="fStBorrowFrom">ยืมจาก</label><input class="inp" type="text" id="fStBorrowFrom"></div>
             <div class="col-12"><label class="flabel" for="fStSigner">ผู้ลงนามท้ายบันทึก (ตำแหน่ง ครู ปฏิบัติงานการเงินและบัญชี)</label><input class="inp" type="text" id="fStSigner"></div>
             <div class="col-sm-6 d-flex align-items-end">
               <label class="d-inline-flex align-items-center gap-2" style="min-height:44px"><input type="checkbox" id="fStThaiNum" checked style="width:18px;height:18px"> ใช้เลขไทยในบันทึกข้อความ</label>
