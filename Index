@@ -631,6 +631,7 @@
             <div class="col-sm-6"><label class="flabel" for="fStMemoDate">วันที่หนังสือ</label><input class="inp" type="date" id="fStMemoDate"></div>
             <div class="col-sm-6" id="fStXferWrap"><label class="flabel" for="fStXferDate">วันที่จะโอนเงินเข้าบัญชี</label><input class="inp" type="date" id="fStXferDate"></div>
             <div class="col-sm-6"><label class="flabel" for="fStAsOf">ข้อมูล ณ วันที่ (ท้ายตาราง)</label><input class="inp" type="date" id="fStAsOf"></div>
+            <div class="col-12"><label class="flabel" for="fStSigner">ผู้ลงนามท้ายบันทึก (ตำแหน่ง ครู ปฏิบัติงานการเงินและบัญชี)</label><input class="inp" type="text" id="fStSigner"></div>
             <div class="col-sm-6 d-flex align-items-end">
               <label class="d-inline-flex align-items-center gap-2" style="min-height:44px"><input type="checkbox" id="fStThaiNum" checked style="width:18px;height:18px"> ใช้เลขไทยในบันทึกข้อความ</label>
             </div>

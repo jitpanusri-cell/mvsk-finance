@@ -1510,9 +1510,10 @@ function stMemoLaw(M) {
     stP('1. คำสั่งหัวหน้า คสช.ที่ 28/2559 เรื่องการจัดการศึกษาขั้นพื้นฐาน 15 ปี โดยไม่เก็บค่าใช้จ่าย') +
     stP(`2. แนวทางการดำเนินงานตามโครงการสนับสนุนค่าใช้จ่ายในการจัดการศึกษา, ปีงบประมาณ ${M.fy}`);
 }
-function stMemoSig(M) {
+function stMemoSig(M, o) {
   const dots = '.........................................';
-  return `<div class="msig" style="margin-top:10mm;break-inside:avoid">(${esc(M.signers.finOfficer) || dots})<br>เจ้าหน้าที่การเงิน</div>`;
+  const name = (o && o.signer) || M.signers.finOfficer;
+  return `<div class="msig" style="margin-top:10mm;break-inside:avoid">(${esc(name) || dots})<br>ตำแหน่ง ครู<br>ปฏิบัติงานการเงินและบัญชี</div>`;
 }
 /* ยอดจัดสรรแยกรายการเงิน: "เป็นเงินค่าอุปกรณ์การเรียน จำนวน ... และเงินค่าเครื่องแบบนักเรียน จำนวน ..." */
 function stAllocText(M, sep, withTotal) {
@@ -1564,6 +1565,8 @@ async function openStMemo() {
   $('stMemoTitle').textContent = `พิมพ์เอกสาร${W.subj} ภาคเรียนที่ ${M.term}`;
   $('fStXferWrap').style.display = M.next.targetN ? '' : 'none';
   $('fStMemoDate').value = M.today; $('fStXferDate').value = M.today; $('fStAsOf').value = M.today;
+  let sv = ''; try { sv = localStorage.getItem('stMemoSigner') || ''; } catch (e) {}
+  $('fStSigner').value = sv || M.signers.finOfficer || '';
   /* ทุกเอกสารพิมพ์ได้ทันที กี่ครั้งก็ได้: ขออนุมัติ/รายงาน ทุกครั้งที่โอนแล้ว + ขออนุมัติครั้งถัดไป */
   const docs = [];
   M.rounds.forEach(R => {
@@ -1582,7 +1585,8 @@ async function openStMemo() {
   $('stMemoHint').innerHTML = h;
   $('stMemoDocs').innerHTML = docs.map((x, i) => `<button class="btnx sec" data-i="${i}" style="justify-content:flex-start;text-align:left;width:100%">${ic('print', 'sm')}<span><b>${x.t}</b><br><span class="small-x muted">${x.d}</span></span></button>`).join('');
   $('stMemoDocs').querySelectorAll('button').forEach(b => b.onclick = () => {
-    const o = { date: $('fStMemoDate').value || M.today, xfer: $('fStXferDate').value || M.today, asOf: $('fStAsOf').value || M.today, thai: $('fStThaiNum').checked };
+    const o = { date: $('fStMemoDate').value || M.today, xfer: $('fStXferDate').value || M.today, asOf: $('fStAsOf').value || M.today, thai: $('fStThaiNum').checked, signer: $('fStSigner').value.trim() };
+    try { localStorage.setItem('stMemoSigner', o.signer); } catch (e) {}
     modal('stMemoModal').hide();
     docs[+b.dataset.i].run(o);
   });
@@ -1612,7 +1616,7 @@ async function printStReqMemo(M, n, o, X, short) {
     ${stSh('ข้อเท็จจริง')}${stP(fact)}
     ${stMemoLaw(M)}
     ${propose}
-    ${stMemoSig(M)}
+    ${stMemoSig(M, o)}
   </div>`;
   if (o.thai) memo = stThaiDigits(memo);
   memo = await stFitMemo(memo);
@@ -1642,7 +1646,7 @@ async function printStRptMemo(M, R, o) {
     ${stSh('ข้อเท็จจริง')}${stP(fact)}
     ${stMemoLaw(M)}
     <p class="ind" style="margin-top:3mm">จึงเรียนมาเพื่อโปรดทราบ</p>
-    ${stMemoSig(M)}
+    ${stMemoSig(M, o)}
   </div>`;
   if (o.thai) memo = stThaiDigits(memo);
   memo = await stFitMemo(memo);
