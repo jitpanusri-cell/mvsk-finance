@@ -446,8 +446,7 @@ svg.i.sm{width:16px;height:16px}
   .f2doc .pbreak{break-after:page;height:0}
   .f2doc .sigs{margin-top:10.8mm;text-align:center;line-height:7.3mm;break-inside:avoid;white-space:nowrap}
   .f2doc .sigs .s + .s{margin-top:9.7mm}
-  .f2doc .para.just{display:flex;justify-content:space-between;letter-spacing:0}
-  .f2doc .para.just > span{flex:none;white-space:pre}
+  .f2doc .para.fit{overflow:visible}
   .f2doc .sigs .sr{display:flex;justify-content:center;white-space:nowrap}
   .f2doc .sigs .sl{width:30mm;text-align:right;flex:none}
   .f2doc .sigs .sx{width:30mm;text-align:left;flex:none}
