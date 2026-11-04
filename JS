@@ -899,7 +899,7 @@ function initStudentsPage() {
   $('impPaste').oninput = () => parseImpText($('impPaste').value);
   $('btnStDoImport').onclick = doStImport;
   $('btnImpUrl').onclick = doStImportUrl;
-  $('btnDisbPrint').innerHTML = ic('print', 'sm') + '<span>พิมพ์</span>';
+  $('btnDisbPrint').innerHTML = ic('print', 'sm') + '<span>พิมพ์เอกสารทั้งหมด</span>';
   $('btnDisbPrint').onclick = openStMemo;
   $('btnStForm2').innerHTML = ic('print', 'sm') + '<span>พิมพ์เอกสารหมายเลข 2</span>';
   $('btnStForm2').onclick = printForm2Sel;
@@ -1206,6 +1206,14 @@ const PRINT_CSS_INLINE = `
 .f2doc .pbreak{break-after:page;height:0}
 .f2doc .sigs{margin-top:10.8mm;text-align:center;line-height:7.3mm;break-inside:avoid;white-space:nowrap}
 .f2doc .sigs .s + .s{margin-top:9.7mm}
+.f2doc .para.just{display:flex;justify-content:space-between;letter-spacing:0}
+.f2doc .para.just > span{flex:none;white-space:pre}
+.f2doc .sigs .sr{display:flex;justify-content:center;white-space:nowrap}
+.f2doc .sigs .sl{width:30mm;text-align:right;flex:none}
+.f2doc .sigs .sx{width:30mm;text-align:left;flex:none}
+.f2doc .sigs .sc{width:52mm;flex:none;display:flex;justify-content:center}
+.f2doc .sigs .sc.cut{overflow:hidden;justify-content:flex-start}
+.f2doc .sigs .dd{flex:1 1 0;min-width:0;overflow:hidden}
 .memo{font-size:16pt;line-height:1.35}
 .memo .mhead{position:relative;height:17mm;margin-bottom:2mm}
 .memo .garuda{position:absolute;left:0;top:0;width:auto;height:15mm;object-fit:contain}
@@ -1548,47 +1556,43 @@ function stRecvTable(M, R, line2) {
 }
 
 async function openStMemo() {
-  const isReq = ST.disbTab === 'req';
   loading(true);
   try { ST.memo = await api('getDisbMemoData', ST.term); }
   catch (e) { return fail(e); }
   loading(false);
   const M = ST.memo, W = stFundWords(M);
-  const n = isReq ? M.next.n : +ST.disbTab.slice(1);
-  const R = isReq ? null : M.rounds.find(r => r.n === n);
-  $('stMemoTitle').textContent = isReq ? `บันทึกข้อความขออนุมัติจ่ายเงิน ครั้งที่ ${n}` : `บันทึกข้อความรายงานการจ่ายเงิน ครั้งที่ ${n}`;
-  $('fStXferWrap').style.display = isReq ? '' : 'none';
+  $('stMemoTitle').textContent = `พิมพ์เอกสาร${W.subj} ภาคเรียนที่ ${M.term}`;
+  $('fStXferWrap').style.display = M.next.targetN ? '' : 'none';
   $('fStMemoDate').value = M.today; $('fStXferDate').value = M.today; $('fStAsOf').value = M.today;
+  /* ทุกเอกสารพิมพ์ได้ทันที กี่ครั้งก็ได้: ขออนุมัติ/รายงาน ทุกครั้งที่โอนแล้ว + ขออนุมัติครั้งถัดไป */
+  const docs = [];
+  M.rounds.forEach(R => {
+    docs.push({ t: `ขออนุมัติจ่ายเงิน ครั้งที่ ${R.n}`, d: `${stNf(R.targetN)} คน · ${stNf(R.targetDue)} บาท`, run: o => printStReqMemo(M, R.n, Object.assign({}, o, { xfer: R.dates[0] || o.xfer }),
+      { targetN: R.targetN, total: R.targetDue, targetG: R.targetG, targetF: R.targetF, mix: R.targetMix }, R.n === 1 ? M.borrow1 : 0) });
+    docs.push({ t: `รายงานการจ่ายเงิน ครั้งที่ ${R.n}`, d: `โอน ${stDates(R.dates)} · สำเร็จ ${stNf(R.successN)} คน` + (R.outN ? ` · ค้าง ${stNf(R.outN)} คน` : ''), run: o => printStRptMemo(M, R, o) });
+  });
+  if (M.next.targetN) docs.push({ t: `ขออนุมัติจ่ายเงิน ครั้งที่ ${M.next.n} (ครั้งถัดไป)`, d: `${stNf(M.next.targetN)} คน · ${stNf(M.next.total)} บาท` + (M.nextShort ? ` · ขาด ${stNf(M.nextShort)} บาท (มีข้อเสนอขอยืมเงิน)` : ''),
+    run: o => printStReqMemo(M, M.next.n, o, M.next, M.nextShort) });
+  docs.push({ t: 'เอกสารหมายเลข 2 (ทุกห้อง)', d: 'แบบหลักฐานยืนยันการจัดหา', run: () => printForm2(stForm2Rooms()) });
+  docs.push({ t: 'ตารางสรุป (แบบเดิม)', d: 'ตามแท็บที่เลือกบนหน้าจอ', run: () => printDisb() });
   let h = '';
-  if (isReq) {
-    h = M.next.targetN
-      ? `${W.subj} ครั้งที่ ${n} ภาคเรียนที่ ${M.term} · นักเรียน ${stNf(M.next.targetN)} คน · เป็นเงิน ${stNf(M.next.total)} บาท` +
-        (M.nextShort ? `<br><span class="neg">เงินที่ได้รับยังไม่พอจ่าย ขาด ${stNf(M.nextShort)} บาท — บันทึกจะมีข้อเสนอขอยืมเงินจากกิจกรรมพัฒนาผู้เรียน</span>` : '') +
-        (n > 1 ? `<br>อ้างอิงผลการโอนครั้งที่ ${n - 1} ในเรื่องเดิมโดยอัตโนมัติ · แยกตามเหตุผล: ตีกลับ/โอนไม่สำเร็จ ${M.next.mix.returned.n} คน · นักเรียนเข้าใหม่ ${M.next.mix.new.n} คน · โอนผิดบัญชี ${M.next.mix.wrong.n} คน` +
-          '<br><span class="muted">ตั้งเหตุผลรายคนได้ที่รายชื่อ "ยังไม่รับเงิน" (ค่าเริ่มต้น = ตีกลับ/โอนไม่สำเร็จ)</span>' : '')
-      : 'นักเรียนทุกคนได้รับเงินครบแล้ว ไม่มียอดที่ต้องขออนุมัติ';
-  } else if (R) {
-    h = `โอนวันที่ ${stDates(R.dates)} · โอนสำเร็จ ${stNf(R.successN)} คน เป็นเงิน ${stNf(R.successAmt)} บาท` +
-      (R.outN ? ` · ยังไม่ได้รับ/ตีกลับ ${stNf(R.outN)} คน (${stNf(R.outDue)} บาท) — แนบรายชื่อท้ายรายงาน` : ' · โอนครบแล้ว') +
-      '<br>ชุดเอกสาร: บันทึกข้อความรายงานผล + ตารางสรุป 2 ตาราง + รายชื่อนักเรียนตีกลับ (ถ้ามี)';
-  }
-  if (M.partial && M.partial.length) h += `<br><span class="neg">มีนักเรียน ${M.partial.length} คนที่ยกเลิกไว้แค่บางรายการเงิน: ${M.partial.slice(0, 5).map(s => esc(s.name) + ' (' + esc(s.cls) + ' ขาด' + s.missing.join('/') + ')').join(', ')}${M.partial.length > 5 ? ' …' : ''}
-    — ขออนุมัติเฉพาะรายการที่ขาด ถ้าเงินตีกลับทั้งก้อน ให้กดยกเลิกรายการที่เหลือของคนนั้นด้วย</span>`;
+  if (M.next.n > 1 && M.next.targetN) h += `ครั้งที่ ${M.next.n} แยกตามเหตุผล: ตีกลับ/โอนไม่สำเร็จ ${M.next.mix.returned.n} คน · นักเรียนเข้าใหม่ ${M.next.mix.new.n} คน · โอนผิดบัญชี ${M.next.mix.wrong.n} คน (ตั้งเหตุผลรายคนได้ที่รายชื่อ "ยังไม่รับเงิน")`;
+  if (M.partial && M.partial.length) h += `<br><span class="neg">มีนักเรียน ${M.partial.length} คนที่ยกเลิกไว้แค่บางรายการเงิน: ${M.partial.slice(0, 5).map(s => esc(s.name) + ' (' + esc(s.cls) + ' ขาด' + s.missing.join('/') + ')').join(', ')}${M.partial.length > 5 ? ' …' : ''}</span>`;
   if (!M.allocTotal && M.semester === 1) h += '<br><span class="neg">ยังไม่มียอดจัดสรรของภาคเรียนนี้ในเมนูหนังสือจัดสรร/รายรับ — ตัวเลขในเรื่องเดิมจะเป็น 0</span>';
   $('stMemoHint').innerHTML = h;
-  $('btnStMemoPrint').disabled = isReq ? !M.next.targetN : !R;
-  $('btnStMemoPrint').onclick = () => {
+  $('stMemoDocs').innerHTML = docs.map((x, i) => `<button class="btnx sec" data-i="${i}" style="justify-content:flex-start;text-align:left;width:100%">${ic('print', 'sm')}<span><b>${x.t}</b><br><span class="small-x muted">${x.d}</span></span></button>`).join('');
+  $('stMemoDocs').querySelectorAll('button').forEach(b => b.onclick = () => {
     const o = { date: $('fStMemoDate').value || M.today, xfer: $('fStXferDate').value || M.today, asOf: $('fStAsOf').value || M.today, thai: $('fStThaiNum').checked };
     modal('stMemoModal').hide();
-    if (isReq) printStReqMemo(M, n, o); else printStRptMemo(M, R, o);
-  };
-  $('btnStMemoOld').onclick = () => { modal('stMemoModal').hide(); printDisb(); };
+    docs[+b.dataset.i].run(o);
+  });
   modal('stMemoModal').show();
 }
 
 /* ขออนุมัติจ่ายเงิน ครั้งที่ n: หน้า 1 บันทึกข้อความ + หน้า 2 ตารางสรุปจำนวนการเบิกจ่าย */
-async function printStReqMemo(M, n, o) {
-  const W = stFundWords(M), T = M.term, P = M.rounds.find(r => r.n === n - 1), X = M.next;
+async function printStReqMemo(M, n, o, X, short) {
+  const W = stFundWords(M), T = M.term, P = M.rounds.find(r => r.n === n - 1);
+  X = X || M.next; if (short == null) short = M.nextShort;
   const semY = `ภาคเรียนที่ ${M.semester} ปีการศึกษา ${M.acadYear}`;
   const base = `ตามที่${esc(M.school.name)} ได้รับจัดสรรและโอนเปลี่ยนแปลงงบประมาณรายจ่าย ประจำปีงบประมาณ พ.ศ. ${M.fy} ตามแผนงานสนับสนุนการจัดการศึกษาขั้นพื้นฐาน 15 ปี กิจกรรมสนับสนุนค่าใช้จ่ายในการจัดการศึกษาขั้นพื้นฐาน ภาคเรียนที่ ${T} (${stNf(M.pct)}%)`;
   let old, fact;
@@ -1599,8 +1603,8 @@ async function printStReqMemo(M, n, o) {
     old = `${base} งานการเงินงบประมาณได้ขออนุมัติจ่ายเงิน${W.body} ครั้งที่ ${P.n} ภาคเรียนที่ ${T} ให้นักเรียนชั้น ม.1-ม.6 จำนวน ${stNf(P.targetN)} คน โดยวิธีโอนเข้าบัญชีนักเรียนในวันที่ ${stDates(P.dates)} <b>โอนสำเร็จ ${stNf(P.successN)} คน เป็นเงินทั้งสิ้น ${stNf(P.successAmt)} บาท</b> (${bahtText(P.successAmt)}) คิดเป็นร้อยละ ${stPct(P.successN, P.targetN)} ${stFailText(P)} ยังมีเงินคงเหลือจำนวน ${stNf(P.outDue)} บาท ซึ่งจะดำเนินการโอนให้นักเรียนในรอบที่ ${n} ต่อไป`;
     fact = `งานการเงินงบประมาณ ขออนุมัติจ่ายเงิน${W.body} ครั้งที่ ${n} ภาคเรียนที่ ${T} ให้นักเรียนชั้น ม.1-ม.6 ${stMixText(X.mix, P.n, T)} เป็นจำนวนเงิน ${stBaht(X.total)} โดยวิธีโอนเข้าบัญชีนักเรียน ในวันที่ ${thDate(o.xfer)}`;
   }
-  const propose = M.nextShort
-    ? stSh('ข้อเสนอ/พิจารณา') + stP(`1. งานการเงินได้รับโอนเงินเปลี่ยนแปลงไม่เพียงพอต่อการเบิกจ่ายให้นักเรียน จำเป็นต้องขอยืมเงินจากกิจกรรมพัฒนาผู้เรียน จำนวน ${stBaht(M.nextShort)}`) + stP('2. หากเห็นชอบตาม ข้อ 1 เพื่อโปรดพิจารณาอนุมัติ')
+  const propose = short
+    ? stSh('ข้อเสนอ/พิจารณา') + stP(`1. งานการเงินได้รับโอนเงินเปลี่ยนแปลงไม่เพียงพอต่อการเบิกจ่ายให้นักเรียน จำเป็นต้องขอยืมเงินจากกิจกรรมพัฒนาผู้เรียน จำนวน ${stBaht(short)}`) + stP('2. หากเห็นชอบตาม ข้อ 1 เพื่อโปรดพิจารณาอนุมัติ')
     : `<p class="ind" style="margin-top:3mm">จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติ</p>`;
   let memo = `<div class="sheet memo" style="line-height:1.22">
     ${stMemoHead(M, `ขออนุมัติจ่ายเงิน${W.subj} ครั้งที่ ${n} ${semY}`, o.date)}
@@ -1670,6 +1674,15 @@ async function printStRptMemo(M, R, o) {
  * เอกสารหมายเลข 2 แบบหลักฐานยืนยันการจัดหา — จัดหน้าตามต้นฉบับของโรงเรียน
  * TH Sarabun 16 pt, A4 ขอบบน 19 มม. ซ้าย-ขวา 10 มม., 22 คนต่อหน้า, หัวตารางซ้ำทุกหน้า
  */
+/* กระจายแบบไทย: ตัดคำด้วย Intl.Segmenter แล้วเว้นระยะเท่ากันทุกคำให้เต็มบรรทัด (ขอบขวาตรงตาราง) */
+function thJust(t) {
+  t = String(t || '').replace(/\s+/g, ' ').trim();
+  let w;
+  try { w = Array.from(new Intl.Segmenter('th', { granularity: 'word' }).segment(t), x => x.segment); } catch (e) { w = t.split(/( )/); }
+  const out = [];
+  w.forEach(x => { if (x === ' ') { if (out.length) out[out.length - 1] += ' '; } else if (x) out.push(x); });
+  return out.map(x => `<span>${esc(x).replace(/ $/, '&nbsp;')}</span>`).join('');
+}
 function printForm2(rooms) {
   const D = ST.data, B = ST.disb, school = S.boot.school.name, area = S.boot.school.area || '';
   const term1 = ST.term[0] === '1', acad = ST.term.split('/')[1], PAGE = 22;
@@ -1693,7 +1706,9 @@ function printForm2(rooms) {
       ${pi === pages.length - 1 ? `<tr class="tot"><td colspan="3">รวมทั้งสิ้น</td><td>${n0(u * list.length)}</td>
         <td>${n0(e * list.length)}</td><td>${n0((u + e) * list.length)}</td><td></td><td></td></tr>` : ''}
       </tbody></table>${pi < pages.length - 1 ? '<div class="pbreak"></div>' : ''}`).join('');
-    const sig = (role, name) => `<div class="s">ลงชื่อ${dots}${role}<br>(${name ? esc(name) : dots.slice(2)})<br>ตรวจสอบถูกต้อง<br>วันที่..........เดือน....................................พ.ศ. .................</div>`;
+    /* ลงชื่อ: เส้นจุดยาวเท่ากันและอยู่กลางหน้าทุกช่อง ชื่อ/ตรวจสอบ/วันที่ จัดกึ่งกลางเส้นจุด */
+    const row = (l, c, r, k) => `<div class="sr"><span class="sl">${l}</span><span class="sc${k ? ' ' + k : ''}">${c}</span><span class="sx">${r}</span></div>`;
+    const sig = (role, name) => `<div class="s">${row('ลงชื่อ', dots + dots, role, 'cut')}${row('', name ? '(' + esc(name) + ')' : `<span>(</span><span class="dd">${dots}${dots}</span><span>)</span>`, '')}${row('', 'ตรวจสอบถูกต้อง', '')}${row('', 'วันที่..........เดือน....................................พ.ศ. .................', '')}</div>`;
     return `<div class="sheet f2doc">
       <div class="docno">เอกสารหมายเลข 2</div>
       <div class="ttl">แบบหลักฐานยืนยันการจัดหา (กรณีไม่มีใบเสร็จรับเงินให้ใช้หลักฐานการจัดหาแทน)</div>
@@ -1702,8 +1717,8 @@ function printForm2(rooms) {
         <div class="frow fund"><span class="c1">${cb(true)}ค่าอุปกรณ์การเรียน</span><span class="c2">${cb(term1)}ค่าเครื่องแบบนักเรียน</span><span class="c3">${cb(false)}ค่าเครื่องแบบนักเรียน (เพิ่มเติม)</span></div>
         <div class="frow lvl"><span class="c0">ระดับชั้น</span><span class="c1">${cb(false)}อนุบาลปีที่.........................</span><span class="c2">${cb(false)}ประถมศึกษาปีที่.........................</span></div>
         <div class="frow lvl"><span class="c0"></span><span class="c1">${cb(true)}มัธยมศึกษาปีที่...${esc(room.replace('ม.', ''))}.........</span><span class="c2">${cb(false)}ปวช. ที่จัดโดยสถานประกอบการ ปีที่..................</span></div>
-        <div class="para">นักเรียนจำนวนทั้งสิ้น..${list.length}.. คน ได้รับเงินจาก ${esc(school)} สังกัด${esc(area)}</div>
-        <div class="para">และขอรับรองว่านักเรียนทุกคน/ผู้ปกครอง&nbsp; ได้นำเงินไปดำเนินการตามวัตถุประสงค์ของโครงการสนับสนุนค่าใช้จ่ายในการจัดการศึกษาตั้งแต่</div>
+        <div class="para just">${thJust('นักเรียนจำนวนทั้งสิ้น..' + list.length + '.. คน ได้รับเงินจาก ' + school + ' สังกัด' + area)}</div>
+        <div class="para just">${thJust('และขอรับรองว่านักเรียนทุกคน/ผู้ปกครอง ได้นำเงินไปดำเนินการตามวัตถุประสงค์ของโครงการสนับสนุนค่าใช้จ่ายในการจัดการศึกษาตั้งแต่')}</div>
         <div class="para">ระดับอนุบาลจนจบการศึกษาขั้นพื้นฐานจริง</div>
       </div>
       ${tables}

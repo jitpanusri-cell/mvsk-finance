@@ -636,11 +636,9 @@
             </div>
           </div>
           <div class="small-x muted mt-3" id="stMemoHint"></div>
+          <div class="d-grid gap-2 mt-3" id="stMemoDocs"></div>
         </div>
-        <div class="modal-footer border-0 pt-0 justify-content-between">
-          <button class="btnx sec" id="btnStMemoOld">ตารางสรุป (แบบเดิม)</button>
-          <button class="btnx pri" id="btnStMemoPrint">พิมพ์บันทึกข้อความ</button>
-        </div>
+
       </div>
     </div>
   </div>
