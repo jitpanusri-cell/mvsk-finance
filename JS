@@ -1717,8 +1717,8 @@ async function printForm2(rooms) {
   const term1 = ST.term[0] === '1', acad = ST.term.split('/')[1], PAGE = 22;
   const cb = on => `<span class="cb${on ? ' on' : ''}"></span>`;
   const n0 = v => v ? v.toLocaleString('en-US') : '-';
-  const head = `<colgroup><col style="width:4.3%"><col style="width:33.2%"><col style="width:13.5%"><col style="width:8.6%"><col style="width:8.7%"><col style="width:8.6%"><col style="width:14.2%"><col style="width:8.9%"></colgroup>
-    <thead><tr><th rowspan="2">ที่</th><th rowspan="2">ชื่อ-สกุล นักเรียน</th><th rowspan="2" style="line-height:1.15">เลขประจำตัว<br>ประชาชนของ<br>นักเรียน 13 หลัก</th>
+  const head = `<colgroup><col style="width:4.3%"><col style="width:26.2%"><col style="width:20.5%"><col style="width:8.6%"><col style="width:8.7%"><col style="width:8.6%"><col style="width:14.2%"><col style="width:8.9%"></colgroup>
+    <thead><tr><th rowspan="2">ที่</th><th rowspan="2">ชื่อ-สกุล นักเรียน</th><th rowspan="2">เลขประจำตัวประชาชน<br>ของนักเรียน 13 หลัก</th>
     <th colspan="3">จำนวนเงิน</th><th rowspan="2">ลายมือชื่อ<br>นักเรียน/ผู้ปกครอง</th><th rowspan="2">หมายเหตุ</th></tr>
     <tr><th>เครื่องแบบ<br>นักเรียน</th><th>อุปกรณ์<br>การเรียน</th><th>รวม</th></tr></thead>`;
   const dots = '...................................................................';
@@ -1730,7 +1730,7 @@ async function printForm2(rooms) {
     const pages = [];
     for (let i = 0; i < list.length; i += PAGE) pages.push(list.slice(i, i + PAGE));
     const tables = pages.map((pg, pi) => `<table class="f2${pi ? ' cont' : ''}">${head}<tbody>
-      ${pg.map((s, i) => `<tr><td class="ct">${pi * PAGE + i + 1}</td><td${s.name.length > 40 ? ' class="sm"' : ''}>${esc(s.name)}</td><td class="ct">${esc(s.cid)}</td>
+      ${pg.map((s, i) => `<tr><td class="ct">${pi * PAGE + i + 1}</td><td${s.name.length > 30 ? ' class="sm"' : ''}>${esc(s.name)}</td><td class="ct">${esc(s.cid)}</td>
         <td class="num">${n0(u)}</td><td class="num">${n0(e)}</td><td class="num">${n0(u + e)}</td><td></td><td></td></tr>`).join('')}
       ${pi === pages.length - 1 ? `<tr class="tot"><td colspan="3">รวมทั้งสิ้น</td><td>${n0(u * list.length)}</td>
         <td>${n0(e * list.length)}</td><td>${n0((u + e) * list.length)}</td><td></td><td></td></tr>` : ''}
