@@ -597,8 +597,8 @@ function importStudentsFromSheet(urlOrId, acadYear) {
   const src = /^https?:/.test(String(urlOrId)) ? SpreadsheetApp.openByUrl(urlOrId) : SpreadsheetApp.openById(String(urlOrId).trim());
   const rows = [], used = [];
   src.getSheets().forEach(sh => {
-    const V = sh.getDataRange().getDisplayValues();
-    const got = parseRosterRows_(V);
+    const rg = sh.getDataRange(), V = rg.getDisplayValues();
+    const got = parseRosterRows_(V, rg.getValues());
     if (got.length) { used.push(sh.getName() + ' (' + got.length + ')'); got.forEach(r => rows.push(r)); }
   });
   if (!rows.length) throw new Error('ไม่พบตารางรายชื่อ (ต้องมีหัวคอลัมน์ ชื่อ-สกุล และ ระดับชั้น)');
@@ -608,8 +608,9 @@ function importStudentsFromSheet(urlOrId, acadYear) {
 }
 
 /** อ่านตารางรายชื่อ 1 ชีต (2 มิติ) → แถวนักเรียน */
-function parseRosterRows_(V) {
+function parseRosterRows_(V, RAW) {
   const t = v => String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+  const other = h => /ผู้ปกครอง|บิดา|มารดา|บัญชี|ธนาคาร|ครู/.test(h);
   let hi = -1, c = {};
   for (let r = 0; r < Math.min(V.length, 15) && hi < 0; r++) {
     const m = {};
@@ -618,6 +619,7 @@ function parseRosterRows_(V) {
       if (m.id == null && /เลขประจำตัวนักเรียน|รหัสนักเรียน|^เลขประจำตัว$/.test(h)) m.id = i;
       else if (m.cid == null && /ประชาชน|เลขบัตร/.test(h)) m.cid = i;
       else if (m.prefix == null && /คำนำหน้า/.test(h)) m.prefix = i;
+      else if (other(h)) { if (m.acct == null && /เลขบัญชี|เลขที่บัญชี|บัญชีเลขที่/.test(h)) m.acct = i; else if (m.bank == null && /^(ชื่อ)?ธนาคาร/.test(h)) m.bank = i; }
       else if (m.full == null && /ชื่อ\s*[-–]?\s*(นาม)?สกุล/.test(h)) m.full = i;
       else if (m.last == null && /^(นาม)?สกุล/.test(h)) m.last = i;
       else if (m.first == null && /^ชื่อ/.test(h)) m.first = i;
@@ -630,6 +632,9 @@ function parseRosterRows_(V) {
     if ((m.first != null || m.full != null) && m.grade != null) { hi = r; c = m; }
   }
   if (hi < 0) return [];
+  if (c.full != null && c.first != null && c.last != null) delete c.full;
+  /* เลขประชาชน/บัญชีที่เก็บเป็นตัวเลข → ใช้ค่าจริง (กัน 1.23E+12 / 0 นำหน้าหาย) */
+  const num = (r, k) => { const v = RAW && RAW[r] ? RAW[r][c[k]] : null; return typeof v === 'number' ? v.toFixed(0) : t(V[r][c[k]]); };
   const PFX = /^(เด็กชาย|เด็กหญิง|ด\.ช\.|ด\.ญ\.|นางสาว|น\.ส\.|นาย|นาง)\s*/;
   const out = [];
   for (let r = hi + 1; r < V.length; r++) {
@@ -645,8 +650,8 @@ function parseRosterRows_(V) {
     const gm = g0.match(/([1-6])\s*\/\s*(\d+)/);
     if (gm) { grade = 'ม.' + gm[1]; if (!room) room = gm[2]; }
     out.push({ studentId: c.id != null ? t(row[c.id]) : '', prefix: prefix, firstName: first, lastName: last, grade: grade, room: room,
-      no: c.no != null ? t(row[c.no]) : '', citizenId: c.cid != null ? t(row[c.cid]) : '',
-      bankAccount: c.acct != null ? t(row[c.acct]) : '', bank: c.bank != null ? t(row[c.bank]) : '' });
+      no: c.no != null ? t(row[c.no]) : '', citizenId: c.cid != null ? num(r, 'cid') : '',
+      bankAccount: c.acct != null ? num(r, 'acct') : '', bank: c.bank != null ? t(row[c.bank]) : '' });
   }
   return out;
 }

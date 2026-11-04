@@ -1722,7 +1722,7 @@ async function stUploadCid() {
     if (/\.(xlsx|xls)$/i.test(f.name)) {
       await loadSheetJs();
       const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
-      wb.SheetNames.forEach(n => { const r = mapImpRows(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: '' }), true); if (r) rows = rows.concat(r); });
+      wb.SheetNames.forEach(n => { const r = mapImpRows(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: '' }), true, XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' })); if (r) rows = rows.concat(r); });
     } else {
       const t = String(await f.text()).replace(/^\uFEFF/, ''), delim = t.includes('\t') ? '\t' : ',';
       rows = mapImpRows(t.split(/\r?\n/).map(l => l.split(delim).map(c => c.replace(/^"|"$/g, ''))), true) || [];
@@ -1754,7 +1754,7 @@ async function readImpFile() {
       const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
       // อ่านทุกชีต (เช่น รายชื่อ ม.1 … ม.6) แล้วรวมกัน
       let all = [];
-      wb.SheetNames.forEach(n => { const r = mapImpRows(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: '' }), true); if (r) all = all.concat(r); });
+      wb.SheetNames.forEach(n => { const r = mapImpRows(XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: '' }), true, XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' })); if (r) all = all.concat(r); });
       showImpPreview(all);
     } else parseImpText(await f.text());
   } catch (e) { fail(e); }
@@ -1776,8 +1776,10 @@ function parseImpText(t) {
   if (cur || row.length) { row.push(cur); rows.push(row); }
   mapImpRows(rows);
 }
-function mapImpRows(rows, quiet) {
+function mapImpRows(rows, quiet, raw) {
   const test = (h, re) => re.test(String(h).replace(/\s+/g, ' ').trim());
+  /* หัวคอลัมน์ชื่อของคนอื่น (ผู้ปกครอง/เจ้าของบัญชี) ไม่ใช่ชื่อนักเรียน */
+  const other = h => test(h, /ผู้ปกครอง|บิดา|มารดา|บัญชี|ธนาคาร|ครู/);
   let hi = -1, col = {};
   for (let r = 0; r < Math.min(rows.length, 15) && hi < 0; r++) {
     const c = {};
@@ -1785,6 +1787,7 @@ function mapImpRows(rows, quiet) {
       if (c.id == null && test(h, /เลขประจำตัวนักเรียน|รหัสนักเรียน|^เลขประจำตัว$|student\s*id/i)) c.id = i;
       else if (c.cid == null && test(h, /ประชาชน/)) c.cid = i;
       else if (c.prefix == null && test(h, /คำนำหน้า/)) c.prefix = i;
+      else if (other(h)) { if (c.acct == null && test(h, /เลขบัญชี|เลขที่บัญชี|บัญชีเลขที่/)) c.acct = i; else if (c.bank == null && test(h, /^(ชื่อ)?ธนาคาร/)) c.bank = i; }
       else if (c.full == null && test(h, /ชื่อ\s*[-–]?\s*(นาม)?สกุล/)) c.full = i;
       else if (c.last == null && test(h, /^(นาม)?สกุล/)) c.last = i;
       else if (c.first == null && test(h, /^ชื่อ/)) c.first = i;
@@ -1801,14 +1804,17 @@ function mapImpRows(rows, quiet) {
     $('impPreview').innerHTML = '<div class="badbox small-x">ไม่พบหัวตาราง ต้องมีคอลัมน์ ชื่อ (หรือ ชื่อ-สกุล) และ ชั้น/ระดับชั้น</div>'; $('btnStDoImport').disabled = true; return null;
   }
   const PFX = /^(เด็กชาย|เด็กหญิง|ด\.ช\.|ด\.ญ\.|นางสาว|น\.ส\.|นาย|นาง)\s*/;
+  if (col.full != null && col.first != null && col.last != null) delete col.full;
   const g = (r, k) => col[k] != null ? String(r[col[k]] == null ? '' : r[col[k]]).trim() : '';
-  const out = rows.slice(hi + 1).map(r => {
+  /* เลขประชาชน/เลขบัญชีที่ Excel เก็บเป็นตัวเลข: ใช้ค่าจริง (กันแสดงเป็น 1.23E+12 / เลข 0 นำหน้าหาย) */
+  const gn = (r, i, k) => { const v = raw && raw[i] ? raw[i][col[k]] : null; return typeof v === 'number' && col[k] != null ? v.toFixed(0) : g(r, k); };
+  const out = rows.slice(hi + 1).map((r, j) => { const ri = hi + 1 + j;
     let prefix = g(r, 'prefix'), first = g(r, 'first'), last = g(r, 'last');
     if (col.full != null) { let f = g(r, 'full').replace(/\s+/g, ' '); const m = f.match(PFX); if (m && !prefix) prefix = m[1]; f = f.replace(PFX, ''); const p = f.split(' '); first = p.shift() || ''; last = p.join(' '); }
     let grade = g(r, 'grade'), room = g(r, 'room');
     const gm = grade.match(/([1-6])\s*\/\s*(\d+)/); if (gm) { grade = 'ม.' + gm[1]; if (!room) room = gm[2]; }
     return { studentId: g(r, 'id'), prefix: prefix, firstName: first, lastName: last, grade: grade, room: room, no: g(r, 'no'),
-      citizenId: g(r, 'cid'), bankAccount: g(r, 'acct'), bank: g(r, 'bank') };
+      citizenId: gn(r, ri, 'cid'), bankAccount: gn(r, ri, 'acct'), bank: g(r, 'bank') };
   }).filter(s => s.firstName && s.grade);
   if (quiet) return out;
   showImpPreview(out);
@@ -1820,9 +1826,10 @@ function showImpPreview(out) {
   const g = {}; out.forEach(s => { const k = (String(s.grade).match(/[1-6]/) || ['?'])[0]; g[k] = (g[k] || 0) + 1; });
   const noId = out.filter(s => !s.studentId).length;
   $('impPreview').innerHTML = `<div class="warnbox small-x" style="background:var(--info-bg);color:var(--info)">พบนักเรียน <b>${out.length.toLocaleString('th-TH')}</b> คน · ${Object.keys(g).sort().map(k => 'ม.' + k + ' ' + g[k]).join(' · ')}
+      · มีเลขประชาชน ${out.filter(s => String(s.citizenId).replace(/[^\d]/g, '').length === 13).length.toLocaleString('th-TH')} · มีเลขบัญชี ${out.filter(s => String(s.bankAccount).replace(/[^\d]/g, '')).length.toLocaleString('th-TH')} คน
       ${noId ? `<br>ไม่มีเลขประจำตัว ${noId.toLocaleString('th-TH')} คน — ระบบจะใช้ ชั้น/ห้อง-เลขที่ เป็นรหัส` : ''}</div>
-    <div class="table-responsive mt-2"><table class="tbl small-x"><thead><tr><th>รหัส</th><th>ชื่อ – สกุล</th><th>ชั้น</th><th>ห้อง</th><th>เลขที่</th><th>บัญชี</th></tr></thead><tbody>
-    ${out.slice(0, 5).map(s => `<tr><td>${esc(s.studentId || s.grade + '/' + s.room + '-' + s.no)}</td><td>${esc(s.prefix + s.firstName + ' ' + s.lastName)}</td><td>${esc(s.grade)}</td><td>${esc(s.room)}</td><td>${esc(s.no)}</td><td>${s.bankAccount ? '✓' : ''}</td></tr>`).join('')}</tbody></table></div>
+    <div class="table-responsive mt-2"><table class="tbl small-x"><thead><tr><th>รหัส</th><th>ชื่อ – สกุล</th><th>ชั้น</th><th>ห้อง</th><th>เลขที่</th><th>เลขประชาชน</th><th>บัญชี</th></tr></thead><tbody>
+    ${out.slice(0, 5).map(s => `<tr><td>${esc(s.studentId || s.grade + '/' + s.room + '-' + s.no)}</td><td>${esc(s.prefix + s.firstName + ' ' + s.lastName)}</td><td>${esc(s.grade)}</td><td>${esc(s.room)}</td><td>${esc(s.no)}</td><td>${String(s.citizenId).replace(/[^\d]/g, '').length === 13 ? '✓' : ''}</td><td>${esc(s.bankAccount)}</td></tr>`).join('')}</tbody></table></div>
     <div class="small-x muted">แสดง 5 แถวแรก · รายชื่อเดิมของปีการศึกษานี้จะถูกแทนที่ การรับเงินที่บันทึกแล้วยังอยู่ครบ</div>`;
   $('btnStDoImport').disabled = false;
 }
