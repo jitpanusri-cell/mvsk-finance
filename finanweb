@@ -78,13 +78,6 @@
       </div>
     </section>
 
-    <section class="news" id="news" hidden>
-      <div class="wrap">
-        <div class="sh rv"><h2>ประชาสัมพันธ์งานการเงินและบัญชี</h2><a class="link-more" href="<?= getScriptUrl(); ?>" target="_top">ข่าวทั้งหมด<svg class="ic"><use href="#i-arrow"/></svg></a></div>
-        <div class="ngrid" id="newsGrid"></div>
-      </div>
-    </section>
-
     <section class="pay" id="payment">
       <div class="wrap">
         <div class="sh rv"><h2>ขั้นตอนการชำระเงินบำรุงการศึกษา</h2></div>
@@ -125,6 +118,13 @@
           <a href="#payment" data-go="payment"><svg class="ic"><use href="#i-coins"/></svg>ขั้นตอนชำระเงินบำรุงการศึกษา<svg class="ic sm"><use href="#i-arrow"/></svg></a>
           <a href="https://script.google.com/a/macros/mvsk.ac.th/s/AKfycbyZJdbVKke-UxMNIs3YzrC_syttaATtJUjXPetrssfBIqf_IDbW-PuaHi8nXS-UyKZZDQ/exec"><svg class="ic"><use href="#i-home"/></svg>กลับหน้ากลุ่มบริหารงานงบประมาณ<svg class="ic sm"><use href="#i-arrow"/></svg></a>
         </div>
+      </div>
+    </section>
+
+    <section class="news" id="news" hidden>
+      <div class="wrap">
+        <div class="sh rv"><h2>ประชาสัมพันธ์งานการเงินและบัญชี</h2><a class="link-more" href="<?= getScriptUrl(); ?>" target="_top">ข่าวทั้งหมด<svg class="ic"><use href="#i-arrow"/></svg></a></div>
+        <div class="ngrid" id="newsGrid"></div>
       </div>
     </section>
 
@@ -174,7 +174,8 @@
     function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
     function ico(n, c) { return '<svg class="ic ' + (c || '') + '"><use href="#i-' + n + '"/></svg>'; }
     function plain(h) { var d = new DOMParser().parseFromString('<div>' + String(h || '').replace(/<br\s*\/?>/gi, ' ') + '</div>', 'text/html'); return (d.body.textContent || '').replace(/[\u2600-\u27BF\uFE0F]|[\uD83C-\uDBFF][\uDC00-\uDFFF]/g, '').replace(/\s+/g, ' ').trim(); }
-    var NEWS_TYPE = 'finance-alert', NEWS_LABEL = 'งานการเงิน';
+    var NEWS_TYPES = ['finance-alert', 'alert'];
+    var NEWS_LBL = { 'alert': 'ด่วนที่สุด', 'finance-alert': 'งานการเงิน', 'supplies-alert': 'งานพัสดุ', 'plan-alert': 'งานแผนงาน', 'bank-alert': 'ธนาคารโรงเรียน', 'control-alert': 'ควบคุมภายใน', 'office-alert': 'งานสำนักงาน', 'student-alert': 'นักเรียน', 'teacher-alert': 'ครู', 'general': 'ข่าวทั่วไป', 'document': 'เอกสาร' };
     var BASE = ($('baseUrl').textContent || '').trim(), SYS = '', NEWS = [];
     function safeUrl(u) { return /^(https?:|mailto:)/i.test(String(u || '').trim()) ? u : '#'; }
     var OK = 'B STRONG I EM U BR P DIV SPAN FONT UL OL LI A H1 H2 H3 H4 BLOCKQUOTE HR SMALL SUB SUP'.split(' ');
@@ -260,7 +261,7 @@
     }
 
     function renderNews(list) {
-      var L = (list || []).filter(function (a) { return a.type === NEWS_TYPE; })
+      var L = (list || []).filter(function (a) { return NEWS_TYPES.indexOf(a.type) >= 0; })
         .sort(function (a, b) { return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0); });
       NEWS = L; L = L.slice(0, 3); if (!L.length) return;
       $('newsGrid').innerHTML = L.map(function (a) {
@@ -269,7 +270,7 @@
         var ex = plain(a.details);
         return '<article class="nc rv" data-open="' + esc(a.id) + '">' +
           '<div class="ph">' + (img ? '<div class="im" style="background-image:url(&quot;' + esc(img) + '&quot;)"></div>' : '<div class="none">' + ico('megaphone') + '</div>') +
-          '<div class="badges">' + (a.pinned ? '<span class="pin">' + ico('pin', 'sm') + 'ปักหมุด</span>' : '') + '<span>' + NEWS_LABEL + '</span></div></div>' +
+          '<div class="badges">' + (a.pinned ? '<span class="pin">' + ico('pin', 'sm') + 'ปักหมุด</span>' : '') + '<span>' + (NEWS_LBL[a.type] || '') + '</span></div></div>' +
           '<div class="nb">' + (date ? '<span class="dt">' + ico('calendar') + esc(date) + '</span>' : '') +
           '<h3 class="tt">' + esc(a.title) + '</h3>' + (ex ? '<p class="ex">' + esc(ex) + '</p>' : '') +
           '<span class="rm">อ่านต่อ' + ico('arrow') + '</span></div></article>';

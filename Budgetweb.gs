@@ -19,11 +19,11 @@ const GROUPS = {
   office: { title: 'งานสำนักงาน', en: 'OFFICE WORK', sheet: 'งานสำนักงาน', type: 'office-alert', label: 'งานสำนักงาน',
     scope: ['งานบริหารสำนักงานกลุ่มบริหารงบประมาณ', 'งานสารสนเทศ', 'งานแผนงาน', 'งานจัดซื้อวัสดุ ครุภัณฑ์'] },
   /* หน้ารวมบริการ (ไม่มีบทบาทหน้าที่) — links: page = หน้าในเว็บนี้, url = เว็บภายนอก; pay = แสดงขั้นตอนชำระเงิน */
-  student: { title: 'นักเรียนและผู้ปกครอง', en: 'STUDENTS AND PARENTS', sheet: 'งานนักเรียน', type: 'student-alert', label: 'นักเรียน', pay: true, linksTitle: 'บริการสำหรับนักเรียนและผู้ปกครอง',
+  student: { title: 'นักเรียนและผู้ปกครอง', en: 'STUDENTS AND PARENTS', sheet: 'งานนักเรียน', type: 'student-alert', types: ['student-alert', 'finance-alert', 'bank-alert'], label: 'นักเรียน', pay: true, linksTitle: 'บริการสำหรับนักเรียนและผู้ปกครอง',
     links: [{ name: 'ชำระเงินบำรุงการศึกษา', en: 'School Billing', url: 'https://schoolbillingdev31.com/SBMVSK/Pages/PrintReportPayInForStudent.aspx' },
       { name: 'งานธนาคารโรงเรียน', en: 'ธนาคารโรงเรียน', page: 'bank' },
       { name: 'งานการเงินและบัญชี', en: 'การเงิน', page: 'finan' }] },
-  teacher: { title: 'ครูและบุคลากร', en: 'TEACHERS AND STAFF', sheet: 'งานครู', type: 'teacher-alert', label: 'ครู', linksTitle: 'บริการสำหรับครูและบุคลากร',
+  teacher: { title: 'ครูและบุคลากร', en: 'TEACHERS AND STAFF', sheet: 'งานครู', type: 'teacher-alert', types: ['teacher-alert', 'finance-alert', 'supplies-alert', 'plan-alert', 'document'], label: 'ครู', linksTitle: 'บริการสำหรับครูและบุคลากร',
     links: [{ name: 'สัญญายืมเงิน', en: 'ขั้นที่ 1', page: 'Loan&t=loan' }, { name: 'ส่งคืนเงินยืม', en: 'ขั้นที่ 2', page: 'Loan&t=return' },
       { name: 'ขอเบิกเงิน', en: 'สำรองจ่าย', page: 'Loan&t=adv' }, { name: 'ระบบ e-money', en: 'e-Money', url: 'https://mvsk.ksom2.net/money/index_desktop.php' },
       { name: 'ระบบแผนปฏิบัติงาน', en: 'Planning', url: 'https://planning.mvsk.ac.th/' }, { name: 'แบบฟอร์มต่างๆ สำหรับครูและบุคลากร', en: 'แบบฟอร์ม', url: 'https://drive.google.com/drive/folders/1MAVZSuX1EqYbylITkW2Agn09qH5XHEIA?usp=sharing' },
