@@ -113,6 +113,20 @@ function pwSetConf_(ss, key, value) {
   sh.appendRow([key, value]);
 }
 
+/* ผู้ลงนามในแบบฟอร์ม ยืม ส่งคืน เบิก (หน้า Loan ของเว็บ) — เก็บในชีต ตั้งค่าเว็บ */
+const PW_SIGN_KEYS = ['director', 'deputy', 'finOfficer', 'accOfficer', 'docPrefix', 'area'];
+function pwGetSigners_(ss) {
+  const v = pwConfSheet_(ss).getDataRange().getValues(), m = {};
+  for (let i = 1; i < v.length; i++) m[pwStr_(v[i][0])] = pwStr_(v[i][1]);
+  const out = {}; PW_SIGN_KEYS.forEach(k => out[k] = m[k] || ''); return out;
+}
+function pwSaveSigners(o) {
+  pwUser_();
+  o = o || {};
+  const ss = pwSs_();
+  return withLock_(() => { PW_SIGN_KEYS.forEach(k => pwSetConf_(ss, k, pwStr_(o[k]))); pwBump_(ss); return pwGetSigners_(ss); });
+}
+
 function pwRowToNews_(r) {
   let links = [];
   for (let c = 7; c < 19; c += 2) if (pwStr_(r[c]) && pwStr_(r[c + 1])) links.push({ url: pwStr_(r[c]), name: pwStr_(r[c + 1]) });
@@ -163,6 +177,7 @@ function getPwData() {
   out.fin = pwReadFin_(pwFinSheet_(ss));
   out.sup = pwReadFin_(pwFinSheet_(ss, 'sup'));
   out.pay = pwReadFin_(pwFinSheet_(ss, 'pay'));
+  out.signers = pwGetSigners_(ss);
   return out;
 }
 

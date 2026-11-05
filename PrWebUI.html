@@ -144,6 +144,19 @@ document.querySelector('main.main').insertAdjacentHTML('beforeend', `
       <input class="inp mb-3" id="pwWeb" placeholder="script.google.com/.../exec">
       <button class="btnx pri" id="pwConfSave">บันทึก</button>
     </div>
+    <div class="cardx mb-grid mt-3" style="max-width:720px">
+      <h3 style="font-size:16px;margin-bottom:12px">ผู้ลงนามในแบบฟอร์ม ยืม ส่งคืน เบิก (หน้าเว็บ)</h3>
+      <div class="row g-3">
+        <div class="col-sm-6"><label class="flabel" for="pwSgDirector">ผู้อำนวยการ</label><input class="inp" id="pwSgDirector"></div>
+        <div class="col-sm-6"><label class="flabel" for="pwSgDeputy">รองผู้อำนวยการ (กลุ่มงบประมาณ)</label><input class="inp" id="pwSgDeputy"></div>
+        <div class="col-sm-6"><label class="flabel" for="pwSgFinOfficer">เจ้าหน้าที่การเงิน</label><input class="inp" id="pwSgFinOfficer"></div>
+        <div class="col-sm-6"><label class="flabel" for="pwSgAccOfficer">เจ้าหน้าที่บัญชี</label><input class="inp" id="pwSgAccOfficer"></div>
+        <div class="col-sm-6"><label class="flabel" for="pwSgDocPrefix">เลขที่หนังสือ (เช่น ศธ 04xxx)</label><input class="inp" id="pwSgDocPrefix"></div>
+        <div class="col-sm-6"><label class="flabel" for="pwSgArea">สังกัด / เขตพื้นที่</label><input class="inp" id="pwSgArea"></div>
+      </div>
+      <div class="small-x muted mt-2">เว้นว่างได้ — ช่องที่ว่างจะเป็นเส้นให้เขียนมือในแบบฟอร์ม</div>
+      <button class="btnx pri mt-3" id="pwSgSave">บันทึกผู้ลงนาม</button>
+    </div>
   </div>
 </section>`);
 
@@ -291,6 +304,9 @@ function renderPw() {
     ['pwSheet', 'pwWeb', 'pwConfSave'].forEach(id => $(id).disabled = !D.canAdmin);
     if (D.linked && !$('pwSheet').value) $('pwSheet').value = D.sheetUrl;
     if (!$('pwWeb').value) $('pwWeb').value = D.webUrl || '';
+    const sg = D.signers || {};
+    PW_SG.forEach(k => { const el = $('pwSg' + k[0].toUpperCase() + k.slice(1)); el.value = sg[k] || ''; el.disabled = !D.linked; });
+    $('pwSgSave').disabled = !D.linked;
   }
 }
 
@@ -364,6 +380,12 @@ $('pwSaveOrder').onclick = () => {
   const t = PW.tab, fn = t === 'news' ? 'pwOrderNews' : t === 'fin' || t === 'sup' || t === 'pay' ? 'pwOrderFin' : 'pwOrderSlides';
   pwRun(fn, (t === 'news' ? PW.data.items : t === 'fin' || t === 'sup' || t === 'pay' ? PW.data[t] : PW.data.slides).map(x => x.id), t)
     .then(() => { toast('บันทึกลำดับแล้ว'); return pwReload(); });
+};
+const PW_SG = ['director', 'deputy', 'finOfficer', 'accOfficer', 'docPrefix', 'area'];
+$('pwSgSave').onclick = () => {
+  const o = {}; PW_SG.forEach(k => o[k] = $('pwSg' + k[0].toUpperCase() + k.slice(1)).value.trim());
+  $('pwSgSave').disabled = true;
+  pwRun('pwSaveSigners', o).then(sg => { PW.data.signers = sg; toast('บันทึกผู้ลงนามแล้ว'); }).finally(() => $('pwSgSave').disabled = false);
 };
 $('pwConfSave').onclick = () => pwRun('setPwSheet', $('pwSheet').value, $('pwWeb').value).then(d => { PW.data = d; PW.tab = d.linked ? 'news' : 'conf'; renderPw(); toast('บันทึกแล้ว'); });
 
