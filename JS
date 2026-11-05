@@ -1276,7 +1276,7 @@ function printDoc(html, mode) {
   if (!st) { st = document.createElement('style'); st.id = 'docPageStyle'; document.head.appendChild(st); }
   // ขอบกระดาษบันทึกข้อความตามคู่มือการพิมพ์หนังสือราชการ: บน 2.5 ซม. ล่าง 2 ซม. ซ้าย 3 ซม. ขวา 2 ซม.
   // (ครุฑสูง 1.5 ซม. วางชิดขอบบน 2.5 ซม. พอดี — เดิมตั้งขอบบน/ล่างไว้ 1.5 ซม. ไม่ตรงสเปก แก้แล้ว)
-  st.textContent = '@media print{@page{' + ({ mv: 'size:A4 portrait;margin:0', mvl: 'size:A4 landscape;margin:0', f2mode: 'size:A4 portrait;margin:19mm 10mm 15mm 10mm', memo: 'size:A4 portrait;margin:15mm 20mm 20mm 30mm', land: 'size:A4 landscape;margin:12mm 12mm 12mm 15mm', gf: 'size:A4 portrait;margin:15mm 15mm 12mm 25mm', gfl: 'size:A4 landscape;margin:12mm 12mm 10mm 15mm', gvm: 'size:A4 portrait;margin:15mm 20mm 12mm 30mm', gvp: 'size:A4 portrait;margin:15mm 18mm 12mm 25mm', gvl: 'size:A4 landscape;margin:12mm 12mm 10mm 15mm' }[mode] || 'size:A4 portrait;margin:15mm 20mm 20mm 30mm') + '}}';
+  st.textContent = '@media print{@page{' + ({ mv: 'size:A4 portrait;margin:0', mvl: 'size:A4 landscape;margin:0', f2mode: 'size:A4 portrait;margin:19mm 12.5mm 15mm 12.5mm', memo: 'size:A4 portrait;margin:15mm 20mm 20mm 30mm', land: 'size:A4 landscape;margin:12mm 12mm 12mm 15mm', gf: 'size:A4 portrait;margin:15mm 15mm 12mm 25mm', gfl: 'size:A4 landscape;margin:12mm 12mm 10mm 15mm', gvm: 'size:A4 portrait;margin:15mm 20mm 12mm 30mm', gvp: 'size:A4 portrait;margin:15mm 18mm 12mm 25mm', gvl: 'size:A4 landscape;margin:12mm 12mm 10mm 15mm' }[mode] || 'size:A4 portrait;margin:15mm 20mm 20mm 30mm') + '}}';
   document.body.classList.add('doc-mode');
   // เก็บสำเนา html/มุมมองปัจจุบันไว้ให้ปุ่ม "บันทึก PDF ลง Drive" ใช้ต่อได้ (ศูนย์รวมพิมพ์เอกสาร)
   window.__lastDoc = { html: html, mode: mode || '', title: docTitleFrom_(d), page: S.page };
@@ -1692,7 +1692,7 @@ async function stFitParas(html) {
   if (document.fonts && document.fonts.load) await Promise.all(['16pt THSarabunLocal', 'bold 16pt THSarabunLocal', '16pt THSarabunWeb', 'bold 16pt THSarabunWeb', '15px THSarabunMV', 'bold 15px THSarabunMV', '15px THSarabunMVW', 'bold 15px THSarabunMVW'].map(f => document.fonts.load(f, 'ก').catch(() => 0)));
   const wrap = document.createElement('div');
   wrap.style.cssText = 'position:fixed;left:-10000px;top:0;visibility:hidden';
-  wrap.innerHTML = '<style>' + PRINT_CSS_INLINE + '</style><div class="print-doc" style="display:block;width:190mm">' + html + '</div>';
+  wrap.innerHTML = '<style>' + PRINT_CSS_INLINE + '</style><div class="print-doc" style="display:block;width:185mm">' + html + '</div>';
   document.body.appendChild(wrap);
   let seg = null; try { seg = new Intl.Segmenter('th', { granularity: 'grapheme' }); } catch (e) {}
   wrap.querySelectorAll('.f2doc').forEach(doc => {
