@@ -1186,9 +1186,6 @@ const PRINT_CSS_INLINE = `
 .f2doc .ttl{text-align:center;font-weight:700}
 .f2doc .ttl + .ttl{margin-bottom:4.9mm}
 .f2doc .hd{font-weight:700;margin-top:1mm}
-.f2doc .docno,.f2doc .ttl,.f2doc .hd,.f2doc table.f2 th,.f2doc table.f2 tr.tot td{-webkit-text-stroke:.25pt #000}
-.f2doc table.f2 td{-webkit-text-stroke:.1pt #000}
-.f2doc .sigs{-webkit-text-stroke:.1pt #000}
 .f2doc .frow{display:flex;flex-wrap:nowrap;white-space:nowrap;margin:0}
 .f2doc .frow > span{flex:none}
 .f2doc .frow.fund .c1{width:31%} .f2doc .frow.fund .c2{width:38%} .f2doc .frow.fund .c3{width:31%}
