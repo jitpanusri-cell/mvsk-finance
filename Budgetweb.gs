@@ -135,9 +135,18 @@ function getFinItems(name) {
   const sh = sheet_(name || 'งานการเงิน');
   if (!sh) return null;
   if (sh.getLastRow() < 2) return [];
-  return sh.getRange(2, 1, sh.getLastRow() - 1, 10).getValues()
+  const w = Math.min(14, sh.getMaxColumns());
+  return sh.getRange(2, 1, sh.getLastRow() - 1, w).getValues()
     .filter(r => str_(r[0]) && str_(r[3]) && str_(r[6]) !== 'HIDDEN')
-    .map(r => ({ type: str_(r[1]) === 'pdf' || str_(r[1]) === 'link' ? str_(r[1]) : 'video', title: str_(r[2]), date: str_(r[9]), url: str_(r[3]).replace(/\\n/g, '\n'), embed: embedUrl_(r[3]), linkText: str_(r[4]), link: str_(r[5]) }));
+    .map(r => {
+      const ty = str_(r[1]), o = { type: ['pdf', 'link', 'manual', 'form'].indexOf(ty) >= 0 ? ty : 'video', title: str_(r[2]), date: str_(r[9]), url: str_(r[3]).replace(/\\n/g, '\n'), embed: embedUrl_(r[3]), linkText: str_(r[4]), link: str_(r[5]) };
+      if (w > 10) {   // งานพัสดุ: คู่มือ/แบบฟอร์ม มีรูป หมวด บรรทัดเล็ก คำอธิบาย
+        const im = str_(r[10]), d = im.match(/\/d\/([\w-]{20,})/) || im.match(/[?&]id=([\w-]{20,})/);
+        o.img = d ? 'https://drive.google.com/thumbnail?id=' + d[1] + '&sz=w1000' : im;
+        o.cat = str_(r[11]); o.sub = str_(r[12]); o.desc = str_(r[13]);
+      }
+      return o;
+    });
 }
 
 /* ข้อมูลหน้าเว็บ (ข่าว สไลด์ งานการเงิน งานพัสดุ) — แคช 5 นาที ล้างอัตโนมัติเมื่อแก้ผ่านระบบการเงิน (webRev เปลี่ยน)

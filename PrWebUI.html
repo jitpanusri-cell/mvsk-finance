@@ -231,6 +231,10 @@ document.body.insertAdjacentHTML('beforeend', `
           <div class="col-sm-4"><label class="flabel" for="pwFDate">วันที่</label><input class="inp" type="date" id="pwFDate"></div>
           <div class="col-12"><label class="flabel" for="pwFTitle">หัวข้อ *</label><input class="inp" id="pwFTitle" maxlength="150"></div>
           <div class="col-12"><label class="flabel" for="pwFFile" id="pwFFileL">ลิงก์ไฟล์ Google Drive * (แชร์ให้ทุกคนที่มีลิงก์ดูได้)</label><textarea class="inp" id="pwFFile" rows="2" placeholder="drive.google.com/file/d/..."></textarea></div>
+          <div class="col-sm-8 pw-supx"><label class="flabel" for="pwFImg">รูป (ลิงก์ไฟล์รูปใน Google Drive)</label><input class="inp" id="pwFImg" placeholder="drive.google.com/file/d/..."></div>
+          <div class="col-sm-4 pw-supx"><label class="flabel" for="pwFCat">หมวด</label><input class="inp" id="pwFCat" placeholder="เช่น ว119"></div>
+          <div class="col-12 pw-supx"><label class="flabel" for="pwFSub" id="pwFSubL">บรรทัดเล็ก</label><input class="inp" id="pwFSub"></div>
+          <div class="col-12 pw-supx pw-man"><label class="flabel" for="pwFDesc">คำอธิบาย</label><textarea class="inp" id="pwFDesc" rows="2"></textarea></div>
           <div class="col-sm-8"><label class="flabel" for="pwFLink">ลิงก์ปุ่ม</label><input class="inp" id="pwFLink" placeholder="เว้นว่าง = ไม่มีปุ่ม"></div>
           <div class="col-sm-4"><label class="flabel" for="pwFLinkT">ชื่อปุ่ม</label><input class="inp" id="pwFLinkT" placeholder="เช่น ประกาศฉบับเต็ม"></div>
         </div>
@@ -371,7 +375,7 @@ function renderPwFin(kind) {
   const pay = kind === 'pay', sup = !!kind && kind !== 'pay' && kind !== 'fin', L = PW.data[kind || 'fin'] || [];
   const box = $(pay ? 'pwPay' : sup ? 'pwSup' : 'pwFin'), q = box.closest('[data-pwt]').querySelector('.pw-fq').value.trim().toLowerCase();
   const list = L.map((s, i) => ({ s, i })).filter(x => !q || (x.s.title + ' ' + x.s.fileUrl + ' ' + x.s.linkText + ' ' + x.s.date).toLowerCase().includes(q));
-  const can = list.length === L.length, TY = { pdf: 'PDF', link: 'ลิงก์', step: 'ขั้นตอน', video: 'วิดีโอ' };
+  const can = list.length === L.length, TY = { pdf: 'PDF', link: 'ลิงก์', step: 'ขั้นตอน', video: 'วิดีโอ', manual: 'คู่มือ', form: 'แบบฟอร์ม' };
   box.innerHTML = !list.length ? `<tr><td><div class="pw-empty">${L.length ? 'ไม่พบตามคำค้น' : 'ยังไม่มีรายการ — กด "เพิ่มรายการ" เพื่อใส่' + (pay ? 'ขั้นตอน' : sup ? 'เอกสารหรือแบบฟอร์ม' : 'วิดีโอหรือ PDF จาก Google Drive')}</div></td></tr>` :
     `<thead><tr><th></th><th>${pay ? 'ลำดับ' : sup ? 'ลำดับ' : 'ภาพ'}</th><th>${pay ? 'ขั้นตอน' : 'หัวข้อ'} (${L.length} รายการ)</th><th class="pw-hide-m">สถานะ</th><th class="pw-hide-m">แก้ไขล่าสุด</th><th></th></tr></thead><tbody>` +
     list.map(({ s, i }) => {
@@ -380,7 +384,7 @@ function renderPwFin(kind) {
         <td><div class="pw-ord"><button class="pw-ib" data-pwfmv="${i}|-1" ${!can || !i ? 'disabled' : ''} title="เลื่อนก่อน">${ic('up')}</button><button class="pw-ib" data-pwfmv="${i}|1" ${!can || i === L.length - 1 ? 'disabled' : ''} title="เลื่อนหลัง">${ic('down')}</button></div></td>
         <td>${pay || sup ? `<span class="pw-no">${pay ? 'ขั้นที่ ' : ''}${i + 1}</span>` : `<div class="pw-th" style="${pwBg(s.thumb)}">${s.thumb ? '' : ic('image')}</div>`}</td>
         <td><div class="pw-t">${esc(s.title || '(ไม่มีหัวข้อ)')}</div>
-          <div class="pw-sub"><span class="pw-tag general">${TY[s.type] || ''}</span>${s.date ? '<span>' + esc(s.date) + '</span>' : ''}${s.linkText ? '<span>· ปุ่ม: ' + esc(s.linkText) + '</span>' : ''}</div>
+          <div class="pw-sub"><span class="pw-tag general">${TY[s.type] || ''}</span>${s.cat ? '<span>' + esc(s.cat) + '</span>' : ''}${s.date ? '<span>' + esc(s.date) + '</span>' : ''}${s.linkText ? '<span>· ปุ่ม: ' + esc(s.linkText) + '</span>' : ''}</div>
           ${det ? `<div class="pw-det">${esc(det)}</div>` : ''}</td>
         <td class="pw-hide-m">${s.isHidden ? '<span class="pw-tag off">ซ่อน</span>' : '<span class="pw-tag on">แสดง</span>'}</td>
         <td class="pw-hide-m small-x muted">${esc(s.by || '')}<br>${esc(s.updatedAt || '')}</td>
@@ -572,20 +576,32 @@ function pwOpenFin(s) {
   PW.edit = s;
   const pay = pwK() === 'pay', sup = PW.tab === 'sup', sec = pay ? 'ขั้นตอนชำระเงิน' : sup ? $('pwGrp').selectedOptions[0].textContent : 'งานการเงินและบัญชี';
   $('pwFinH').textContent = (s ? 'แก้ไขรายการ ' : 'เพิ่มรายการ ') + sec;
-  $('pwFType').closest('.col-sm-4').hidden = sup || pay; $('pwFDate').closest('.col-sm-4').hidden = pay; $('pwFLink').closest('.col-sm-8').hidden = sup; $('pwFLinkT').closest('.col-sm-4').hidden = sup;
+  const sk = pwK() === 'sup';
+  $('pwFType').innerHTML = sk ? '<option value="link">ไฟล์อื่น ๆ</option><option value="form">แบบฟอร์ม</option><option value="manual">คู่มือ</option>' : '<option value="video">วิดีโอ</option><option value="pdf">เอกสาร PDF</option>';
+  $('pwFType').closest('.col-sm-4').hidden = (sup && !sk) || pay; $('pwFDate').closest('.col-sm-4').hidden = pay; $('pwFLink').closest('.col-sm-8').hidden = sup; $('pwFLinkT').closest('.col-sm-4').hidden = sup;
   $('pwFFile').rows = pay ? 8 : 2;
   $('pwFFileL').textContent = pay ? 'รายละเอียด * (ขึ้นบรรทัดใหม่ได้)' : sup ? 'ลิงก์เอกสาร / โฟลเดอร์ *' : 'ลิงก์ไฟล์ Google Drive * (แชร์ให้ทุกคนที่มีลิงก์ดูได้)';
   const y = s ? pwYmd(s.date) : PW.data.today;
   $('pwFDate').value = y || ''; $('pwFDate').dataset.raw = s && !y ? s.date : '';
-  $('pwFType').value = s ? s.type : 'video'; $('pwFTitle').value = s ? s.title : ''; $('pwFFile').value = s ? s.fileUrl : '';
+  $('pwFType').value = s ? s.type : sk ? 'link' : 'video';
+  $('pwFImg').value = s ? s.img || '' : ''; $('pwFCat').value = s ? s.cat || '' : ''; $('pwFSub').value = s ? s.sub || '' : ''; $('pwFDesc').value = s ? s.desc || '' : '';
+  pwSupX(); $('pwFTitle').value = s ? s.title : ''; $('pwFFile').value = s ? s.fileUrl : '';
   $('pwFLink').value = s ? s.link : ''; $('pwFLinkT').value = s ? s.linkText : ''; $('pwFVis').checked = s ? !s.isHidden : true;
   modal('pwFinModal').show();
 }
 $('pwFDate').onchange = function () { this.dataset.raw = ''; };
+function pwSupX() {
+  const sk = pwK() === 'sup' && PW.tab === 'sup', t = $('pwFType').value;
+  document.querySelectorAll('.pw-supx').forEach(el => { el.hidden = !sk || t === 'link'; });
+  document.querySelectorAll('.pw-man').forEach(el => { el.hidden = !sk || t !== 'manual'; });
+  $('pwFSubL').textContent = t === 'manual' ? 'เลขที่หนังสือเวียน (เช่น ที่ กค (กวจ) 0405.2/ว119 ลงวันที่ 7 มี.ค. 2561)' : 'ขั้นตอน (เช่น ขั้นที่ 1 ก่อนจัดซื้อ)';
+}
+$('pwFType').onchange = pwSupX;
 $('pwFinForm').onsubmit = e => {
   e.preventDefault();
   const o = { id: PW.edit ? PW.edit.id : '', type: $('pwFType').value, date: $('pwFDate').dataset.raw || pwThai($('pwFDate').value), title: $('pwFTitle').value.trim(), fileUrl: $('pwFFile').value.trim(),
-    link: $('pwFLink').value.trim(), linkText: $('pwFLinkT').value.trim(), isHidden: !$('pwFVis').checked };
+    link: $('pwFLink').value.trim(), linkText: $('pwFLinkT').value.trim(), isHidden: !$('pwFVis').checked,
+    img: $('pwFImg').value.trim(), cat: $('pwFCat').value.trim(), sub: $('pwFSub').value.trim(), desc: $('pwFDesc').value.trim() };
   if (!o.title || !o.fileUrl) return toast('กรุณาใส่หัวข้อและลิงก์ไฟล์', true);
   $('pwFinSave').disabled = true;
   pwRun('pwSaveFin', o, pwK()).then(() => { modal('pwFinModal').hide(); toast('บันทึกแล้ว'); return pwReload(); }).finally(() => $('pwFinSave').disabled = false);
