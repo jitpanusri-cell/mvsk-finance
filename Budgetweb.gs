@@ -102,10 +102,15 @@ function getAnnouncements() {
       return {
         id: str_(r[0]), date: str_(r[1]), title: str_(r[2]), details: str_(r[3]), imageUrl: str_(r[4]).split(/\s*\n\s*/)[0] || '',
         images: str_(r[4]).split(/\s*\n\s*/).filter(String),
-        type: ANN_TYPES.indexOf(str_(r[5])) >= 0 ? str_(r[5]) : 'alert', links: links,
+        types: annTypes_(r[5]), type: annTypes_(r[5])[0], links: links,
         pinned: str_(r[21]) === 'PIN', createdAt: m ? Number(m[1]) : 0
       };
     }).reverse();
+}
+
+function annTypes_(v) {
+  const t = String(v || '').split(/\s*,\s*/).filter(x => ANN_TYPES.indexOf(x) >= 0);
+  return t.length ? t : ['alert'];
 }
 
 function getSlides() {

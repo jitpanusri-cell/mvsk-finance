@@ -168,7 +168,7 @@
     }
 
     function renderNews(list) {
-      var L = (list || []).filter(function (a) { return NEWS_TYPES.indexOf(a.type) >= 0; })
+      var L = (list || []).filter(function (a) { var m = (a.types || [a.type]).filter(function (t) { return NEWS_TYPES.indexOf(t) >= 0; }); a._ty = m[0]; return m.length; })
         .sort(function (a, b) { return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0); });
       NEWS = L; L = L.slice(0, 3); if (!L.length) return;
       $('newsGrid').innerHTML = L.map(function (a) {
@@ -177,7 +177,7 @@
         var ex = plain(a.details);
         return '<article class="nc rv" data-open="' + esc(a.id) + '">' +
           '<div class="ph">' + (img ? '<div class="im" style="background-image:url(&quot;' + esc(img) + '&quot;)"></div>' : '<div class="none">' + ico('megaphone') + '</div>') +
-          '<div class="badges">' + (a.pinned ? '<span class="pin">' + ico('pin', 'sm') + 'ปักหมุด</span>' : '') + '<span>' + (NEWS_LBL[a.type] || '') + '</span></div></div>' +
+          '<div class="badges">' + (a.pinned ? '<span class="pin">' + ico('pin', 'sm') + 'ปักหมุด</span>' : '') + '<span>' + (NEWS_LBL[a._ty || a.type] || '') + '</span></div></div>' +
           '<div class="nb">' + (date ? '<span class="dt">' + ico('calendar') + esc(date) + '</span>' : '') +
           '<h3 class="tt">' + esc(a.title) + '</h3>' + (ex ? '<p class="ex">' + esc(ex) + '</p>' : '') +
           '<span class="rm">อ่านต่อ' + ico('arrow') + '</span></div></article>';

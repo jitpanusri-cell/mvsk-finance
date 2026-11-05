@@ -60,6 +60,14 @@ tr.pw-dim td{opacity:.6}
 .pw-img .pv.slide{aspect-ratio:16/9}
 .pw-lrow{display:grid;grid-template-columns:1fr 1.5fr auto;gap:8px;margin-bottom:8px;align-items:center}
 .pw-lrow .b{display:flex;gap:4px}
+.pw-chk{display:flex;flex-wrap:wrap;gap:6px}
+.pw-chk label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:13.5px;cursor:pointer;background:#fff;user-select:none}
+.pw-chk label:has(input:checked){border-color:var(--pri);background:#EEF3FB;color:var(--pri);font-weight:600}
+.pw-chk input{accent-color:var(--pri)}
+.pw-hint{font-size:12.5px;color:var(--ink2);margin-top:6px}
+.pw-tags{display:flex;gap:4px;flex-wrap:wrap}
+.pw-det{font-size:12.5px;color:var(--ink2);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line;max-width:640px}
+.pw-no{display:inline-grid;place-items:center;min-width:64px;height:30px;border-radius:99px;background:var(--ink);color:#fff;font-size:12.5px;font-weight:700;padding:0 10px}
 .pw-empty{text-align:center;padding:36px 12px;color:var(--ink2)}
 @media (max-width:700px){.pw-lrow{grid-template-columns:1fr}.pw-hide-m{display:none}}
 </style>
@@ -133,9 +141,9 @@ document.querySelector('main.main').insertAdjacentHTML('beforeend', `
     </div>
   </div>
   <div data-pwt="slides" hidden><div class="pw-slides" id="pwSlides"></div></div>
-  <div data-pwt="fin" hidden><div class="pw-slides" id="pwFin"></div></div>
-  <div data-pwt="sup" hidden><div class="d-flex align-items-center gap-2 mb-3"><label class="flabel m-0" for="pwGrp">กลุ่มงาน</label><select class="sel" id="pwGrp" style="max-width:260px"><option value="sup">งานพัสดุและสินทรัพย์</option><option value="plan">งานแผนงานและนโยบาย</option><option value="bank">งานธนาคารโรงเรียน</option><option value="control">งานควบคุมภายใน</option><option value="office">งานสำนักงาน</option><option value="student">นักเรียนและผู้ปกครอง</option><option value="teacher">ครูและบุคลากร</option></select></div><div class="pw-slides" id="pwSup"></div></div>
-  <div data-pwt="pay" hidden><div class="pw-slides" id="pwPay"></div></div>
+  <div data-pwt="fin" hidden><div class="pw-tools"><input class="inp pw-fq" placeholder="ค้นหาวิดีโอ / เอกสาร" aria-label="ค้นหา"></div><div class="table-responsive"><table class="tbl" id="pwFin"></table></div></div>
+  <div data-pwt="sup" hidden><div class="d-flex align-items-center gap-2 mb-3"><label class="flabel m-0" for="pwGrp">กลุ่มงาน</label><select class="sel" id="pwGrp" style="max-width:260px"><option value="sup">งานพัสดุและสินทรัพย์</option><option value="plan">งานแผนงานและนโยบาย</option><option value="bank">งานธนาคารโรงเรียน</option><option value="control">งานควบคุมภายใน</option><option value="office">งานสำนักงาน</option><option value="student">นักเรียนและผู้ปกครอง</option><option value="teacher">ครูและบุคลากร</option></select></div><div class="pw-tools"><input class="inp pw-fq" placeholder="ค้นหาเอกสาร" aria-label="ค้นหา"></div><div class="table-responsive"><table class="tbl" id="pwSup"></table></div></div>
+  <div data-pwt="pay" hidden><div class="pw-tools"><input class="inp pw-fq" placeholder="ค้นหาขั้นตอน" aria-label="ค้นหา"></div><div class="table-responsive"><table class="tbl" id="pwPay"></table></div></div>
   <div data-pwt="conf" hidden>
     <div class="cardx mb-grid" style="max-width:720px">
       <div class="mb-3" id="pwConfInfo"></div>
@@ -169,9 +177,9 @@ document.body.insertAdjacentHTML('beforeend', `
       <div class="modal-body">
         <div class="row g-3">
           <div class="col-12"><label class="flabel" for="pwTitle">หัวข้อ *</label><input class="inp" id="pwTitle" required maxlength="200"></div>
-          <div class="col-sm-4"><label class="flabel" for="pwType">ประเภท</label><select class="sel" id="pwType" style="width:100%"></select></div>
-          <div class="col-sm-4"><label class="flabel" for="pwDate">วันที่ประกาศ</label><input class="inp" type="date" id="pwDate"></div>
-          <div class="col-sm-4"><label class="flabel" for="pwExp">แสดงถึงวันที่</label><input class="inp" type="date" id="pwExp"></div>
+          <div class="col-12"><span class="flabel">โพสต์ไปหน้าเว็บ (เลือกได้หลายหน้า)</span><div class="pw-chk" id="pwType"></div><div class="pw-hint">หน้าแรกแสดงทุกข่าว · "ด่วนที่สุด" แสดงทุกหน้า</div></div>
+          <div class="col-sm-6"><label class="flabel" for="pwDate">วันที่ประกาศ</label><input class="inp" type="date" id="pwDate"></div>
+          <div class="col-sm-6"><label class="flabel" for="pwExp">แสดงถึงวันที่</label><input class="inp" type="date" id="pwExp"></div>
           <div class="col-12">
             <label class="flabel">รายละเอียด</label>
             <div class="pw-tb" id="pwTb">
@@ -294,7 +302,7 @@ function renderPw() {
   $('pwAdd').innerHTML = ic('plus') + (t === 'slides' ? 'เพิ่มสไลด์' : t === 'fin' || t === 'sup' || t === 'pay' ? 'เพิ่มรายการ' : 'สร้างประกาศ');
   $('pwSaveOrder').hidden = !(t === 'news' ? PW.dirtyNews : t === 'slides' ? PW.dirtySlides : t === 'fin' ? PW.dirtyFin : t === 'sup' ? PW.dirtySup : t === 'pay' ? PW.dirtyPay : false);
   if (!$('pwTy').options[1]) $('pwTy').insertAdjacentHTML('beforeend', Object.keys(PW_TYPE).map(k => `<option value="${k}">${PW_TYPE[k]}</option>`).join(''));
-  if (!$('pwType').options[0]) $('pwType').innerHTML = Object.keys(PW_TYPE).map(k => `<option value="${k}">${PW_TYPE[k]}</option>`).join('');
+  if (!$('pwType').firstChild) $('pwType').innerHTML = Object.keys(PW_TYPE).map(k => `<label><input type="checkbox" value="${k}">${PW_TYPE[k]}</label>`).join('');
   if (t === 'news') renderPwNews();
   if (t === 'slides') renderPwSlides();
   if (t === 'fin') renderPwFin();
@@ -314,7 +322,7 @@ function renderPw() {
 function renderPwNews() {
   const I = PW.data.items, q = $('pwQ').value.trim().toLowerCase(), st = $('pwSt').value, ty = $('pwTy').value;
   const list = I.filter(a => {
-    if (ty && a.type !== ty) return false;
+    if (ty && !(a.types || [a.type]).includes(ty)) return false;
     if (st === 'on' && (a.isHidden || pwExp(a))) return false;
     if (st === 'off' && !a.isHidden) return false;
     if (st === 'pin' && !a.pinned) return false;
@@ -330,7 +338,7 @@ function renderPwNews() {
       return `<tr class="${a.isHidden || pwExp(a) ? 'pw-dim' : ''}">
         <td><div class="pw-ord"><button class="pw-ib" data-pwmv="${i}|-1" ${!can || !i ? 'disabled' : ''}>${ic('up')}</button><button class="pw-ib" data-pwmv="${i}|1" ${!can || i === list.length - 1 ? 'disabled' : ''}>${ic('down')}</button></div></td>
         <td><div class="pw-th" style="${pwBg(a.images[0])}">${a.images[0] ? (a.images.length > 1 ? '<span class="pill" style="margin:auto 4px 4px auto;align-self:end;font-size:11px">' + a.images.length + '</span>' : '') : ic('image')}</div></td>
-        <td><div class="pw-t">${esc(a.title)}</div><div class="pw-sub"><span class="pw-tag ${esc(a.type)}">${esc(PW_TYPE[a.type])}</span>${a.date ? '<span>' + esc(a.date) + '</span>' : ''}${a.links.length ? '<span>· ไฟล์ ' + a.links.length + '</span>' : ''}${a.expire && !pwExp(a) ? '<span>· ถึง ' + esc(a.expire) + '</span>' : ''}</div></td>
+        <td><div class="pw-t">${esc(a.title)}</div><div class="pw-sub">${(a.types || [a.type]).map(t => `<span class="pw-tag ${esc(t)}">${esc(PW_TYPE[t])}</span>`).join('')}${a.date ? '<span>' + esc(a.date) + '</span>' : ''}${a.links.length ? '<span>· ไฟล์ ' + a.links.length + '</span>' : ''}${a.expire && !pwExp(a) ? '<span>· ถึง ' + esc(a.expire) + '</span>' : ''}</div></td>
         <td class="pw-hide-m">${s}</td>
         <td class="pw-hide-m small-x muted">${esc(a.by)}<br>${esc(a.updatedAt)}</td>
         <td><div class="pw-act">
@@ -361,21 +369,32 @@ function renderPwSlides() {
 const pwK = () => PW.tab === 'sup' ? $('pwGrp').value : PW.tab === 'pay' ? 'pay' : 'fin';
 function renderPwFin(kind) {
   const pay = kind === 'pay', sup = !!kind && kind !== 'pay' && kind !== 'fin', L = PW.data[kind || 'fin'] || [];
-  $(pay ? 'pwPay' : sup ? 'pwSup' : 'pwFin').innerHTML = !L.length ? '<div class="cardx pw-empty" style="grid-column:1/-1">ยังไม่มีรายการ — กด "เพิ่มรายการ" เพื่อใส่' + (pay ? 'ขั้นตอน' : sup ? 'เอกสารหรือแบบฟอร์ม' : 'วิดีโอหรือ PDF จาก Google Drive') + '</div>' :
-    L.map((s, i) => `<div class="pw-slide ${s.isHidden ? 'dim' : ''}">
-      <div class="im" style="${pay ? 'aspect-ratio:auto;height:44px' : pwBg(s.thumb)}"><span class="no">${pay ? 'ขั้นที่ ' : ''}${i + 1}</span><span class="ty">${s.type === 'pdf' ? 'PDF' : s.type === 'link' ? 'ลิงก์' : s.type === 'step' ? 'ขั้นตอน' : 'วิดีโอ'}</span></div>
-      <div class="bd"><div class="grow"><div class="t">${esc(s.title || '(ไม่มีหัวข้อ)')}</div><div class="s">${esc([s.date, s.linkText ? 'ปุ่ม: ' + s.linkText : ''].filter(Boolean).join(' · '))}</div></div>
-        <div class="pw-act">
-          <button class="pw-ib" data-pwfmv="${i}|-1" ${!i ? 'disabled' : ''} title="เลื่อนก่อน">${ic('up')}</button>
-          <button class="pw-ib" data-pwfmv="${i}|1" ${i === L.length - 1 ? 'disabled' : ''} title="เลื่อนหลัง">${ic('down')}</button>
+  const box = $(pay ? 'pwPay' : sup ? 'pwSup' : 'pwFin'), q = box.closest('[data-pwt]').querySelector('.pw-fq').value.trim().toLowerCase();
+  const list = L.map((s, i) => ({ s, i })).filter(x => !q || (x.s.title + ' ' + x.s.fileUrl + ' ' + x.s.linkText + ' ' + x.s.date).toLowerCase().includes(q));
+  const can = list.length === L.length, TY = { pdf: 'PDF', link: 'ลิงก์', step: 'ขั้นตอน', video: 'วิดีโอ' };
+  box.innerHTML = !list.length ? `<tr><td><div class="pw-empty">${L.length ? 'ไม่พบตามคำค้น' : 'ยังไม่มีรายการ — กด "เพิ่มรายการ" เพื่อใส่' + (pay ? 'ขั้นตอน' : sup ? 'เอกสารหรือแบบฟอร์ม' : 'วิดีโอหรือ PDF จาก Google Drive')}</div></td></tr>` :
+    `<thead><tr><th></th><th>${pay ? 'ลำดับ' : sup ? 'ลำดับ' : 'ภาพ'}</th><th>${pay ? 'ขั้นตอน' : 'หัวข้อ'} (${L.length} รายการ)</th><th class="pw-hide-m">สถานะ</th><th class="pw-hide-m">แก้ไขล่าสุด</th><th></th></tr></thead><tbody>` +
+    list.map(({ s, i }) => {
+      const det = pay ? s.fileUrl : sup ? s.fileUrl : '';
+      return `<tr class="${s.isHidden ? 'pw-dim' : ''}">
+        <td><div class="pw-ord"><button class="pw-ib" data-pwfmv="${i}|-1" ${!can || !i ? 'disabled' : ''} title="เลื่อนก่อน">${ic('up')}</button><button class="pw-ib" data-pwfmv="${i}|1" ${!can || i === L.length - 1 ? 'disabled' : ''} title="เลื่อนหลัง">${ic('down')}</button></div></td>
+        <td>${pay || sup ? `<span class="pw-no">${pay ? 'ขั้นที่ ' : ''}${i + 1}</span>` : `<div class="pw-th" style="${pwBg(s.thumb)}">${s.thumb ? '' : ic('image')}</div>`}</td>
+        <td><div class="pw-t">${esc(s.title || '(ไม่มีหัวข้อ)')}</div>
+          <div class="pw-sub"><span class="pw-tag general">${TY[s.type] || ''}</span>${s.date ? '<span>' + esc(s.date) + '</span>' : ''}${s.linkText ? '<span>· ปุ่ม: ' + esc(s.linkText) + '</span>' : ''}</div>
+          ${det ? `<div class="pw-det">${esc(det)}</div>` : ''}</td>
+        <td class="pw-hide-m">${s.isHidden ? '<span class="pw-tag off">ซ่อน</span>' : '<span class="pw-tag on">แสดง</span>'}</td>
+        <td class="pw-hide-m small-x muted">${esc(s.by || '')}<br>${esc(s.updatedAt || '')}</td>
+        <td><div class="pw-act">
           <button class="pw-ib" data-pwfhide="${esc(s.id)}" title="${s.isHidden ? 'แสดง' : 'ซ่อน'}">${ic(s.isHidden ? 'eyeoff' : 'eye')}</button>
           <button class="pw-ib" data-pwfedit="${esc(s.id)}" title="แก้ไข">${ic('edit')}</button>
           <button class="pw-ib del" data-pwfdel="${esc(s.id)}" title="ลบ">${ic('trash')}</button>
-        </div></div></div>`).join('');
+        </div></td></tr>`;
+    }).join('') + '</tbody>';
 }
 
 $('pwTabs').onclick = e => { const b = e.target.closest('button'); if (b) { PW.tab = b.dataset.t; renderPw(); } };
 ['pwQ', 'pwSt', 'pwTy'].forEach(id => $(id).addEventListener('input', renderPwNews));
+document.querySelectorAll('.pw-fq').forEach(x => x.addEventListener('input', () => renderPwFin(PW.tab === 'fin' ? undefined : pwK())));
 $('pwAdd').onclick = () => PW.tab === 'slides' ? pwOpenSlide(null) : PW.tab === 'fin' || PW.tab === 'sup' || PW.tab === 'pay' ? pwOpenFin(null) : pwOpenNews(null);
 $('pwSaveOrder').onclick = () => {
   const t = PW.tab, fn = t === 'news' ? 'pwOrderNews' : t === 'fin' || t === 'sup' || t === 'pay' ? 'pwOrderFin' : 'pwOrderSlides';
@@ -505,7 +524,7 @@ function pwOpenNews(a) {
   PW.edit = a;
   $('pwNewsH').textContent = a ? 'แก้ไขประกาศ' : 'สร้างประกาศ';
   $('pwTitle').value = a ? a.title : '';
-  $('pwType').value = a ? a.type : 'general';
+  const tys = a ? (a.types || [a.type]) : ['general']; $('pwType').querySelectorAll('input').forEach(x => x.checked = tys.includes(x.value));
   const y = a ? pwYmd(a.date) : PW.data.today;
   $('pwDate').value = y || ''; $('pwDate').dataset.raw = a && !y ? a.date : '';
   $('pwExp').value = a ? a.expire : '';
@@ -521,11 +540,12 @@ $('pwNewsForm').onsubmit = e => {
   const links = [...$('pwLinks').children].map(r => ({ name: r.querySelector('.ln').value.trim(), url: r.querySelector('.lu').value.trim() })).filter(l => l.name || l.url);
   if (links.some(l => !l.name || !/^https?:/i.test(l.url))) return toast('ไฟล์แนบต้องมีชื่อปุ่มและลิงก์ที่ขึ้นต้นด้วย https', true);
   const o = {
-    id: PW.edit ? PW.edit.id : '', title: $('pwTitle').value, type: $('pwType').value,
+    id: PW.edit ? PW.edit.id : '', title: $('pwTitle').value, types: [...$('pwType').querySelectorAll('input:checked')].map(x => x.value),
     date: $('pwDate').dataset.raw || pwThai($('pwDate').value), expire: $('pwExp').value,
     details: $('pwBody').innerHTML.trim(), imageUrl: PW.imgs.join('\n'), links: links,
     isHidden: !$('pwVis').checked, pinned: $('pwPin').checked
   };
+  if (!o.types.length) return toast('เลือกหน้าเว็บที่จะโพสต์อย่างน้อย 1 หน้า', true);
   $('pwNewsSave').disabled = true;
   pwRun('pwSaveNews', o).then(() => { modal('pwNewsModal').hide(); toast('บันทึกแล้ว'); return pwReload(); }).finally(() => $('pwNewsSave').disabled = false);
 };
@@ -553,6 +573,7 @@ function pwOpenFin(s) {
   const pay = pwK() === 'pay', sup = PW.tab === 'sup', sec = pay ? 'ขั้นตอนชำระเงิน' : sup ? $('pwGrp').selectedOptions[0].textContent : 'งานการเงินและบัญชี';
   $('pwFinH').textContent = (s ? 'แก้ไขรายการ ' : 'เพิ่มรายการ ') + sec;
   $('pwFType').closest('.col-sm-4').hidden = sup || pay; $('pwFDate').closest('.col-sm-4').hidden = pay; $('pwFLink').closest('.col-sm-8').hidden = sup; $('pwFLinkT').closest('.col-sm-4').hidden = sup;
+  $('pwFFile').rows = pay ? 8 : 2;
   $('pwFFileL').textContent = pay ? 'รายละเอียด * (ขึ้นบรรทัดใหม่ได้)' : sup ? 'ลิงก์เอกสาร / โฟลเดอร์ *' : 'ลิงก์ไฟล์ Google Drive * (แชร์ให้ทุกคนที่มีลิงก์ดูได้)';
   const y = s ? pwYmd(s.date) : PW.data.today;
   $('pwFDate').value = y || ''; $('pwFDate').dataset.raw = s && !y ? s.date : '';

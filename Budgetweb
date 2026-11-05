@@ -425,12 +425,12 @@
     }
 
     function renderAll() {
-      var c = { all: ST.news.length }; ST.news.forEach(function (a) { c[a.type] = (c[a.type] || 0) + 1; });
+      var c = { all: ST.news.length }; ST.news.forEach(function (a) { (a.types || [a.type]).forEach(function (t) { c[t] = (c[t] || 0) + 1; }); });
       $('tabs').innerHTML = ['all'].concat(Object.keys(TYPES).filter(function (k) { return c[k]; })).map(function (k) {
         return '<button class="' + (ST.type === k ? 'on' : '') + '" data-type="' + k + '">' + (k === 'all' ? 'ทั้งหมด' : TYPES[k]) + '</button>';
       }).join('');
       var q = ST.q.toLowerCase();
-      var list = ST.news.filter(function (a) { return (ST.type === 'all' || a.type === ST.type) && (!q || (a.title + ' ' + a._t + ' ' + a.date).toLowerCase().indexOf(q) >= 0); });
+      var list = ST.news.filter(function (a) { return (ST.type === 'all' || (a.types || [a.type]).indexOf(ST.type) >= 0) && (!q || (a.title + ' ' + a._t + ' ' + a.date).toLowerCase().indexOf(q) >= 0); });
       if (ST.type === 'all' && !q) list = list.filter(function (a) { return ST.featIds.indexOf(a.id) < 0; });
       $('grid').innerHTML = list.length ? list.slice(0, ST.shown).map(function (a) {
         return card(a, 4);
