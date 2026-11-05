@@ -1725,7 +1725,7 @@ async function printForm2(rooms) {
   /* ช่องติ๊กใช้ฟอนต์ Wingdings: þ = ช่องมีเครื่องหมายถูก, ¨ = ช่องว่าง */
   const cb = on => `<span class="wd">${on ? '&#254;' : '&#168;'}</span>`;
   const n0 = v => v ? v.toLocaleString('en-US') : '-';
-  const head = `<colgroup><col style="width:4.3%"><col style="width:30.2%"><col style="width:16.5%"><col style="width:8.6%"><col style="width:8.7%"><col style="width:8.6%"><col style="width:14.2%"><col style="width:8.9%"></colgroup>
+  const head = `<colgroup><col style="width:4.3%"><col style="width:29.2%"><col style="width:17.5%"><col style="width:8.6%"><col style="width:8.7%"><col style="width:8.6%"><col style="width:14.2%"><col style="width:8.9%"></colgroup>
     <thead><tr><th rowspan="2">ที่</th><th rowspan="2">ชื่อ-สกุล นักเรียน</th><th rowspan="2">เลขประจำตัวประชาชน<br>ของนักเรียน 13 หลัก</th>
     <th colspan="3">จำนวนเงิน</th><th rowspan="2">ลายมือชื่อ<br>นักเรียน/ผู้ปกครอง</th><th rowspan="2">หมายเหตุ</th></tr>
     <tr><th>เครื่องแบบ<br>นักเรียน</th><th>อุปกรณ์<br>การเรียน</th><th>รวม</th></tr></thead>`;
