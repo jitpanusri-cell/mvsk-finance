@@ -1698,11 +1698,19 @@ async function stFitParas(html) {
     const tb = doc.querySelector('table.f2'); if (!tb) return;
     const W = tb.getBoundingClientRect().width;
     doc.querySelectorAll('.para.fit').forEach(el => {
-      el.style.letterSpacing = '0';
-      const r = document.createRange(); r.selectNodeContents(el);
-      const w = r.getBoundingClientRect().width, t = el.textContent;
-      const n = seg ? Array.from(seg.segment(t)).length : t.length;
-      if (n > 1 && w > 0) el.setAttribute('style', `letter-spacing:${((W - w) / n).toFixed(3)}px`);
+      const t = el.textContent, n = seg ? Array.from(seg.segment(t)).length : t.length;
+      if (n < 2) return;
+      /* วัดซ้ำแล้วปรับ 4 รอบ ให้ขอบขวาตรงตารางพอดี (เบราว์เซอร์เว้นระยะสระ/วรรณยุกต์ไม่เท่ากันทุกตัว) */
+      const fs = parseFloat(getComputedStyle(el).fontSize) || 16;
+      let ls = 0;
+      for (let k = 0; k < 4; k++) {
+        el.style.letterSpacing = ls + 'px';
+        const r = document.createRange(); r.selectNodeContents(el);
+        const w = r.getBoundingClientRect().width; if (!(w > 0)) return;
+        if (Math.abs(W - w) < .3) break;
+        ls += (W - w) / n;
+      }
+      el.setAttribute('style', `letter-spacing:${(ls / fs).toFixed(4)}em`);
     });
   });
   const out = wrap.querySelector('.print-doc').innerHTML;
