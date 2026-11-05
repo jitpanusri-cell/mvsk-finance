@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><?= G.title ?> - โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
+  <base target="_top">
+  
+  <?!= include('SiteCSS'); ?>
+</head>
+<body>
+  <div id="prog"></div>
+  <?!= include('Icons'); ?>
+
+  <div class="main-container">
+
+    <?!= island(gkey); ?>
+
+    <div class="site-header">
+      <div class="header-content">
+        <img src="https://www.mvsk.ac.th/images/logo.png" alt="MVSK LOGO" class="logo-main" onerror="this.src='https://lh3.googleusercontent.com/d/1PVf5EA7ntHrhJBLbwOuobqWfd9mvscY8'">
+        <h1 class="finance-title"><?= G.title ?></h1>
+        <span class="school-subtitle-th">โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</span>
+        <span class="school-subtitle-en">MAHAVAJIRAVUDH CHANGWATSONGKHLA SCHOOL</span>
+      </div>
+    </div>
+
+  </div>
+
+  <main class="pg">
+
+    <section id="scope">
+      <div class="wrap">
+        <div class="sh rv"><h2>บทบาทหน้าที่</h2></div>
+        <div class="steps" style="grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 28px 0;">
+          <? for (var i = 0; i < G.scope.length; i++) { ?><div class="st rv"><span class="no"><?= (i < 9 ? '0' : '') + (i + 1) ?></span><p><?= G.scope[i] ?></p></div><? } ?>
+        </div>
+      </div>
+    </section>
+
+    <section class="svc boxed" id="docs" hidden>
+      <div class="wrap">
+        <div class="sh rv"><h2>เอกสาร กฎหมาย และระเบียบ</h2></div>
+        <div class="svcs c2" id="supGrid" style="gap:20px"><div class="sk"></div><div class="sk"></div></div>
+      </div>
+    </section>
+
+    <section class="news" id="news" hidden>
+      <div class="wrap">
+        <div class="sh rv"><h2>ประชาสัมพันธ์<?= G.title ?></h2><a class="link-more" href="<?= getScriptUrl(); ?>" target="_top">ข่าวทั้งหมด<svg class="ic"><use href="#i-arrow"/></svg></a></div>
+        <div class="ngrid" id="newsGrid"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="ft" id="contact">
+    <div class="wrap cols">
+      <div>
+        <div class="fb"><img src="https://drive.google.com/thumbnail?id=1PVf5EA7ntHrhJBLbwOuobqWfd9mvscY8&sz=w200" alt=""><span><b><?= G.title ?></b>กลุ่มบริหารงานงบประมาณ โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</span></div>
+        <p>เลขที่ 19 ถนนราชดำเนิน ตำบลบ่อยาง<br>อำเภอเมืองสงขลา จังหวัดสงขลา 90000</p>
+      </div>
+      <div>
+        <h4>โทรศัพท์</h4>
+        <ul><li>โรงเรียน 074-311006</li><li>โทรสาร 074-326107</li><li>โครงการ SMA 074-315582</li><li>โครงการ EGL 074-311006 ต่อ 403</li></ul>
+      </div>
+      <div>
+        <h4>ส่งเอกสารราชการ</h4>
+        <ul><li><a href="mailto:mvskschool@gmail.com">mvskschool@gmail.com</a></li></ul>
+      </div>
+    </div>
+    <div class="bt"><div class="wrap"><span>© 2569 กลุ่มบริหารงานงบประมาณ โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</span><img src="https://hits.sh/mvsk.ac.th/<?= gkey ?>.svg?style=flat&label=views&color=13294b&labelColor=555555" alt="" height="20"></div></div>
+  </footer>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true">
+    <button class="mx" data-close aria-label="ปิด"><svg class="ic"><use href="#i-x"/></svg></button>
+    <article class="sheet" id="sheet"></article>
+  </div>
+  <span id="baseUrl" hidden><?= getScriptUrl(); ?></span>
+  <script>
+    function $(id) { return document.getElementById(id); }
+    var ticking = false;
+    window.addEventListener('scroll', function () {
+      if (ticking) return; ticking = true;
+      requestAnimationFrame(function () {
+        var y = window.scrollY, H = document.documentElement.scrollHeight - innerHeight;
+        $('prog').style.transform = 'scaleX(' + (H > 0 ? y / H : 0) + ')';
+        ticking = false;
+      });
+    }, { passive: true });
+
+
+    document.addEventListener('click', function (e) {
+      var g = e.target.closest('[data-go]');
+      if (g) { e.preventDefault(); $(g.dataset.go).scrollIntoView({ behavior: 'smooth' }); }
+    });
+
+    function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    function ico(n, c) { return '<svg class="ic ' + (c || '') + '"><use href="#i-' + n + '"/></svg>'; }
+    function plain(h) { var d = new DOMParser().parseFromString('<div>' + String(h || '').replace(/<br\s*\/?>/gi, ' ') + '</div>', 'text/html'); return (d.body.textContent || '').replace(/[\u2600-\u27BF\uFE0F]|[\uD83C-\uDBFF][\uDC00-\uDFFF]/g, '').replace(/\s+/g, ' ').trim(); }
+    var NEWS_TYPE = '<?= G.type ?>', NEWS_LABEL = '<?= G.label ?>', GKEY = '<?= gkey ?>';
+    var BASE = ($('baseUrl').textContent || '').trim(), SYS = '', NEWS = [];
+    function safeUrl(u) { return /^(https?:|mailto:)/i.test(String(u || '').trim()) ? u : '#'; }
+    var OK = 'B STRONG I EM U BR P DIV SPAN FONT UL OL LI A H1 H2 H3 H4 BLOCKQUOTE HR SMALL SUB SUP'.split(' ');
+    function clean(html) {
+      var doc = new DOMParser().parseFromString('<div>' + (html || '') + '</div>', 'text/html'), root = doc.body.firstChild;
+      (function walk(el) {
+        Array.prototype.slice.call(el.children).forEach(function (c) {
+          if (OK.indexOf(c.tagName) < 0) {
+            if (/^(SCRIPT|STYLE|IFRAME|OBJECT|EMBED|FORM|INPUT|TEXTAREA|BUTTON)$/.test(c.tagName)) { c.remove(); return; }
+            var sp = doc.createElement('span'); while (c.firstChild) sp.appendChild(c.firstChild); c.replaceWith(sp); walk(sp); return;
+          }
+          Array.prototype.slice.call(c.attributes).forEach(function (at) {
+            var n = at.name.toLowerCase();
+            if (n === 'href') { if (safeUrl(at.value) === '#') c.removeAttribute('href'); }
+            else if (n === 'style') c.setAttribute('style', (at.value.match(/(color|font-weight|font-size|text-align)\s*:[^;]+/gi) || []).join(';'));
+            else if (!(c.tagName === 'FONT' && /^(color|size|face)$/.test(n))) c.removeAttribute(at.name);
+          });
+          if (c.tagName === 'A') { c.setAttribute('target', '_blank'); c.setAttribute('rel', 'noopener'); }
+          walk(c);
+        });
+      })(root);
+      return root.innerHTML;
+    }
+    function openNews(id) {
+      var a = NEWS.filter(function (x) { return x.id === id; })[0]; if (!a) return;
+      var I = (a.images && a.images.length) ? a.images : (a.imageUrl ? [a.imageUrl] : []), links = a.links || [];
+      var date = String(a.date || '').replace(/^วันที่\s*/, '').replace(/พ\.ศ\.\s*/, '');
+      $('sheet').innerHTML = (I.length ? '<div class="ph" data-k="0" data-n="' + I.length + '">' + I.map(function (u, i) { return '<div class="im' + (i ? '' : ' on') + '" style="background-image:url(&quot;' + esc(u) + '&quot;)"></div>'; }).join('') +
+          (I.length > 1 ? '<button class="nav2 l" data-gal="-1" aria-label="รูปก่อนหน้า"><svg class="ic sm" style="transform:rotate(180deg)"><use href="#i-arrow"/></svg></button><button class="nav2 r" data-gal="1" aria-label="รูปถัดไป">' + ico('arrow', 'sm') + '</button>' : '') + '</div>' : '') +
+        '<div class="bd">' + (date ? '<span class="dt">' + ico('calendar') + esc(date) + '</span>' : '') + '<h2>' + esc(a.title) + '</h2>' +
+        '<div class="content">' + clean(a.details) + '</div>' +
+        (links.length ? '<div class="dl">' + links.map(function (l) { return '<a href="' + esc(safeUrl(l.url)) + '" target="_blank" rel="noopener">' + ico('file') + esc(l.name) + ico('download', 'sm') + '</a>'; }).join('') + '</div>' : '') +
+        '<div class="ft"><button class="link-more" data-copy="' + esc(a.id) + '">' + ico('copy', 'sm') + 'คัดลอกลิงก์ข่าว</button><button class="btn-out" data-close>ปิด</button></div></div>';
+      var m = $('modal'); m.classList.add('on'); document.body.style.overflow = 'hidden';
+      requestAnimationFrame(function () { m.classList.add('show'); m.scrollTop = 0; });
+    }
+    function copyLink(b) {
+      var url = BASE + '?page=' + GKEY + '&news=' + encodeURIComponent(b.dataset.copy);
+      var done = function () { b.lastChild.textContent = 'คัดลอกแล้ว'; setTimeout(function () { b.lastChild.textContent = 'คัดลอกลิงก์ข่าว'; }, 2000); };
+      function fb() { var x = document.createElement('textarea'); x.value = url; document.body.appendChild(x); x.select(); try { document.execCommand('copy'); done(); } catch (e) { prompt('คัดลอกลิงก์นี้', url); } x.remove(); }
+      try { if (navigator.clipboard) { navigator.clipboard.writeText(url).then(done, fb); return; } } catch (e) { }
+      fb();
+    }
+    function closeNews() { var m = $('modal'); if (!m.classList.contains('on')) return; m.classList.remove('show'); setTimeout(function () { m.classList.remove('on'); }, 250); document.body.style.overflow = ''; }
+    function gal(ph, k) {
+      var n = Number(ph.dataset.n), i = ((Number(ph.dataset.k) + k) % n + n) % n; ph.dataset.k = i;
+      ph.querySelectorAll('.im').forEach(function (el, j) { el.classList.toggle('on', j === i); });
+    }
+    document.addEventListener('click', function (e) {
+      var t = e.target, g = t.closest('[data-gal]');
+      if (g) { gal(g.closest('.ph'), Number(g.dataset.gal)); return; }
+      var o = t.closest('[data-open]'); if (o) { openNews(o.dataset.open); return; }
+      var cp = t.closest('[data-copy]'); if (cp) { copyLink(cp); return; }
+      if (t.closest('[data-close]') || t === $('modal')) closeNews();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeNews(); });
+
+    /* เอกสารและแบบฟอร์ม — จากชีต "งานพัสดุ" (null = ยังไม่มีชีต ใช้รายการเดิม) */
+    function renderSup(list) {
+      var g = $('supGrid');
+      if (!list || !list.length) { $('docs').hidden = true; return; }
+      $('docs').hidden = false;
+      if (!list.length) { $('docs').hidden = true; return; }
+      g.innerHTML = list.map(function (f) {
+        var d = String(f.date || '').replace(/^วันที่\s*/, '').replace(/พ\.ศ\.\s*/, '');
+        return '<a class="sv rv" href="' + esc(safeUrl(f.url)) + '" target="_blank" rel="noopener">' + ico('file', 'lg') +
+          (d ? '<span class="kk">' + esc(d) + '</span>' : '') + '<h3>' + esc(f.title) + '</h3></a>';
+      }).join('');
+      reveal();
+    }
+
+    function renderNews(list) {
+      var L = (list || []).filter(function (a) { return a.type === NEWS_TYPE; })
+        .sort(function (a, b) { return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0); });
+      NEWS = L; L = L.slice(0, 3); if (!L.length) return;
+      $('newsGrid').innerHTML = L.map(function (a) {
+        var img = (a.images && a.images[0]) || a.imageUrl || '';
+        var date = String(a.date || '').replace(/^วันที่\s*/, '').replace(/พ\.ศ\.\s*/, '');
+        var ex = plain(a.details);
+        return '<article class="nc rv" data-open="' + esc(a.id) + '">' +
+          '<div class="ph">' + (img ? '<div class="im" style="background-image:url(&quot;' + esc(img) + '&quot;)"></div>' : '<div class="none">' + ico('megaphone') + '</div>') +
+          '<div class="badges">' + (a.pinned ? '<span class="pin">' + ico('pin', 'sm') + 'ปักหมุด</span>' : '') + '<span>' + NEWS_LABEL + '</span></div></div>' +
+          '<div class="nb">' + (date ? '<span class="dt">' + ico('calendar') + esc(date) + '</span>' : '') +
+          '<h3 class="tt">' + esc(a.title) + '</h3>' + (ex ? '<p class="ex">' + esc(ex) + '</p>' : '') +
+          '<span class="rm">อ่านต่อ' + ico('arrow') + '</span></div></article>';
+      }).join('');
+      $('news').hidden = false;
+      reveal();
+    }
+
+    if (window.google && google.script && google.script.run) google.script.run.withSuccessHandler(function (d) {
+      d = d || {};
+      renderNews(d.news);
+      if (google.script.url) google.script.url.getLocation(function (l) { if (l && l.parameter && l.parameter.news) openNews(l.parameter.news); });
+      renderSup(d.groups ? d.groups[GKEY] : null);
+    }).withFailureHandler(function () { renderSup(null); }).getHomeData();
+    else renderSup(null);
+
+    var io = null;
+    function reveal() {
+      var els = document.querySelectorAll('.rv:not(.in)');
+      if (!('IntersectionObserver' in window)) { els.forEach(function (el) { el.classList.add('in'); }); return; }
+      io = io || new IntersectionObserver(function (es) {
+        es.forEach(function (x) { if (x.isIntersecting) { x.target.classList.add('in'); io.unobserve(x.target); } });
+      }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+      var i = 0;
+      els.forEach(function (el) {
+        if (el.classList.contains('sv') || el.classList.contains('st') || el.classList.contains('nc')) el.style.transitionDelay = (i++ % 4) * 0.08 + 's';
+        io.observe(el);
+      });
+    }
+    reveal();
+  </script>
+
+</body>
+</html>

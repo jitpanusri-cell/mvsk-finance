@@ -4,7 +4,7 @@ const PW_SLIDES = 'สไลด์';
 const PW_CONF = 'ตั้งค่าเว็บ';
 const PW_FIN = 'งานการเงิน';   // ส่วน "งานการเงินและบัญชี" บนหน้าเว็บงานการเงิน (วิดีโอ/PDF จาก Drive)
 const PW_COLS = 24;
-const PW_TYPES = ['alert', 'finance-alert', 'supplies-alert', 'general', 'document'];
+const PW_TYPES = ['alert', 'finance-alert', 'supplies-alert', 'plan-alert', 'bank-alert', 'control-alert', 'office-alert', 'general', 'document'];
 const PW_IMG_FOLDER = '1HSaggL6ChoYQX1W4HbZS-g-5EHe_oGkA';
 
 function pwUser_() {
@@ -70,10 +70,12 @@ const PW_PAY_SEED = [
   ['PAY-2', 'step', 'กรอกข้อมูลนักเรียน', 'เลือกภาคเรียนและปีการศึกษา กรอกเลขประจำตัวนักเรียน และตรวจสอบความถูกต้องของชื่อ-นามสกุล', '', '', 'VISIBLE', '', '', ''],
   ['PAY-3', 'step', 'ดำเนินการชำระเงิน', 'วิธีที่ 1 สแกนชำระผ่าน Mobile Banking ได้ทุกธนาคาร\nวิธีที่ 2 พิมพ์ใบ Pay in นำไปชำระที่ธนาคารกรุงไทยทุกสาขา', '', '', 'VISIBLE', '', '', '']
 ];
+/* เอกสาร กฎหมาย ระเบียบ ของกลุ่มงานอื่น (หน้า Group ของเว็บ) — โครงเดียวกับชีต งานพัสดุ */
+const PW_GRP_SHEETS = { plan: 'งานแผนงาน', bank: 'งานธนาคารโรงเรียน', control: 'งานควบคุมภายใน', office: 'งานสำนักงาน' };
 /** ชีต งานการเงิน / งานพัสดุ (kind = 'sup') / ขั้นตอนชำระเงิน (kind = 'pay') — สร้างครั้งแรกพร้อมรายการเดิมของหน้าเว็บ */
 function pwFinSheet_(ss, kind) {
-  const sup = kind === 'sup', pay = kind === 'pay';
-  const name = pay ? PW_PAY : sup ? PW_SUP : PW_FIN, seed = pay ? PW_PAY_SEED : sup ? PW_SUP_SEED : PW_FIN_SEED;
+  const sup = kind === 'sup', pay = kind === 'pay', grp = PW_GRP_SHEETS[kind];
+  const name = grp || (pay ? PW_PAY : sup ? PW_SUP : PW_FIN), seed = grp ? [] : pay ? PW_PAY_SEED : sup ? PW_SUP_SEED : PW_FIN_SEED;
   const head = pay ? PW_PAY_HEAD : PW_FIN_HEAD;
   let sh = ss.getSheetByName(name);
   if (sh) {
@@ -83,7 +85,7 @@ function pwFinSheet_(ss, kind) {
     return sh;
   }
   sh = pwHead_(ss.insertSheet(name), head);
-  sh.getRange(2, 1, seed.length, head.length).setValues(seed);
+  if (seed.length) sh.getRange(2, 1, seed.length, head.length).setValues(seed);
   return sh;
 }
 function pwDriveId_(u) {
@@ -177,6 +179,7 @@ function getPwData() {
   out.fin = pwReadFin_(pwFinSheet_(ss));
   out.sup = pwReadFin_(pwFinSheet_(ss, 'sup'));
   out.pay = pwReadFin_(pwFinSheet_(ss, 'pay'));
+  Object.keys(PW_GRP_SHEETS).forEach(k => { out[k] = pwReadFin_(pwFinSheet_(ss, k)); });
   out.signers = pwGetSigners_(ss);
   return out;
 }
@@ -338,7 +341,7 @@ function pwOrderSlides(ids) {
 function pwSaveFin(o, kind) {
   const u = pwUser_();
   o = o || {};
-  const sup = kind === 'sup', pay = kind === 'pay';
+  const pay = kind === 'pay', sup = kind === 'sup' || !!PW_GRP_SHEETS[kind];
   if (!pwStr_(o.title)) throw new Error('กรุณาระบุหัวข้อ');
   if (pay ? !pwStr_(o.fileUrl) : sup ? !/^https?:/i.test(pwStr_(o.fileUrl)) : !pwDriveId_(o.fileUrl))
     throw new Error(pay ? 'กรุณาใส่รายละเอียดขั้นตอน' : sup ? 'กรุณาวางลิงก์เอกสาร (ขึ้นต้นด้วย https)' : 'กรุณาวางลิงก์ไฟล์ Google Drive (วิดีโอหรือ PDF)');
@@ -351,7 +354,7 @@ function pwSaveFin(o, kind) {
     const row = o.id ? pwFind_(sh, o.id) : 0;
     let id = o.id;
     if (row) sh.getRange(row, 2, 1, body.length).setValues([body]);
-    else { id = (pay ? 'PAY-' : sup ? 'SUP-' : 'FIN-') + Date.now(); sh.appendRow([id].concat(body)); }
+    else { id = (pay ? 'PAY-' : PW_GRP_SHEETS[kind] ? kind.toUpperCase() + '-' : sup ? 'SUP-' : 'FIN-') + Date.now(); sh.appendRow([id].concat(body)); }
     audit_(row ? 'update' : 'create', 'WebFin', id, { title: o.title });
     return { id: id };
   });

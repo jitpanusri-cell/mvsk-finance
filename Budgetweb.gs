@@ -2,7 +2,22 @@ const SHEET_NAME = 'ประชาสัมพันธ์';
 const SLIDE_SHEET = 'สไลด์';
 const CONF_SHEET = 'ตั้งค่าเว็บ';
 const FAVICON_ID = '1zC_TJwmzziZAPRap48Nr4gxK9_Cjs4-e';
-const ANN_TYPES = ['alert', 'finance-alert', 'supplies-alert', 'general', 'document'];
+const ANN_TYPES = ['alert', 'finance-alert', 'supplies-alert', 'plan-alert', 'bank-alert', 'control-alert', 'office-alert', 'general', 'document'];
+
+/* กลุ่มงานที่ใช้หน้าต้นแบบ Group (?page=plan|bank|control|office) — เอกสารจากชีต sheet, ข่าวประเภท type
+ * บทบาทหน้าที่ อ้างอิงสไลด์ "ต้อนรับ รร.ระโนดวิทยา" กลุ่มบริหารงบประมาณ */
+const GROUPS = {
+  plan: { title: 'งานแผนงานและนโยบาย', en: 'PLANNING AND POLICY', sheet: 'งานแผนงาน', type: 'plan-alert', label: 'งานแผนงาน',
+    scope: ['ควบคุมดูแลการจัดทำแผนพัฒนาการศึกษาของสถานศึกษา', 'จัดทำแผนปฏิบัติการประจำปี', 'ควบคุม ติดตาม รายงาน และประเมินผลการใช้งบประมาณ', 'จัดทำรายงานการคำนวณต้นทุนผลผลิต'] },
+  bank: { title: 'งานธนาคารโรงเรียน', en: 'SCHOOL BANKING', sheet: 'งานธนาคารโรงเรียน', type: 'bank-alert', label: 'ธนาคารโรงเรียน',
+    scope: ['เปิด - ปิดบัญชีเงินฝาก', 'รับฝาก - ถอนเงินจากผู้ใช้บริการ', 'ประสานงานกับธนาคารออมสิน', 'ส่งเสริมและสนับสนุนกิจกรรมธนาคารโรงเรียนให้เป็นไปด้วยความเรียบร้อย'] },
+  control: { title: 'งานควบคุมภายใน', en: 'INTERNAL CONTROL', sheet: 'งานควบคุมภายใน', type: 'control-alert', label: 'ควบคุมภายใน',
+    scope: ['จัดวางระบบการควบคุมภายในที่ดำเนินการประจำปีงบประมาณ', 'ติดตามการปฏิบัติตามระบบควบคุมภายในอย่างต่อเนื่อง',
+      'ประเมินประสิทธิผลตามมาตรฐานการควบคุมภายใน 5 องค์ประกอบ: สภาพแวดล้อมการควบคุม การประเมินความเสี่ยง กิจกรรมการควบคุม สารสนเทศและการสื่อสาร กิจกรรมการติดตามผล',
+      'จัดทำรายงานการควบคุมภายใน แบบ ปค.1 ปค.4 ปค.5 และแบบติดตาม ปค.5'] },
+  office: { title: 'งานสำนักงาน', en: 'OFFICE WORK', sheet: 'งานสำนักงาน', type: 'office-alert', label: 'งานสำนักงาน',
+    scope: ['งานบริหารสำนักงานกลุ่มบริหารงบประมาณ', 'งานสารสนเทศ', 'งานแผนงาน', 'งานจัดซื้อวัสดุ ครุภัณฑ์'] }
+};
 
 function doGet(e) {
   const faviconUrl = 'https://drive.google.com/uc?id=' + FAVICON_ID + '&export=download&format=png';
@@ -14,12 +29,18 @@ function doGet(e) {
     Sign: ['Sign', 'เข้าสู่ระบบ - MVSK Finance'],
     MainTeacher: ['MainTeacher', 'ระบบสำหรับครู - MVSK'],
     Loan: ['Loan', 'ยืม ส่งคืน เบิก - งานการเงินและบัญชี'],
+    plan: ['Group', GROUPS.plan.title + ' - โรงเรียนมหาวชิราวุธ'],
+    bank: ['Group', GROUPS.bank.title + ' - โรงเรียนมหาวชิราวุธ'],
+    control: ['Group', GROUPS.control.title + ' - โรงเรียนมหาวชิราวุธ'],
+    office: ['Group', GROUPS.office.title + ' - โรงเรียนมหาวชิราวุธ'],
     PrintSign: ['PrintSign', 'ระบบพิมพ์ใบลงชื่อค่าอุปกรณ์การเรียนและเครื่องแบบนักเรียน']
   };
   const p = pages[page] || pages.Budget;
   let t;
   try { t = HtmlService.createTemplateFromFile(p[0]); } catch (err) { t = HtmlService.createTemplateFromFile('Budget'); }
   t.loanTab = (e && e.parameter && e.parameter.t) ? String(e.parameter.t) : '';
+  t.gkey = GROUPS[page] ? page : 'plan';
+  t.G = GROUPS[t.gkey];
   return t.evaluate().setTitle(p[1])
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
@@ -127,7 +148,9 @@ function buildHomeData_() {
   try { sup = getFinItems('งานพัสดุ'); } catch (e) { }
   let pay = null;
   try { pay = getFinItems('ขั้นตอนชำระเงิน'); } catch (e) { }
-  return { news: news, slides: slides, staffUrl: staffUrl, fin: fin, sup: sup, pay: pay };
+  const groups = {};
+  Object.keys(GROUPS).forEach(k => { try { groups[k] = getFinItems(GROUPS[k].sheet); } catch (e) { groups[k] = null; } });
+  return { news: news, slides: slides, staffUrl: staffUrl, fin: fin, sup: sup, pay: pay, groups: groups };
 }
 
 /* ---------- หน้า "ยืม ส่งคืน เบิก" สาธารณะ (ไฟล์ Loan สร้างจาก tools/build_loanweb.py) ----------

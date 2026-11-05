@@ -10,6 +10,7 @@
 .pw-tag.alert{color:#A1261C;background:#FCE8E6;border-color:#F3CFCB}
 .pw-tag.finance-alert{color:#6B4A0E;background:#FFF4DB;border-color:#F2DDAA}
 .pw-tag.supplies-alert{color:#1C6B42;background:#E3F2E9;border-color:#BFE0CB}
+.pw-tag.plan-alert{color:#1d4ed8;background:#e8f0fd;border-color:#c7d7fb}.pw-tag.bank-alert{color:#0e7490;background:#e0f5f9;border-color:#b6e3ec}.pw-tag.control-alert{color:#6d28d9;background:#f1eafe;border-color:#d9c8fb}.pw-tag.office-alert{color:#475467;background:#f2f4f7;border-color:#d0d5dd}
 .pw-tag.general{color:#1F3A5F;background:#E8EEF6;border-color:#CBD7E8}
 .pw-tag.document{color:#4A3F8F;background:#EFEDFB;border-color:#D8D3F5}
 .pw-tag.on{color:#1C6B42;background:#E3F2E9;border-color:#BFE0CB}
@@ -66,7 +67,7 @@ tr.pw-dim td{opacity:.6}
 <script>
 const PW_ROLES_UI = ['admin', 'finance', 'account', 'exec'];
 const PW_TYPE = {
-  'alert': 'ด่วนที่สุด', 'finance-alert': 'งานการเงิน', 'supplies-alert': 'งานพัสดุ', 'general': 'ข่าวทั่วไป', 'document': 'เอกสาร/ดาวน์โหลด'
+  'alert': 'ด่วนที่สุด', 'finance-alert': 'งานการเงิน', 'supplies-alert': 'งานพัสดุ', 'plan-alert': 'งานแผนงาน', 'bank-alert': 'ธนาคารโรงเรียน', 'control-alert': 'ควบคุมภายใน', 'office-alert': 'งานสำนักงาน', 'general': 'ข่าวทั่วไป', 'document': 'เอกสาร/ดาวน์โหลด'
 };
 const PW_MONTH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const PW = { data: null, tab: 'news', dirtyNews: false, dirtySlides: false, edit: null };
@@ -118,7 +119,7 @@ document.querySelector('main.main').insertAdjacentHTML('beforeend', `
     </div>
   </div>
   <div class="seg pw-tabs" id="pwTabs" role="tablist">
-    <button data-t="news" class="on">ข่าวประชาสัมพันธ์</button><button data-t="slides">ภาพสไลด์หน้าแรก</button><button data-t="fin">งานการเงินและบัญชี</button><button data-t="sup">งานพัสดุ</button><button data-t="pay">ขั้นตอนชำระเงิน</button><button data-t="conf">ตั้งค่า</button>
+    <button data-t="news" class="on">ข่าวประชาสัมพันธ์</button><button data-t="slides">ภาพสไลด์หน้าแรก</button><button data-t="fin">งานการเงินและบัญชี</button><button data-t="sup">เอกสารกลุ่มงาน</button><button data-t="pay">ขั้นตอนชำระเงิน</button><button data-t="conf">ตั้งค่า</button>
   </div>
   <div id="pwNotLinked" hidden class="cardx mb-grid"></div>
   <div data-pwt="news">
@@ -133,7 +134,7 @@ document.querySelector('main.main').insertAdjacentHTML('beforeend', `
   </div>
   <div data-pwt="slides" hidden><div class="pw-slides" id="pwSlides"></div></div>
   <div data-pwt="fin" hidden><div class="pw-slides" id="pwFin"></div></div>
-  <div data-pwt="sup" hidden><div class="pw-slides" id="pwSup"></div></div>
+  <div data-pwt="sup" hidden><div class="d-flex align-items-center gap-2 mb-3"><label class="flabel m-0" for="pwGrp">กลุ่มงาน</label><select class="sel" id="pwGrp" style="max-width:260px"><option value="sup">งานพัสดุและสินทรัพย์</option><option value="plan">งานแผนงานและนโยบาย</option><option value="bank">งานธนาคารโรงเรียน</option><option value="control">งานควบคุมภายใน</option><option value="office">งานสำนักงาน</option></select></div><div class="pw-slides" id="pwSup"></div></div>
   <div data-pwt="pay" hidden><div class="pw-slides" id="pwPay"></div></div>
   <div data-pwt="conf" hidden>
     <div class="cardx mb-grid" style="max-width:720px">
@@ -297,7 +298,7 @@ function renderPw() {
   if (t === 'news') renderPwNews();
   if (t === 'slides') renderPwSlides();
   if (t === 'fin') renderPwFin();
-  if (t === 'sup') renderPwFin('sup');
+  if (t === 'sup') renderPwFin(pwK());
   if (t === 'pay') renderPwFin('pay');
   if (t === 'conf') {
     $('pwConfInfo').innerHTML = D.linked ? `ผูกกับ <a href="${esc(D.sheetUrl)}" target="_blank" rel="noopener"><b>${esc(D.sheetName)}</b></a>` : '';
@@ -357,9 +358,9 @@ function renderPwSlides() {
         </div></div></div>`).join('');
 }
 
-const pwK = () => PW.tab === 'sup' || PW.tab === 'pay' ? PW.tab : 'fin';
+const pwK = () => PW.tab === 'sup' ? $('pwGrp').value : PW.tab === 'pay' ? 'pay' : 'fin';
 function renderPwFin(kind) {
-  const sup = kind === 'sup', pay = kind === 'pay', L = PW.data[kind || 'fin'] || [];
+  const pay = kind === 'pay', sup = !!kind && kind !== 'pay' && kind !== 'fin', L = PW.data[kind || 'fin'] || [];
   $(pay ? 'pwPay' : sup ? 'pwSup' : 'pwFin').innerHTML = !L.length ? '<div class="cardx pw-empty" style="grid-column:1/-1">ยังไม่มีรายการ — กด "เพิ่มรายการ" เพื่อใส่' + (pay ? 'ขั้นตอน' : sup ? 'เอกสารหรือแบบฟอร์ม' : 'วิดีโอหรือ PDF จาก Google Drive') + '</div>' :
     L.map((s, i) => `<div class="pw-slide ${s.isHidden ? 'dim' : ''}">
       <div class="im" style="${pay ? 'aspect-ratio:auto;height:44px' : pwBg(s.thumb)}"><span class="no">${pay ? 'ขั้นที่ ' : ''}${i + 1}</span><span class="ty">${s.type === 'pdf' ? 'PDF' : s.type === 'link' ? 'ลิงก์' : s.type === 'step' ? 'ขั้นตอน' : 'วิดีโอ'}</span></div>
@@ -378,9 +379,10 @@ $('pwTabs').onclick = e => { const b = e.target.closest('button'); if (b) { PW.t
 $('pwAdd').onclick = () => PW.tab === 'slides' ? pwOpenSlide(null) : PW.tab === 'fin' || PW.tab === 'sup' || PW.tab === 'pay' ? pwOpenFin(null) : pwOpenNews(null);
 $('pwSaveOrder').onclick = () => {
   const t = PW.tab, fn = t === 'news' ? 'pwOrderNews' : t === 'fin' || t === 'sup' || t === 'pay' ? 'pwOrderFin' : 'pwOrderSlides';
-  pwRun(fn, (t === 'news' ? PW.data.items : t === 'fin' || t === 'sup' || t === 'pay' ? PW.data[t] : PW.data.slides).map(x => x.id), t)
+  pwRun(fn, (t === 'news' ? PW.data.items : t === 'fin' || t === 'sup' || t === 'pay' ? PW.data[pwK()] : PW.data.slides).map(x => x.id), pwK())
     .then(() => { toast('บันทึกลำดับแล้ว'); return pwReload(); });
 };
+$('pwGrp').onchange = () => { PW.dirtySup = false; renderPw(); };
 const PW_SG = ['director', 'deputy', 'finOfficer', 'accOfficer', 'docPrefix', 'area'];
 $('pwSgSave').onclick = () => {
   const o = {}; PW_SG.forEach(k => o[k] = $('pwSg' + k[0].toUpperCase() + k.slice(1)).value.trim());
@@ -402,7 +404,7 @@ $('page-webpr').addEventListener('click', e => {
   else if (d.pwdel) { const a = find(d.pwdel); if (confirm('ลบประกาศ "' + a.title + '" ?')) pwRun('pwDeleteNews', a.id).then(() => { toast('ลบแล้ว'); return pwReload(); }); }
   else if (d.pwshide) { const s = findS(d.pwshide); pwRun('pwFlagSlide', s.id, !s.isHidden).then(pwReload); }
   else if (d.pwsedit) pwOpenSlide(findS(d.pwsedit));
-  else if (d.pwfmv) { const [i, k] = d.pwfmv.split('|').map(Number); swap(PW.data[pwK()], i, k); PW['dirty' + { fin: 'Fin', sup: 'Sup', pay: 'Pay' }[pwK()]] = true; renderPw(); }
+  else if (d.pwfmv) { const [i, k] = d.pwfmv.split('|').map(Number); swap(PW.data[pwK()], i, k); PW['dirty' + ({ fin: 'Fin', pay: 'Pay' }[pwK()] || 'Sup')] = true; renderPw(); }
   else if (d.pwfhide) { const s = PW.data[pwK()].find(a => a.id === d.pwfhide); pwRun('pwFlagFin', s.id, !s.isHidden, pwK()).then(pwReload); }
   else if (d.pwfedit) pwOpenFin(PW.data[pwK()].find(a => a.id === d.pwfedit));
   else if (d.pwfdel) { if (confirm('ลบรายการนี้?')) pwRun('pwDeleteFin', d.pwfdel, pwK()).then(() => { toast('ลบแล้ว'); return pwReload(); }); }
@@ -548,7 +550,7 @@ $('pwSlideForm').onsubmit = e => {
 
 function pwOpenFin(s) {
   PW.edit = s;
-  const sup = pwK() === 'sup', pay = pwK() === 'pay', sec = pay ? 'ขั้นตอนชำระเงิน' : sup ? 'งานพัสดุ' : 'งานการเงินและบัญชี';
+  const pay = pwK() === 'pay', sup = PW.tab === 'sup', sec = pay ? 'ขั้นตอนชำระเงิน' : sup ? $('pwGrp').selectedOptions[0].textContent : 'งานการเงินและบัญชี';
   $('pwFinH').textContent = (s ? 'แก้ไขรายการ ' : 'เพิ่มรายการ ') + sec;
   $('pwFType').closest('.col-sm-4').hidden = sup || pay; $('pwFDate').closest('.col-sm-4').hidden = pay; $('pwFLink').closest('.col-sm-8').hidden = sup; $('pwFLinkT').closest('.col-sm-4').hidden = sup;
   $('pwFFileL').textContent = pay ? 'รายละเอียด * (ขึ้นบรรทัดใหม่ได้)' : sup ? 'ลิงก์เอกสาร / โฟลเดอร์ *' : 'ลิงก์ไฟล์ Google Drive * (แชร์ให้ทุกคนที่มีลิงก์ดูได้)';

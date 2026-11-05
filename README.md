@@ -34,3 +34,9 @@
 - `SiteCSSweb` → ไฟล์ HTML ชื่อ `SiteCSS` ในโปรเจกต์หน้าเว็บ ใช้ร่วม finan/Supplies ผ่าน `<?!= include('SiteCSS'); ?>` (ห้ามมี "//" ในไฟล์)
 - ฟอนต์เหลือ 2 ชุด: IBM Plex Sans Thai (หัวข้อ/เมนู) + Sarabun (เนื้อหา)
 - Loanweb: build_loanweb.py ตัด JS ด้วย tools/slim_js.js (ต้อง `npm i` ในโฟลเดอร์ tools ครั้งแรก) เหลือ ~460 KB
+
+## หน้ากลุ่มงาน (Group) — แผนงาน / ธนาคารโรงเรียน / ควบคุมภายใน / สำนักงาน
+- `Groupweb` → ไฟล์ HTML ชื่อ `Group` (ต้นแบบเดียว ใช้ 4 หน้า) เปิดที่ `?page=plan|bank|control|office`
+- ข้อความบทบาทหน้าที่อยู่ใน `GROUPS` (Budgetweb.gs) อ้างอิงสไลด์กลุ่มบริหารงบประมาณ
+- เอกสาร: ชีต งานแผนงาน / งานธนาคารโรงเรียน / งานควบคุมภายใน / งานสำนักงาน — แก้ผ่านระบบการเงิน > เว็บไซต์ > แท็บ "เอกสารกลุ่มงาน" (เลือกกลุ่มงาน)
+- ข่าว: ประเภท plan-alert / bank-alert / control-alert / office-alert
