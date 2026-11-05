@@ -93,7 +93,7 @@
 
     #news { background: var(--soft); }
     .cat { font-size: 13px; font-weight: 600; font-family: 'IBM Plex Sans Thai'; }
-    .c-alert { color: #b42318; } .c-finance-alert { color: #a15c07; } .c-supplies-alert { color: #067647; } .c-plan-alert { color: #1d4ed8; } .c-bank-alert { color: #0e7490; } .c-control-alert { color: #7c3aed; } .c-office-alert { color: #475467; } .c-general { color: var(--navy); } .c-document { color: #4e46a5; }
+    .c-alert { color: #b42318; } .c-finance-alert { color: #a15c07; } .c-supplies-alert { color: #067647; } .c-plan-alert { color: #1d4ed8; } .c-bank-alert { color: #0e7490; } .c-control-alert { color: #7c3aed; } .c-office-alert { color: #475467; } .c-student-alert { color: #c2410c; } .c-teacher-alert { color: #0f766e; } .c-general { color: var(--navy); } .c-document { color: #4e46a5; }
     .nc { background: #fff; border-radius: 22px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 8px 24px rgba(16, 24, 40, .06); transition: transform .45s var(--ease), box-shadow .45s var(--ease); cursor: pointer; }
     .nc:hover { transform: translateY(-8px); box-shadow: 0 2px 4px rgba(16, 24, 40, .04), 0 22px 44px rgba(19, 41, 75, .16); }
     .ph { position: relative; overflow: hidden; background: #e9edf3; aspect-ratio: 4 / 3; border-radius: 0 0 22px 22px; }
@@ -314,8 +314,8 @@
       <div class="svcs">
         <a class="sv rv" href="<?= getScriptUrl(); ?>?page=finan"><svg class="ic lg"><use href="#i-wallet"/></svg><h3>งานการเงินและบัญชี</h3><span class="go">เข้าสู่หน้างาน<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
         <a class="sv rv" href="<?= getScriptUrl(); ?>?page=Supplies"><svg class="ic lg"><use href="#i-box"/></svg><h3>งานพัสดุและสินทรัพย์</h3><span class="go">เข้าสู่หน้างาน<svg class="ic sm"><use href="#i-arrow"/></svg></span></a>
-        <a class="sv rv" href="https://www.mvsk.ac.th/" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-cap"/></svg><h3>นักเรียนและผู้ปกครอง</h3><span class="go">เว็บไซต์โรงเรียน<svg class="ic sm"><use href="#i-external"/></svg></span></a>
-        <a class="sv rv" href="https://www.mvsk.ac.th/" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-users"/></svg><h3>ครูและบุคลากร</h3><span class="go">เว็บไซต์โรงเรียน<svg class="ic sm"><use href="#i-external"/></svg></span></a>
+        <a class="sv rv" href="<?= getScriptUrl(); ?>?page=student"><svg class="ic lg"><use href="#i-cap"/></svg><h3>นักเรียนและผู้ปกครอง</h3><span class="go">เว็บไซต์โรงเรียน<svg class="ic sm"><use href="#i-external"/></svg></span></a>
+        <a class="sv rv" href="<?= getScriptUrl(); ?>?page=teacher"><svg class="ic lg"><use href="#i-users"/></svg><h3>ครูและบุคลากร</h3><span class="go">เว็บไซต์โรงเรียน<svg class="ic sm"><use href="#i-external"/></svg></span></a>
       </div>
       <div class="quick rv">
         <a href="https://drive.google.com/drive/folders/1MAVZSuX1EqYbylITkW2Agn09qH5XHEIA?usp=sharing" target="_blank" rel="noopener"><svg class="ic"><use href="#i-file"/></svg>แบบฟอร์มการเงิน<svg class="ic sm"><use href="#i-arrow"/></svg></a>
@@ -352,7 +352,7 @@
   <span id="baseUrl" hidden><?= getScriptUrl(); ?></span>
 
   <script>
-    var TYPES = { 'alert': 'ด่วนที่สุด', 'finance-alert': 'งานการเงิน', 'supplies-alert': 'งานพัสดุ', 'plan-alert': 'งานแผนงาน', 'bank-alert': 'ธนาคารโรงเรียน', 'control-alert': 'ควบคุมภายใน', 'office-alert': 'งานสำนักงาน', 'general': 'ข่าวทั่วไป', 'document': 'เอกสาร/ดาวน์โหลด' };
+    var TYPES = { 'alert': 'ด่วนที่สุด', 'finance-alert': 'งานการเงิน', 'supplies-alert': 'งานพัสดุ', 'plan-alert': 'งานแผนงาน', 'bank-alert': 'ธนาคารโรงเรียน', 'control-alert': 'ควบคุมภายใน', 'office-alert': 'งานสำนักงาน', 'student-alert': 'นักเรียน', 'teacher-alert': 'ครู', 'general': 'ข่าวทั่วไป', 'document': 'เอกสาร/ดาวน์โหลด' };
     var DEF_SLIDE = { imageUrl: 'https:' + String.fromCharCode(47, 47) + 'drive.google.com/thumbnail?id=1z1tiStUX6sSO5Fg1by-5HPU7mJ2oX8No&sz=w1920', title: 'กลุ่มบริหารงานงบประมาณ', subtitle: 'โรงเรียนมหาวชิราวุธ จังหวัดสงขลา' };
     var PAGE = 6, DUR = 7000;
     var ST = { featIds: [], news: [], slides: [], type: 'all', q: '', shown: PAGE, cur: 0, timer: null, openId: '' };

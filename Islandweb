@@ -47,8 +47,8 @@
         <nav class="island-nav">
           <a href="<?= url ?>?page=finan"<?= page === 'finan' ? ' class="on"' : '' ?>>งานการเงินและบัญชี</a>
           <a href="<?= url ?>?page=Supplies"<?= page === 'Supplies' ? ' class="on"' : '' ?>>งานพัสดุและสินทรัพย์</a>
-          <a href="https://www.mvsk.ac.th/" target="_blank" rel="noopener">นักเรียน</a>
-          <a href="https://www.mvsk.ac.th/" target="_blank" rel="noopener">ครู</a>
+          <a href="<?= url ?>?page=student" target="_top"<?= page === 'student' ? ' class="on"' : '' ?>>นักเรียน</a>
+          <a href="<?= url ?>?page=teacher" target="_top"<?= page === 'teacher' ? ' class="on"' : '' ?>>ครู</a>
         </nav>
         <div class="island-staff-area"><a class="island-staff-btn" id="staffLink" href="<?= staffUrl || '#' ?>" target="_top">เจ้าหน้าที่</a></div>
       </div>

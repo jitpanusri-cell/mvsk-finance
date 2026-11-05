@@ -31,17 +31,18 @@
 
   <main class="pg">
 
-    <? if (G.sys) { ?>
+    <? if (G.links) { ?>
     <section class="svc boxed" id="sys">
       <div class="wrap">
-        <div class="sh rv"><h2>ระบบงาน</h2></div>
-        <div class="svcs c2">
-          <a class="sv rv" href="<?= G.sys.url ?>" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-external"/></svg><span class="kk"><?= G.sys.en ?></span><h3><?= G.sys.name ?></h3></a>
+        <div class="sh rv"><h2><?= G.linksTitle || 'ระบบงาน' ?></h2></div>
+        <div class="svcs <?= G.links.length > 2 ? 'c3' : 'c2' ?>">
+          <? for (var k = 0; k < G.links.length; k++) { var L = G.links[k]; ?><a class="sv rv" href="<?= L.page ? getScriptUrl() + '?page=' + L.page : L.url ?>" target="<?= L.page ? '_top' : '_blank' ?>" rel="noopener"><svg class="ic lg"><use href="#i-<?= L.page ? 'arrow' : 'external' ?>"/></svg><span class="kk"><?= L.en ?></span><h3><?= L.name ?></h3></a><? } ?>
         </div>
       </div>
     </section>
     <? } ?>
 
+    <? if (G.scope) { ?>
     <section id="scope">
       <div class="wrap">
         <div class="sh rv"><h2>บทบาทหน้าที่</h2></div>
@@ -50,6 +51,15 @@
         </div>
       </div>
     </section>
+    <? } ?>
+    <? if (G.pay) { ?>
+    <section class="pay" id="payment" hidden>
+      <div class="wrap">
+        <div class="sh rv"><h2>ขั้นตอนการชำระเงินบำรุงการศึกษา</h2></div>
+        <div class="steps" id="payGrid"></div>
+      </div>
+    </section>
+    <? } ?>
 
     <section class="svc boxed" id="docs" hidden>
       <div class="wrap">
@@ -183,6 +193,15 @@
       reveal();
     }
 
+    function renderPay(list) {
+      var g = $('payGrid'); if (!g || !list || !list.length) return;
+      g.innerHTML = list.map(function (f, i) {
+        return '<div class="st rv"><span class="no">' + (i < 9 ? '0' : '') + (i + 1) + '</span><h3>' + esc(f.title) + '</h3><p>' + esc(f.url).replace(/\n/g, '<br>') + '</p>' +
+          (f.link ? '<p style="margin-top:8px"><a href="' + esc(safeUrl(f.link)) + '" target="_blank" rel="noopener">' + esc(f.linkText || 'เปิดลิงก์') + '</a></p>' : '') + '</div>';
+      }).join('');
+      $('payment').hidden = false; reveal();
+    }
+
     function renderNews(list) {
       var L = (list || []).filter(function (a) { return a.type === NEWS_TYPE; })
         .sort(function (a, b) { return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0); });
@@ -207,6 +226,7 @@
       renderNews(d.news);
       if (google.script.url) google.script.url.getLocation(function (l) { if (l && l.parameter && l.parameter.news) openNews(l.parameter.news); });
       renderSup(d.groups ? d.groups[GKEY] : null);
+      renderPay(d.pay);
     }).withFailureHandler(function () { renderSup(null); }).getHomeData();
     else renderSup(null);
 

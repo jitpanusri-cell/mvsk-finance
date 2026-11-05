@@ -4,7 +4,7 @@ const PW_SLIDES = 'สไลด์';
 const PW_CONF = 'ตั้งค่าเว็บ';
 const PW_FIN = 'งานการเงิน';   // ส่วน "งานการเงินและบัญชี" บนหน้าเว็บงานการเงิน (วิดีโอ/PDF จาก Drive)
 const PW_COLS = 24;
-const PW_TYPES = ['alert', 'finance-alert', 'supplies-alert', 'plan-alert', 'bank-alert', 'control-alert', 'office-alert', 'general', 'document'];
+const PW_TYPES = ['alert', 'finance-alert', 'supplies-alert', 'plan-alert', 'bank-alert', 'control-alert', 'office-alert', 'student-alert', 'teacher-alert', 'general', 'document'];
 const PW_IMG_FOLDER = '1HSaggL6ChoYQX1W4HbZS-g-5EHe_oGkA';
 
 function pwUser_() {
@@ -71,7 +71,7 @@ const PW_PAY_SEED = [
   ['PAY-3', 'step', 'ดำเนินการชำระเงิน', 'วิธีที่ 1 สแกนชำระผ่าน Mobile Banking ได้ทุกธนาคาร\nวิธีที่ 2 พิมพ์ใบ Pay in นำไปชำระที่ธนาคารกรุงไทยทุกสาขา', '', '', 'VISIBLE', '', '', '']
 ];
 /* เอกสาร กฎหมาย ระเบียบ ของกลุ่มงานอื่น (หน้า Group ของเว็บ) — โครงเดียวกับชีต งานพัสดุ */
-const PW_GRP_SHEETS = { plan: 'งานแผนงาน', bank: 'งานธนาคารโรงเรียน', control: 'งานควบคุมภายใน', office: 'งานสำนักงาน' };
+const PW_GRP_SHEETS = { plan: 'งานแผนงาน', bank: 'งานธนาคารโรงเรียน', control: 'งานควบคุมภายใน', office: 'งานสำนักงาน', student: 'งานนักเรียน', teacher: 'งานครู' };
 /** ชีต งานการเงิน / งานพัสดุ (kind = 'sup') / ขั้นตอนชำระเงิน (kind = 'pay') — สร้างครั้งแรกพร้อมรายการเดิมของหน้าเว็บ */
 function pwFinSheet_(ss, kind) {
   const sup = kind === 'sup', pay = kind === 'pay', grp = PW_GRP_SHEETS[kind];

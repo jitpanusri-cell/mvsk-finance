@@ -10,7 +10,7 @@
 .pw-tag.alert{color:#A1261C;background:#FCE8E6;border-color:#F3CFCB}
 .pw-tag.finance-alert{color:#6B4A0E;background:#FFF4DB;border-color:#F2DDAA}
 .pw-tag.supplies-alert{color:#1C6B42;background:#E3F2E9;border-color:#BFE0CB}
-.pw-tag.plan-alert{color:#1d4ed8;background:#e8f0fd;border-color:#c7d7fb}.pw-tag.bank-alert{color:#0e7490;background:#e0f5f9;border-color:#b6e3ec}.pw-tag.control-alert{color:#6d28d9;background:#f1eafe;border-color:#d9c8fb}.pw-tag.office-alert{color:#475467;background:#f2f4f7;border-color:#d0d5dd}
+.pw-tag.plan-alert{color:#1d4ed8;background:#e8f0fd;border-color:#c7d7fb}.pw-tag.bank-alert{color:#0e7490;background:#e0f5f9;border-color:#b6e3ec}.pw-tag.control-alert{color:#6d28d9;background:#f1eafe;border-color:#d9c8fb}.pw-tag.student-alert{color:#c2410c;background:#fff1e7;border-color:#fbd0b0}.pw-tag.teacher-alert{color:#0f766e;background:#e3f6f3;border-color:#b3e3db}.pw-tag.office-alert{color:#475467;background:#f2f4f7;border-color:#d0d5dd}
 .pw-tag.general{color:#1F3A5F;background:#E8EEF6;border-color:#CBD7E8}
 .pw-tag.document{color:#4A3F8F;background:#EFEDFB;border-color:#D8D3F5}
 .pw-tag.on{color:#1C6B42;background:#E3F2E9;border-color:#BFE0CB}
@@ -67,7 +67,7 @@ tr.pw-dim td{opacity:.6}
 <script>
 const PW_ROLES_UI = ['admin', 'finance', 'account', 'exec'];
 const PW_TYPE = {
-  'alert': 'ด่วนที่สุด', 'finance-alert': 'งานการเงิน', 'supplies-alert': 'งานพัสดุ', 'plan-alert': 'งานแผนงาน', 'bank-alert': 'ธนาคารโรงเรียน', 'control-alert': 'ควบคุมภายใน', 'office-alert': 'งานสำนักงาน', 'general': 'ข่าวทั่วไป', 'document': 'เอกสาร/ดาวน์โหลด'
+  'alert': 'ด่วนที่สุด', 'finance-alert': 'งานการเงิน', 'supplies-alert': 'งานพัสดุ', 'plan-alert': 'งานแผนงาน', 'bank-alert': 'ธนาคารโรงเรียน', 'control-alert': 'ควบคุมภายใน', 'office-alert': 'งานสำนักงาน', 'student-alert': 'นักเรียน/ผู้ปกครอง', 'teacher-alert': 'ครู/บุคลากร', 'general': 'ข่าวทั่วไป', 'document': 'เอกสาร/ดาวน์โหลด'
 };
 const PW_MONTH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const PW = { data: null, tab: 'news', dirtyNews: false, dirtySlides: false, edit: null };
@@ -134,7 +134,7 @@ document.querySelector('main.main').insertAdjacentHTML('beforeend', `
   </div>
   <div data-pwt="slides" hidden><div class="pw-slides" id="pwSlides"></div></div>
   <div data-pwt="fin" hidden><div class="pw-slides" id="pwFin"></div></div>
-  <div data-pwt="sup" hidden><div class="d-flex align-items-center gap-2 mb-3"><label class="flabel m-0" for="pwGrp">กลุ่มงาน</label><select class="sel" id="pwGrp" style="max-width:260px"><option value="sup">งานพัสดุและสินทรัพย์</option><option value="plan">งานแผนงานและนโยบาย</option><option value="bank">งานธนาคารโรงเรียน</option><option value="control">งานควบคุมภายใน</option><option value="office">งานสำนักงาน</option></select></div><div class="pw-slides" id="pwSup"></div></div>
+  <div data-pwt="sup" hidden><div class="d-flex align-items-center gap-2 mb-3"><label class="flabel m-0" for="pwGrp">กลุ่มงาน</label><select class="sel" id="pwGrp" style="max-width:260px"><option value="sup">งานพัสดุและสินทรัพย์</option><option value="plan">งานแผนงานและนโยบาย</option><option value="bank">งานธนาคารโรงเรียน</option><option value="control">งานควบคุมภายใน</option><option value="office">งานสำนักงาน</option><option value="student">นักเรียนและผู้ปกครอง</option><option value="teacher">ครูและบุคลากร</option></select></div><div class="pw-slides" id="pwSup"></div></div>
   <div data-pwt="pay" hidden><div class="pw-slides" id="pwPay"></div></div>
   <div data-pwt="conf" hidden>
     <div class="cardx mb-grid" style="max-width:720px">

@@ -2,13 +2,13 @@ const SHEET_NAME = 'ประชาสัมพันธ์';
 const SLIDE_SHEET = 'สไลด์';
 const CONF_SHEET = 'ตั้งค่าเว็บ';
 const FAVICON_ID = '1zC_TJwmzziZAPRap48Nr4gxK9_Cjs4-e';
-const ANN_TYPES = ['alert', 'finance-alert', 'supplies-alert', 'plan-alert', 'bank-alert', 'control-alert', 'office-alert', 'general', 'document'];
+const ANN_TYPES = ['alert', 'finance-alert', 'supplies-alert', 'plan-alert', 'bank-alert', 'control-alert', 'office-alert', 'student-alert', 'teacher-alert', 'general', 'document'];
 
 /* กลุ่มงานที่ใช้หน้าต้นแบบ Group (?page=plan|bank|control|office) — เอกสารจากชีต sheet, ข่าวประเภท type
  * บทบาทหน้าที่ อ้างอิงสไลด์ "ต้อนรับ รร.ระโนดวิทยา" กลุ่มบริหารงบประมาณ */
 const GROUPS = {
   plan: { title: 'งานแผนงานและนโยบาย', en: 'PLANNING AND POLICY', sheet: 'งานแผนงาน', type: 'plan-alert', label: 'งานแผนงาน',
-    sys: { name: 'ระบบแผนปฏิบัติงาน', en: 'Planning', url: 'https://planning.mvsk.ac.th/' },
+    links: [{ name: 'ระบบแผนปฏิบัติงาน', en: 'Planning', url: 'https://planning.mvsk.ac.th/' }],
     scope: ['ควบคุมดูแลการจัดทำแผนพัฒนาการศึกษาของสถานศึกษา', 'จัดทำแผนปฏิบัติการประจำปี', 'ควบคุม ติดตาม รายงาน และประเมินผลการใช้งบประมาณ', 'จัดทำรายงานการคำนวณต้นทุนผลผลิต'] },
   bank: { title: 'งานธนาคารโรงเรียน', en: 'SCHOOL BANKING', sheet: 'งานธนาคารโรงเรียน', type: 'bank-alert', label: 'ธนาคารโรงเรียน',
     scope: ['เปิด - ปิดบัญชีเงินฝาก', 'รับฝาก - ถอนเงินจากผู้ใช้บริการ', 'ประสานงานกับธนาคารออมสิน', 'ส่งเสริมและสนับสนุนกิจกรรมธนาคารโรงเรียนให้เป็นไปด้วยความเรียบร้อย'] },
@@ -17,7 +17,17 @@ const GROUPS = {
       'ประเมินประสิทธิผลตามมาตรฐานการควบคุมภายใน 5 องค์ประกอบ: สภาพแวดล้อมการควบคุม การประเมินความเสี่ยง กิจกรรมการควบคุม สารสนเทศและการสื่อสาร กิจกรรมการติดตามผล',
       'จัดทำรายงานการควบคุมภายใน แบบ ปค.1 ปค.4 ปค.5 และแบบติดตาม ปค.5'] },
   office: { title: 'งานสำนักงาน', en: 'OFFICE WORK', sheet: 'งานสำนักงาน', type: 'office-alert', label: 'งานสำนักงาน',
-    scope: ['งานบริหารสำนักงานกลุ่มบริหารงบประมาณ', 'งานสารสนเทศ', 'งานแผนงาน', 'งานจัดซื้อวัสดุ ครุภัณฑ์'] }
+    scope: ['งานบริหารสำนักงานกลุ่มบริหารงบประมาณ', 'งานสารสนเทศ', 'งานแผนงาน', 'งานจัดซื้อวัสดุ ครุภัณฑ์'] },
+  /* หน้ารวมบริการ (ไม่มีบทบาทหน้าที่) — links: page = หน้าในเว็บนี้, url = เว็บภายนอก; pay = แสดงขั้นตอนชำระเงิน */
+  student: { title: 'นักเรียนและผู้ปกครอง', en: 'STUDENTS AND PARENTS', sheet: 'งานนักเรียน', type: 'student-alert', label: 'นักเรียน', pay: true, linksTitle: 'บริการสำหรับนักเรียนและผู้ปกครอง',
+    links: [{ name: 'ชำระเงินบำรุงการศึกษา', en: 'School Billing', url: 'https://schoolbillingdev31.com/SBMVSK/Pages/PrintReportPayInForStudent.aspx' },
+      { name: 'งานธนาคารโรงเรียน', en: 'ธนาคารโรงเรียน', page: 'bank' },
+      { name: 'งานการเงินและบัญชี', en: 'การเงิน', page: 'finan' }] },
+  teacher: { title: 'ครูและบุคลากร', en: 'TEACHERS AND STAFF', sheet: 'งานครู', type: 'teacher-alert', label: 'ครู', linksTitle: 'บริการสำหรับครูและบุคลากร',
+    links: [{ name: 'สัญญายืมเงิน', en: 'ขั้นที่ 1', page: 'Loan&t=loan' }, { name: 'ส่งคืนเงินยืม', en: 'ขั้นที่ 2', page: 'Loan&t=return' },
+      { name: 'ขอเบิกเงิน', en: 'สำรองจ่าย', page: 'Loan&t=adv' }, { name: 'ระบบ e-money', en: 'e-Money', url: 'https://mvsk.ksom2.net/money/index_desktop.php' },
+      { name: 'ระบบแผนปฏิบัติงาน', en: 'Planning', url: 'https://planning.mvsk.ac.th/' }, { name: 'แบบฟอร์มต่างๆ สำหรับครูและบุคลากร', en: 'แบบฟอร์ม', url: 'https://drive.google.com/drive/folders/1MAVZSuX1EqYbylITkW2Agn09qH5XHEIA?usp=sharing' },
+      { name: 'ตัวอย่างการกรอกแบบฟอร์ม', en: 'ตัวอย่าง', url: 'https://drive.google.com/drive/folders/15tkyyaOcauqCc4JJLilAJgmJBd_7ROIN?usp=sharing' }] }
 };
 
 function doGet(e) {
@@ -34,6 +44,8 @@ function doGet(e) {
     bank: ['Group', GROUPS.bank.title + ' - โรงเรียนมหาวชิราวุธ'],
     control: ['Group', GROUPS.control.title + ' - โรงเรียนมหาวชิราวุธ'],
     office: ['Group', GROUPS.office.title + ' - โรงเรียนมหาวชิราวุธ'],
+    student: ['Group', GROUPS.student.title + ' - กลุ่มบริหารงานงบประมาณ'],
+    teacher: ['Group', GROUPS.teacher.title + ' - กลุ่มบริหารงานงบประมาณ'],
     PrintSign: ['PrintSign', 'ระบบพิมพ์ใบลงชื่อค่าอุปกรณ์การเรียนและเครื่องแบบนักเรียน']
   };
   const p = pages[page] || pages.Budget;
