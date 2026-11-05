@@ -1190,6 +1190,7 @@ const PRINT_CSS_INLINE = `
 .f2doc .frow > span{flex:none}
 .f2doc .frow.fund .c1{width:31%} .f2doc .frow.fund .c2{width:38%} .f2doc .frow.fund .c3{width:31%}
 .f2doc .frow.lvl .c0{width:16.6%} .f2doc .frow.lvl .c1{width:26.4%} .f2doc .frow.lvl .c2{width:57%}
+.f2doc .wd{font-family:'Wingdings'!important;font-weight:400;font-size:1.05em;margin-right:1.5mm;letter-spacing:0}
 .f2doc .cb{display:inline-block;width:2.9mm;height:2.9mm;border:1pt solid #000;margin-right:1.5mm;position:relative;top:.3mm;-webkit-text-stroke:0}
 .f2doc .cb.on::after{content:'';position:absolute;left:.85mm;top:0;width:.85mm;height:1.8mm;border:solid #000;border-width:0 1.2pt 1.2pt 0;transform:rotate(45deg)}
 .f2doc .para{margin:0;white-space:nowrap;letter-spacing:-.05pt}
@@ -1721,7 +1722,8 @@ async function stFitParas(html) {
 async function printForm2(rooms) {
   const D = ST.data, B = ST.disb, school = S.boot.school.name, area = S.boot.school.area || '';
   const term1 = ST.term[0] === '1', acad = ST.term.split('/')[1], PAGE = 22;
-  const cb = on => `<span class="cb${on ? ' on' : ''}"></span>`;
+  /* ช่องติ๊กใช้ฟอนต์ Wingdings: þ = ช่องมีเครื่องหมายถูก, ¨ = ช่องว่าง */
+  const cb = on => `<span class="wd">${on ? '&#254;' : '&#168;'}</span>`;
   const n0 = v => v ? v.toLocaleString('en-US') : '-';
   const head = `<colgroup><col style="width:4.3%"><col style="width:30.2%"><col style="width:16.5%"><col style="width:8.6%"><col style="width:8.7%"><col style="width:8.6%"><col style="width:14.2%"><col style="width:8.9%"></colgroup>
     <thead><tr><th rowspan="2">ที่</th><th rowspan="2">ชื่อ-สกุล นักเรียน</th><th rowspan="2">เลขประจำตัวประชาชน<br>ของนักเรียน 13 หลัก</th>

@@ -430,6 +430,7 @@ svg.i.sm{width:16px;height:16px}
   .f2doc .frow > span{flex:none}
   .f2doc .frow.fund .c1{width:31%} .f2doc .frow.fund .c2{width:38%} .f2doc .frow.fund .c3{width:31%}
   .f2doc .frow.lvl .c0{width:16.6%} .f2doc .frow.lvl .c1{width:26.4%} .f2doc .frow.lvl .c2{width:57%}
+  .f2doc .wd{font-family:'Wingdings'!important;font-weight:400;font-size:1.05em;margin-right:1.5mm;letter-spacing:0}
   .f2doc .cb{display:inline-block;width:2.9mm;height:2.9mm;border:1pt solid #000;margin-right:1.5mm;position:relative;top:.3mm;-webkit-text-stroke:0}
   .f2doc .cb.on::after{content:'';position:absolute;left:.85mm;top:0;width:.85mm;height:1.8mm;border:solid #000;border-width:0 1.2pt 1.2pt 0;transform:rotate(45deg)}
   .f2doc .para{margin:0;white-space:nowrap;letter-spacing:-.05pt}
