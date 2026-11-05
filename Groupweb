@@ -31,6 +31,17 @@
 
   <main class="pg">
 
+    <? if (G.sys) { ?>
+    <section class="svc boxed" id="sys">
+      <div class="wrap">
+        <div class="sh rv"><h2>ระบบงาน</h2></div>
+        <div class="svcs c2">
+          <a class="sv rv" href="<?= G.sys.url ?>" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-external"/></svg><span class="kk"><?= G.sys.en ?></span><h3><?= G.sys.name ?></h3></a>
+        </div>
+      </div>
+    </section>
+    <? } ?>
+
     <section id="scope">
       <div class="wrap">
         <div class="sh rv"><h2>บทบาทหน้าที่</h2></div>
