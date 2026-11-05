@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>กลุ่มบริหารงานงบประมาณ - โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
       --navy: #13294b; --navy-2: #0b1a33; --gold: #c79a2e; --gold-2: #e0b85a;
@@ -27,7 +27,7 @@
 
     /* แถบเมนูลอย: ไฟล์ Island (ใช้ร่วมกันทุกหน้า) */
 
-    .hero { position: relative; min-height: 100vh; overflow: hidden; background: #0f172a; font-family: 'Prompt', sans-serif; display: flex; flex-direction: column; }
+    .hero { position: relative; min-height: 100vh; overflow: hidden; background: #0f172a; font-family: 'IBM Plex Sans Thai', sans-serif; display: flex; flex-direction: column; }
     .slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.4s var(--ease); }
     .slide.on { opacity: 1; }
     .slide .bg { position: absolute; inset: -20px; background: center / cover no-repeat; filter: blur(4px); transform: scale(1.05); }
@@ -38,7 +38,7 @@
     .site-header { padding: 150px 20px 40px; display: flex; flex-direction: column; align-items: center; text-align: center; }
     .site-header img.logo { width: 160px; margin-bottom: 24px; filter: drop-shadow(0 8px 16px rgba(0, 0, 0, .4)); transition: transform .5s ease; }
     .site-header img.logo:hover { transform: scale(1.08) translateY(-5px); }
-    .finance-title { font-family: 'Prompt'; font-size: 32px; font-weight: 700; color: #fbbc04; margin-bottom: 8px; letter-spacing: .5px; text-shadow: 0 2px 10px rgba(251, 188, 4, .2); }
+    .finance-title { font-family: 'IBM Plex Sans Thai'; font-size: 32px; font-weight: 700; color: #fbbc04; margin-bottom: 8px; letter-spacing: .5px; text-shadow: 0 2px 10px rgba(251, 188, 4, .2); }
     .school-subtitle-th { font-size: 18px; font-weight: 500; color: #fff; opacity: .95; }
     .school-subtitle-en { font-size: 12px; color: #94a3b8; letter-spacing: 1.5px; margin-top: 8px; text-transform: uppercase; }
     .site-header > * { opacity: 0; transform: translateY(16px); animation: up .9s var(--ease) forwards; }

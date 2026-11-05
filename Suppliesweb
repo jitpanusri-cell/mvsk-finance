@@ -4,227 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>งานพัสดุและสินทรัพย์ - โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</title>
-  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
   
   <base target="_top">
   
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    
-    body { 
-      font-family: 'Prompt', sans-serif; 
-      background-color: #f8f9fb; 
-      color: #333;
-    }
-    
-    /* แถบเมนูลอย: ไฟล์ Island (ใช้ร่วมกันทุกหน้า) */
-
-    /* ==========================================
-       2. HERO (ส่วนหัวสีน้ำเงิน-เทา คงเดิม)
-       ========================================== */
-    :root {
-      --navy: #13294b; --navy-2: #0b1a33; --gold: #c79a2e; --gold-2: #e0b85a;
-      --ink: #1b2432; --ink-2: #4a5568; --ink-3: #8a94a6; --line: #e3e7ed; --soft: #f5f6f8;
-      --ease: cubic-bezier(.22, .61, .36, 1);
-    }
-    html { scroll-behavior: smooth; }
-    .main-container { width: 100%; position: relative; overflow: hidden; }
-
-    .site-header {
-      background: linear-gradient(-45deg, #002b5e, #555555, #004a9f, #333333);
-      background-size: 300% 300%;
-      animation: gradientMove 15s ease infinite;
-      padding: 120px 20px 60px 20px;
-      display: flex; flex-direction: column; align-items: center; text-align: center;
-      color: #ffffff; position: relative; overflow: hidden;
-      border-bottom: 5px solid #fbbc04; z-index: 10; width: 100%;
-    }
-    @keyframes gradientMove { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-    .site-header::before {
-      content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
-      background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0) 100%);
-      transform: skewX(-25deg); animation: shineSweep 15s infinite ease-in-out; z-index: 1;
-    }
-    @keyframes shineSweep { 0% { left: -100%; } 10% { left: 150%; } 100% { left: 150%; } }
-    .header-content { max-width: 1200px; margin: 0 auto; width: 100%; z-index: 2; position: relative; }
-    .site-header img.logo-main { width: 90px; height: auto; margin: 0 auto 15px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4)); }
-    .finance-title { font-size: 32px; font-weight: 700; color: #fbbc04; text-shadow: 0 2px 10px rgba(251, 188, 4, 0.3), 0 2px 4px rgba(0,0,0,0.8); margin-bottom: 12px; letter-spacing: 1px; word-break: keep-all; }
-    .school-subtitle-th { display: block; font-size: 16px; font-weight: 500; color: #ffffff; letter-spacing: 0.5px; word-break: keep-all; margin-top: 5px; }
-    .school-subtitle-en { display: block; font-size: 11px; font-weight: 300; color: #e2e8f0; letter-spacing: 1px; word-break: keep-all; margin-top: 3px; text-transform: uppercase; }
-    @media (max-width: 767px) {
-      .site-header { padding: 90px 15px 40px 15px; }
-      .finance-title { font-size: 26px; }
-      .school-subtitle-th { font-size: 15px; }
-      .school-subtitle-en { font-size: 10px; }
-    }
-    @media (min-width: 768px) {
-      .site-header { padding: 140px 40px 70px 40px; }
-      .site-header img.logo-main { width: 110px; margin-bottom: 20px; }
-      .finance-title { font-size: 46px; margin-bottom: 15px; }
-      .school-subtitle-th { font-size: 22px; }
-      .school-subtitle-en { font-size: 14px; margin-top: 5px; }
-    }
-
-    /* ==========================================
-       3. เนื้อหา — โครงสร้างเดียวกับหน้าหลัก (Budget)
-       ========================================== */
-    .ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-    .ic.sm { width: 16px; height: 16px; } .ic.lg { width: 30px; height: 30px; stroke-width: 1.3; }
-    .wrap { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
-    .pg { font-family: 'Sarabun', sans-serif; font-size: 16px; line-height: 1.65; color: var(--ink); background: #fff; }
-    .pg h2, .pg h3, .pg h4, .hd { font-family: 'IBM Plex Sans Thai', 'Sarabun', sans-serif; line-height: 1.35; }
-    .pg a { color: inherit; text-decoration: none; }
-    .pg section { padding: 72px 0; scroll-margin-top: 90px; }
-    .sh { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 32px; flex-wrap: wrap; }
-    .sh h2 { font-size: 34px; font-weight: 600; color: var(--navy); position: relative; padding-bottom: 10px; }
-    .sh h2::after { content: ''; position: absolute; left: 0; bottom: 0; width: 56px; height: 3px; background: var(--gold); transform: scaleX(0); transform-origin: left; transition: transform .9s .2s var(--ease); }
-    .sh.in h2::after { transform: scaleX(1); }
-    .sh p { color: var(--ink-3); flex-basis: 100%; margin-top: -8px; }
-    .link-more { display: inline-flex; align-items: center; gap: 8px; font-family: 'IBM Plex Sans Thai'; font-weight: 500; color: var(--navy); }
-    .link-more .ic { transition: transform .25s var(--ease); }
-    .link-more:hover .ic { transform: translateX(4px); }
-
-    /* บริการข้อมูล */
-    .svc { background: var(--soft); }
-    .svcs { display: grid; grid-template-columns: repeat(4, 1fr); }
-    .sv { padding: 10px 28px 14px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; }
-    .sv:first-child { border-left: 0; padding-left: 0; }
-    .sv .ic.lg { color: var(--gold); transition: transform .4s var(--ease); }
-    .sv h3 { font-size: 20px; font-weight: 600; color: var(--navy); }
-    .sv .go { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 14.5px; margin-top: auto; }
-    .sv:hover .ic.lg { transform: translateY(-4px); }
-    .sv:hover h3 { color: var(--gold); }
-    .sv h3 { transition: color .25s; }
-    .sv .kk { color: var(--ink-3); font-family: 'IBM Plex Sans Thai'; font-size: 13.5px; font-weight: 500; margin-bottom: -10px; }
-    .quick { margin-top: 56px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 32px; }
-    .quick a { display: flex; align-items: center; gap: 12px; padding: 16px 0; border-top: 1px solid #d6dbe3; font-family: 'IBM Plex Sans Thai'; font-weight: 500; color: var(--navy); }
-    .quick a .ic:last-child { margin-left: auto; color: var(--ink-3); transition: transform .25s var(--ease); }
-    .quick a:hover .ic:last-child { transform: translateX(4px); color: var(--gold); }
-
-    .svcs.c3 { grid-template-columns: repeat(3, 1fr); }
-    .svcs.c2 { grid-template-columns: repeat(2, 1fr); }
-    .boxed .svcs { gap: 20px; }
-    .boxed .sv, .boxed .sv:first-child { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 24px 26px; transition: transform .35s var(--ease), box-shadow .35s var(--ease), border-color .35s; }
-    .boxed .sv:hover { transform: translateY(-4px); border-color: var(--gold); box-shadow: 0 14px 30px rgba(19, 41, 75, .10); }
-    .sv .ds { color: var(--ink-3); font-size: 15px; margin-top: -6px; }
-    .sh .link-more { order: 2; }
-
-    /* ประชาสัมพันธ์งานการเงิน */
-    .ngrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
-    .ngrid .nc { cursor: pointer; color: inherit; }
-    .ph { position: relative; overflow: hidden; background: #e9edf3; aspect-ratio: 4 / 3; border-radius: 0 0 22px 22px; }
-    .ph .im { position: absolute; inset: 0; background: center / cover no-repeat; transition: transform .9s var(--ease); }
-    .nc:hover .ph .im { transform: scale(1.06); }
-    .ph .none { position: absolute; inset: 0; display: grid; place-items: center; color: #b3bccb; }
-    .ph .none .ic { width: 46px; height: 46px; stroke-width: 1.2; }
-    .ph .badges { position: absolute; left: 16px; top: 16px; display: flex; gap: 6px; z-index: 2; }
-    .ph .badges span { background: rgba(255, 255, 255, .94); color: #a15c07; font-family: 'IBM Plex Sans Thai'; font-size: 12.5px; font-weight: 600; padding: 4px 11px; border-radius: 99px; display: inline-flex; gap: 5px; align-items: center; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
-    .ph .badges .pin { background: var(--gold); color: #fff; }
-    .dt { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; background: #eef1f7; color: var(--navy); font-family: 'IBM Plex Sans Thai'; font-weight: 600; font-size: 14px; padding: 6px 14px 6px 12px; border-radius: 99px; margin-bottom: 14px; transition: background .3s, color .3s; }
-    .dt .ic { width: 17px; height: 17px; }
-    .nc:hover .dt { background: var(--navy); color: #fff; }
-    .ngrid .tt { font-size: 18px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .ngrid .ex { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .nc:hover .rm { color: var(--gold); }
-    .nc:hover .rm .ic { transform: translateX(6px); }
-
-    /* ป๊อปอัพอ่านข่าว */
-    .modal { position: fixed; inset: 0; z-index: 10001; background: rgba(11, 26, 51, .6); display: none; justify-content: center; align-items: flex-start; padding: 48px 16px; overflow-y: auto; opacity: 0; transition: opacity .25s; }
-    .modal.on { display: flex; } .modal.show { opacity: 1; }
-    .sheet { background: #fff; width: 100%; max-width: 860px; border-radius: 22px; overflow: hidden; transform: translateY(16px); transition: transform .3s var(--ease); font-family: 'Sarabun', sans-serif; color: var(--ink); line-height: 1.65; }
-    .modal.show .sheet { transform: none; }
-    .sheet .ph .im { opacity: 0; transition: opacity .6s var(--ease); } .sheet .ph .im.on { opacity: 1; }
-    .sheet .nav2 { position: absolute; top: 50%; transform: translateY(-50%); z-index: 3; width: 44px; height: 44px; border: 0; cursor: pointer; border-radius: 50%; background: rgba(255, 255, 255, .9); color: var(--navy); display: grid; place-items: center; box-shadow: 0 4px 12px rgba(0, 0, 0, .15); }
-    .sheet .nav2.l { left: 14px; } .sheet .nav2.r { right: 14px; }
-    .sheet .bd { padding: 28px 36px 36px; }
-    .sheet h2 { font-family: 'IBM Plex Sans Thai'; font-size: 26px; color: var(--navy); font-weight: 600; line-height: 1.35; }
-    .sheet .content { margin-top: 18px; font-size: 16.5px; line-height: 1.8; overflow-wrap: anywhere; }
-    .sheet .content ul, .sheet .content ol { padding-left: 1.4em; }
-    .sheet .content a { color: #1d4ed8; text-decoration: underline; }
-    .sheet .dl { margin-top: 24px; border-top: 1px solid var(--line); }
-    .sheet .dl a { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); color: var(--navy); font-weight: 500; text-decoration: none; }
-    .sheet .dl a:hover { color: var(--gold); }
-    .sheet .dl a .ic:last-child { margin-left: auto; }
-    .sheet .ft { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 28px; }
-    .sheet .ft .link-more { background: none; border: 0; cursor: pointer; font-size: 15px; }
-    .sheet .btn-out { background: none; cursor: pointer; font-size: 15px; }
-    .mx { position: fixed; top: 16px; right: 20px; width: 44px; height: 44px; border: 0; cursor: pointer; border-radius: 50%; background: #fff; display: grid; place-items: center; color: var(--navy); z-index: 10002; }
-    @media (max-width: 640px) { .modal { padding: 0; } .sheet { border-radius: 0; } .sheet .bd { padding: 20px 18px 28px; } .sheet h2 { font-size: 22px; } }
-
-    /* คู่มือ / หลักเกณฑ์ (การ์ดแบบเดียวกับข่าว) */
-    .feat { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
-    .nc { background: #fff; border-radius: 22px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 8px 24px rgba(16, 24, 40, .06); transition: transform .45s var(--ease), box-shadow .45s var(--ease); }
-    .nc:hover { transform: translateY(-6px); box-shadow: 0 2px 4px rgba(16, 24, 40, .04), 0 22px 44px rgba(19, 41, 75, .16); }
-    .media { position: relative; overflow: hidden; background: #0f172a; aspect-ratio: 4 / 3; border-radius: 0 0 22px 22px; }
-    .media.doc { background: #e9edf3; }
-    .media iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-    .media .badges { position: absolute; left: 16px; top: 16px; z-index: 2; pointer-events: none; }
-    .media .badges span { background: rgba(255, 255, 255, .94); color: var(--navy); font-family: 'IBM Plex Sans Thai'; font-size: 12.5px; font-weight: 600; padding: 4px 11px; border-radius: 99px; display: inline-flex; gap: 5px; align-items: center; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
-    .nb { padding: 24px 26px 26px; display: flex; flex-direction: column; flex: 1; }
-    .tt { color: var(--ink); font-family: 'IBM Plex Sans Thai'; font-weight: 500; font-size: 22px; line-height: 1.45; }
-    .ex { color: var(--ink-3); margin-top: 8px; font-size: 15.5px; }
-    .rm { margin-top: auto; padding-top: 20px; display: inline-flex; align-items: center; gap: 10px; font-family: 'IBM Plex Sans Thai'; font-weight: 600; color: var(--navy); font-size: 16px; }
-    .rm .ic { transition: transform .35s var(--ease); }
-    .rm:hover { color: var(--gold); }
-    .rm:hover .ic { transform: translateX(6px); }
-
-    /* ขั้นตอนการชำระเงิน */
-    .pay { background: var(--soft); }
-    .steps { display: grid; grid-template-columns: repeat(3, 1fr); counter-reset: s; }
-    .st { padding: 10px 28px 14px; border-left: 1px solid var(--line); }
-    .st:first-child { border-left: 0; padding-left: 0; }
-    .st .no { font-family: 'IBM Plex Sans Thai'; font-size: 40px; font-weight: 600; color: var(--gold); line-height: 1; display: block; margin-bottom: 14px; }
-    .st h3 { font-size: 20px; font-weight: 600; color: var(--navy); margin-bottom: 8px; }
-    .st p { color: var(--ink-2); font-size: 15.5px; }
-    .st p a { color: var(--navy); font-weight: 600; border-bottom: 1px solid var(--gold); }
-    .st b { color: var(--navy); font-weight: 600; }
-    .center { text-align: center; margin-top: 44px; }
-    .btn-out { display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--navy); color: var(--navy); padding: 11px 26px; font-family: 'IBM Plex Sans Thai'; font-weight: 500; transition: all .25s; }
-    .btn-out:hover { background: var(--navy); color: #fff; }
-
-    /* FOOTER (แบบหน้าหลัก) */
-    footer.ft { background: var(--navy-2); color: #aab5c7; font-size: 15px; font-family: 'Sarabun', sans-serif; line-height: 1.65; }
-    footer.ft a { color: inherit; text-decoration: none; }
-    footer.ft .cols { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 48px; padding: 56px 32px 40px; }
-    footer.ft .fb { display: flex; gap: 14px; align-items: center; margin-bottom: 18px; }
-    footer.ft .fb img { width: 52px; height: 52px; object-fit: contain; }
-    footer.ft .fb b { color: #fff; font-family: 'IBM Plex Sans Thai'; font-weight: 600; font-size: 18px; display: block; }
-    footer.ft h4 { color: #fff; font-family: 'IBM Plex Sans Thai'; font-size: 15px; font-weight: 600; margin-bottom: 14px; letter-spacing: .3px; }
-    footer.ft li { list-style: none; margin-bottom: 6px; }
-    footer.ft a:hover { color: #fff; }
-    footer.ft .bt { border-top: 1px solid rgba(255, 255, 255, .08); }
-    footer.ft .bt .wrap { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 16px; padding-bottom: 16px; font-size: 13.5px; }
-
-    #prog { position: fixed; left: 0; top: 0; height: 3px; width: 100%; background: linear-gradient(90deg, #fbbc04, var(--gold)); transform-origin: left; transform: scaleX(0); z-index: 10000; }
-    .rv { opacity: 0; transform: translateY(24px); transition: opacity .8s var(--ease), transform .8s var(--ease); }
-    .rv.in { opacity: 1; transform: none; }
-
-    @media (max-width: 1080px) {
-      .svcs { grid-template-columns: repeat(2, 1fr); gap: 32px 0; }
-      .sv:nth-child(3) { border-left: 0; padding-left: 0; }
-      .svcs.c3, .svcs.c2 { grid-template-columns: 1fr; }
-      .svcs.c3 .sv { border-left: 0; padding-left: 0; }
-      .boxed .sv { padding: 20px 22px; border: 1px solid var(--line); }
-      .quick { grid-template-columns: repeat(2, 1fr); }
-      .feat { gap: 22px; }
-      .ngrid { grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (max-width: 860px) {
-      .steps { grid-template-columns: 1fr; gap: 28px; }
-      .st { border-left: 0; padding: 0; }
-    }
-    @media (max-width: 640px) {
-      .wrap { padding: 0 18px; }
-      .pg section { padding: 52px 0; }
-      .sh h2 { font-size: 27px; }
-      .svcs, .quick, .feat, .ngrid { grid-template-columns: 1fr; }
-      .sv { border-left: 0; padding-left: 0; }
-      .tt { font-size: 19px; }
-      .nb { padding: 20px; }
-      footer.ft .cols { grid-template-columns: 1fr; gap: 28px; padding: 40px 18px 28px; }
-    }
-    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .rv { opacity: 1; transform: none; } }
-  </style>
+  <?!= include('SiteCSS'); ?>
 </head>
 <body>
   <div id="prog"></div>
@@ -250,7 +34,7 @@
     <section class="svc boxed" id="docs">
       <div class="wrap">
         <div class="sh rv"><h2>เอกสารและแบบฟอร์ม</h2></div>
-        <div class="svcs c2" id="supGrid"></div>
+        <div class="svcs c2" id="supGrid" style="gap:20px"><div class="sk"></div><div class="sk"></div></div>
         <template id="supDefault">
           <a class="sv rv" href="https://drive.google.com/drive/folders/1HpR_5SEKs0a236PJB6Kkex8PgrqAiZB8?usp=drive_link" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-file"/></svg><h3>แบบฟอร์ม ว119</h3></a>
           <a class="sv rv" href="https://drive.google.com/drive/folders/1nxE8cd2eVIBejf8ZolpLUKpIRj_LrDld?usp=drive_link" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-receipt"/></svg><h3>แบบฟอร์มขออนุมัติจัดซื้อจัดจ้าง</h3></a>
@@ -282,7 +66,7 @@
         <ul><li><a href="mailto:mvskschool@gmail.com">mvskschool@gmail.com</a></li></ul>
       </div>
     </div>
-    <div class="bt"><div class="wrap"><span>© 2569 กลุ่มบริหารงานงบประมาณ โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</span><img src="https://hits.sh/mvsk.ac.th/budget_home.svg?style=flat&label=views&color=13294b&labelColor=555555" alt="" height="20"></div></div>
+    <div class="bt"><div class="wrap"><span>© 2569 กลุ่มบริหารงานงบประมาณ โรงเรียนมหาวชิราวุธ จังหวัดสงขลา</span><img src="https://hits.sh/mvsk.ac.th/supplies.svg?style=flat&label=views&color=13294b&labelColor=555555" alt="" height="20"></div></div>
   </footer>
 
   <div class="modal" id="modal" role="dialog" aria-modal="true">

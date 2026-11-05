@@ -14,14 +14,14 @@
     .island-brand { display: flex; align-items: center; gap: 12px; padding-right: 20px; border-right: 1px solid rgba(255, 255, 255, .1); }
     .island-logo-img { width: 38px; height: 38px; object-fit: contain; transition: transform .3s; }
     .island-brand:hover .island-logo-img { transform: scale(1.1) rotate(5deg); }
-    .brand-group { color: #fff; font-weight: 600; font-size: 14px; display: block; font-family: 'Prompt'; }
-    .brand-school { color: #fbbc04; font-size: 11px; display: block; font-family: 'Prompt'; }
+    .brand-group { color: #fff; font-weight: 600; font-size: 14px; display: block; font-family: 'IBM Plex Sans Thai'; }
+    .brand-school { color: #fbbc04; font-size: 11px; display: block; font-family: 'IBM Plex Sans Thai'; }
     .island-menu-container { display: flex; align-items: center; flex-grow: 1; justify-content: flex-end; }
     .island-nav { display: flex; gap: 8px; align-items: center; }
-    .island-nav a { color: rgba(255, 255, 255, .8); font-size: 14px; padding: 8px 16px; border-radius: 30px; transition: all .3s; font-family: 'Prompt'; }
+    .island-nav a { color: rgba(255, 255, 255, .8); font-size: 14px; padding: 8px 16px; border-radius: 30px; transition: all .3s; font-family: 'IBM Plex Sans Thai'; }
     .island-nav a:hover { color: #0f172a; background: #fbbc04; font-weight: 500; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(251, 188, 4, .3); }
     .island-staff-area { margin-left: 12px; padding-left: 12px; border-left: 1px solid rgba(255, 255, 255, .1); }
-    .island-staff-btn { display: inline-block; background: rgba(251, 188, 4, .1); color: #fbbc04; border: 1px solid rgba(251, 188, 4, .4); padding: 8px 20px; border-radius: 30px; font-family: 'Prompt'; font-size: 13px; transition: all .3s cubic-bezier(.4, 0, .2, 1); }
+    .island-staff-btn { display: inline-block; background: rgba(251, 188, 4, .1); color: #fbbc04; border: 1px solid rgba(251, 188, 4, .4); padding: 8px 20px; border-radius: 30px; font-family: 'IBM Plex Sans Thai'; font-size: 13px; transition: all .3s cubic-bezier(.4, 0, .2, 1); }
     .island-staff-btn:hover { background: #fbbc04; color: #0f172a; box-shadow: 0 6px 15px rgba(251, 188, 4, .4); transform: translateY(-2px); font-weight: 600; }
     .mobile-menu-toggle { display: none; color: #fbbc04; padding: 4px; }
     .mobile-menu-toggle .ic { width: 26px; height: 26px; }

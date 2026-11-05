@@ -8,7 +8,7 @@
 นำไปใช้: วาง Loanweb เป็นไฟล์ HTML ชื่อ "Loan" ในโปรเจกต์หน้าเว็บ (Budget)
 เมื่อระบบการเงินแก้แบบฟอร์ม (JS/CSS/Index) ให้รันสคริปต์นี้ใหม่
 """
-import os, re, sys
+import os, re, sys, subprocess
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 rd = lambda n: open(os.path.join(ROOT, n), encoding='utf-8').read()
@@ -22,13 +22,24 @@ def sub1(s, old, new, label):
     return s.replace(old, new)
 
 
-# 1) ไม่ให้หน้าเริ่มทำงานแบบระบบการเงิน (แดชบอร์ด/เมนู) — หน้าสาธารณะเริ่มเอง
-js = sub1(js, "document.addEventListener('DOMContentLoaded', async () => {",
-          "if (!window.__PUBLIC_DOCS) document.addEventListener('DOMContentLoaded', async () => {", 'init')
-# 2) เรียกเซิร์ฟเวอร์ → ข้อมูลจำลองในหน้า (ไม่บันทึก)
-js = sub1(js, "const api = (fn, ...args) => {",
-          "const api = (fn, ...args) => {\n  if (window.__PUBLIC_API) return window.__PUBLIC_API(fn, args);", 'api')
-
+# 1) ตัด JS ให้เหลือเฉพาะเมนู สัญญายืม ส่งคืน เบิก + ฟังก์ชันที่ใช้จริง (วิเคราะห์ด้วย acorn: tools/slim_js.js)
+#    ช่วงเมนู = หัวข้อ "ขอยืม-ขอเบิก" ถึงก่อนหัวข้อ "ศูนย์รวมพิมพ์" ใน JS
+L = js.split('\n')
+def head_line(word):
+    for k, l in enumerate(L):
+        if word in l and k > 0 and L[k - 1].startswith('/* ==='):
+            return k          # บรรทัดของ "/* ===" (นับจาก 1 = k)
+    sys.exit('ไม่พบหัวข้อ ' + word)
+lo, hi = head_line('ขอยืม-ขอเบิก'), head_line('ศูนย์รวมพิมพ์') - 1
+tmp = os.path.join(ROOT, 'tools', '.slim.js')
+r = subprocess.run(['node', os.path.join(ROOT, 'tools', 'slim_js.js'), os.path.join(ROOT, 'JS'), str(lo), str(hi),
+                    'S,loading,toast,modal', tmp, 'go,api,showPrintSaveBar,loadPageIfStale'], capture_output=True, text=True)
+if r.returncode:
+    sys.exit('slim_js ล้มเหลว (รัน npm i ในโฟลเดอร์ tools ก่อน): ' + r.stderr[-500:])
+js = open(tmp, encoding='utf-8').read(); os.remove(tmp)
+js = ('function go() {}\nfunction showPrintSaveBar() {}\nfunction loadPageIfStale() {}\n'
+      'const api = (fn, ...args) => window.__PUBLIC_API(fn, args);\n' + js)
+js = '<script>\n' + js + '\n</script>'
 js = sub1(js, "'ไม่มีสิทธิ์บันทึก — ดูและพิมพ์ได้อย่างเดียว'", "'กรอกแล้วพิมพ์ได้เลย (ไม่บันทึกเข้าระบบ)'", 'hint')
 
 # 3) ประกอบหน้า: ตัดไฟล์ UI ของเมนูอื่น
@@ -85,15 +96,26 @@ post = """<script>
     var a = document.createElement('a'); a.href = C.backUrl || '#'; a.target = '_top';
     document.body.appendChild(a); a.click();
   }
-  document.addEventListener('hidden.bs.modal', function () {
+  /* กลับเมื่อไม่มีหน้ากรอกและไม่ได้อยู่ในหน้าพิมพ์ (กดพิมพ์ = ปิดหน้ากรอกแล้วเข้าโหมดพิมพ์ ต้องไม่เด้งกลับ) */
+  function maybeBack() {
     if (!card) return;
-    setTimeout(function () { if (!document.querySelector('.modal.show')) goBack(); }, 50);
+    setTimeout(function () {
+      if (!document.querySelector('.modal.show') && !document.body.classList.contains('doc-mode')) goBack();
+    }, 400);
+  }
+  /* หลังพิมพ์: ออกจากโหมดพิมพ์ (ระบบการเงินทำใน DOMContentLoaded ซึ่งไม่ได้ติดมาด้วย) → กลับหน้างานการเงิน */
+  window.addEventListener('afterprint', function () {
+    document.body.classList.remove('doc-mode');
+    var st = document.getElementById('docPageStyle'); if (st) st.textContent = '';
   });
+  document.addEventListener('hidden.bs.modal', maybeBack);
+  new MutationObserver(maybeBack).observe(document.body, { attributes: true, attributeFilter: ['class'] });
   loadDocs().then(function () { if (card) card.click(); });
 })();
 </script>
 """
 index = sub1(index, "<?!= include('JS'); ?>", pre + js + post, 'js')
+index = re.sub(r'    <section class="page[^"]*" id="page-(?!docs")[\w-]+">.*?\n    </section>\n', '', index, flags=re.S)
 for n in ('LedgerUI', 'ElectricUI', 'IncomingUI', 'PrWebUI'):
     index = sub1(index, "  <?!= include('%s'); ?>\n" % n, '', n)
 index = re.sub(r'<title>.*?</title>', '<title>ยืม ส่งคืน เบิก - งานการเงินและบัญชี</title>', index, count=1)
