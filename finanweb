@@ -31,6 +31,15 @@
 
   <main class="pg">
 
+    <section class="svc boxed" id="sys">
+      <div class="wrap">
+        <div class="sh rv"><h2>ระบบงาน</h2></div>
+        <div class="svcs c2">
+          <a class="sv rv" href="https://mvsk.ksom2.net/money/index_desktop.php" target="_blank" rel="noopener"><svg class="ic lg"><use href="#i-external"/></svg><span class="kk">e-Money</span><h3>ระบบ e-money</h3></a>
+        </div>
+      </div>
+    </section>
+
     <section id="guides">
       <div class="wrap">
         <div class="sh rv"><h2>งานการเงินและบัญชี</h2></div>
