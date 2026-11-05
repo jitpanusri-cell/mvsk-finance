@@ -66,11 +66,11 @@
   @media (max-width: 720px) { .mans, .forms, .sheet .mf { grid-template-columns: 1fr; } }
 </style>
 <section class="svc" id="manual" hidden><div class="wrap">
-<div class="sh rv"><h2>คู่มือการจัดซื้อจัดจ้าง</h2><p>เลือกคู่มือตามวงเงิน เพื่อดูขั้นตอนและแบบฟอร์มที่ต้องใช้</p></div>
+<div class="sh rv"><h2>คู่มือการจัดซื้อจัดจ้าง</h2></div>
 <div class="mans" id="manGrid"></div>
 </div></section>
 <section class="svc boxed" id="docs" style="background:#fff"><div class="wrap">
-<div class="sh rv"><h2>แบบฟอร์ม</h2><p>คลิกที่แบบฟอร์มเพื่อเปิด/ดาวน์โหลดไฟล์</p></div>
+<div class="sh rv"><h2>แบบฟอร์ม</h2></div>
 <div class="tabs2" id="formTabs" hidden></div>
 <div class="forms" id="formGrid"><div class="sk"></div><div class="sk"></div></div>
 <div id="supMore" hidden><div class="more-h">ไฟล์อื่น ๆ</div><div class="svcs c2" id="supGrid" style="gap:20px"></div></div>
