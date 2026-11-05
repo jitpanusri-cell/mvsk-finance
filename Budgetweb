@@ -391,7 +391,7 @@
     function renderFeat() {
       var list = ST.news.slice().sort(function (a, b) { return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0); }).slice(0, 2);
       ST.featIds = list.map(function (x) { return x.id; });
-      $('feat').innerHTML = list.length ? list.map(function (a) { return card(a, 2); }).join('') : '<div class="empty">ยังไม่มีข่าวประชาสัมพันธ์</div>';
+      $('feat').innerHTML = list.length ? list.map(function (a) { return card(a, 4); }).join('') : '<div class="empty">ยังไม่มีข่าวประชาสัมพันธ์</div>';
     }
 
     function renderAll() {
@@ -403,7 +403,7 @@
       var list = ST.news.filter(function (a) { return (ST.type === 'all' || a.type === ST.type) && (!q || (a.title + ' ' + a._t + ' ' + a.date).toLowerCase().indexOf(q) >= 0); });
       if (ST.type === 'all' && !q) list = list.filter(function (a) { return ST.featIds.indexOf(a.id) < 0; });
       $('grid').innerHTML = list.length ? list.slice(0, ST.shown).map(function (a) {
-        return card(a, 1);
+        return card(a, 4);
       }).join('') : '<div class="empty">' + (ST.news.length > ST.featIds.length || ST.q || ST.type !== 'all' ? 'ไม่พบข่าวที่ค้นหา' : 'ข่าวทั้งหมดแสดงด้านบนแล้ว') + '</div>';
       $('moreWrap').hidden = list.length <= ST.shown;
       observe();
