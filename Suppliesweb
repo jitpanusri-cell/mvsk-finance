@@ -189,21 +189,8 @@
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeNews(); });
 
-    /* คู่มือ: คลิกปก → ป๊อปอัปแบบฟอร์มของหนังสือเวียนนั้น (รูป/ลิงก์จาก SupDocs) */
-    function openManual(c) {
-      var b = Array.prototype.slice.call(document.querySelectorAll('.mc')).filter(function (x) { return x.dataset.man === c; })[0]; if (!b) return;
-      var fs = Array.prototype.slice.call(document.querySelectorAll('.fc')).filter(function (f) { return f.dataset.c === c; });
-      if (!fs.length) { if (b.dataset.url !== '#') window.open(b.dataset.url, '_blank'); return; }
-      $('sheet').innerHTML = (b.querySelector('img') ? '<div class="ph cv"><div class="im on" style="background-image:url(&quot;' + b.querySelector('img').src + '&quot;)"></div></div>' : '') +
-        '<div class="bd"><span class="dt">' + ico('file') + esc(b.querySelector('.rf').textContent) + '</span><h2>' + esc(b.querySelector('h3').textContent) + '</h2>' +
-        (b.querySelector('p') ? '<div class="content">' + esc(b.querySelector('p').textContent) + '</div>' : '') +
-        '<div class="mf">' + fs.map(function (f) { return '<a href="' + esc(f.href) + '" target="_blank" rel="noopener">' + (f.querySelector('img') ? '<img src="' + f.querySelector('img').src + '" alt="">' : '') + '<b>' +  (f.querySelector('.st') ? esc(f.querySelector('.st').textContent) + ' : ' : '') + esc(f.querySelector('h3').textContent) + '</b></a>'; }).join('') + '</div>' +
-        '<div class="ft"><span></span><button class="btn-out" data-close>ปิด</button></div></div>';
-      var m = $('modal'); m.classList.add('on'); document.body.style.overflow = 'hidden';
-      requestAnimationFrame(function () { m.classList.add('show'); m.scrollTop = 0; });
-    }
     document.addEventListener('click', function (e) {
-      var mb = e.target.closest('[data-man]'); if (mb) { openManual(mb.dataset.man); return; }
+      var mb = e.target.closest('[data-man]'); if (mb) { if (mb.dataset.url !== '#') window.open(mb.dataset.url, '_blank'); return; }
       var ft = e.target.closest('[data-ft]'); if (!ft) return;
       document.querySelectorAll('#formTabs button').forEach(function (x) { x.classList.toggle('on', x === ft); });
       document.querySelectorAll('#formGrid .fc').forEach(function (x) { x.hidden = !!ft.dataset.ft && x.dataset.c !== ft.dataset.ft; });
