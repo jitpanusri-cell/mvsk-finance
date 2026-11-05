@@ -115,12 +115,13 @@
     .tt { color: var(--ink); font-weight: 500; font-size: 20px; line-height: 1.45; margin-top: 16px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; transition: color .25s; }
     .nc:hover .tt { color: var(--navy); }
     .ex { color: var(--ink-3); margin-top: 10px; font-size: 15.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .files { display: flex; gap: 6px; margin-top: 16px; flex-wrap: nowrap; min-width: 0; }
-    .file { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 99px; color: var(--navy); background: #fff; transition: all .2s; min-width: 0; max-width: 100%; }
+    .files { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; min-width: 0; }
+    .file { display: flex; align-items: center; gap: 9px; font-size: 13.5px; font-weight: 500; padding: 8px 12px; border-radius: 10px; color: var(--ink-2); background: #f3f5f9; transition: background .2s, color .2s; min-width: 0; text-align: left; }
+    .file .ic { color: var(--gold); width: 16px; height: 16px; }
     .file span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .file:hover { border-color: var(--navy); background: var(--navy); color: #fff; }
-    .file.more { color: var(--ink-2); flex: none; }
-    .rm { margin-top: auto; padding-top: 22px; display: inline-flex; align-items: center; gap: 10px; font-family: 'IBM Plex Sans Thai'; font-weight: 600; color: var(--navy); font-size: 16px; }
+    .file:hover { background: #e8edf5; color: var(--navy); }
+    .file.more { background: none; padding: 2px 12px; color: var(--ink-3); font-size: 13px; }
+    .rm { margin-top: auto; padding-top: 18px; display: inline-flex; align-items: center; gap: 8px; font-family: 'IBM Plex Sans Thai'; font-weight: 600; color: var(--navy); font-size: 15px; }
     .rm .ic { transition: transform .35s var(--ease); }
     .nc:hover .rm { color: var(--gold); }
     .nc:hover .rm .ic { transform: translateX(6px); }
@@ -377,7 +378,7 @@
     function files(a, max) {
       if (!a.links.length) return '';
       return '<div class="files">' + a.links.slice(0, max).map(function (l) {
-        return '<a class="file" href="' + esc(safeUrl(l.url)) + '" target="_blank" rel="noopener">' + icon('download', 'sm') + '<span>' + esc(l.name) + '</span></a>';
+        return '<a class="file" href="' + esc(safeUrl(l.url)) + '" target="_blank" rel="noopener">' + icon('file', 'sm') + '<span>' + esc(l.name) + '</span></a>';
       }).join('') + (a.links.length > max ? '<button class="file more" data-open="' + esc(a.id) + '">+' + (a.links.length - max) + ' ไฟล์</button>' : '') + '</div>';
     }
     function dateText(a) { return String(a.date || '').replace(/^วันที่\s*/, '').replace(/พ\.ศ\.\s*/, ''); }
