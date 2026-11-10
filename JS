@@ -1734,6 +1734,9 @@ async function printForm2(rooms) {
     <th colspan="3">จำนวนเงิน</th><th rowspan="2">ลายมือชื่อ<br>นักเรียน/ผู้ปกครอง</th><th rowspan="2">หมายเหตุ</th></tr>
     <tr><th>เครื่องแบบ<br>นักเรียน</th><th>อุปกรณ์<br>การเรียน</th><th>รวม</th></tr></thead>`;
   const dots = '...................................................................';
+  /* วันที่ที่พิมพ์ลงระบบ (ว่าง = เว้นจุดให้เขียนเอง) */
+  const dv = $('stForm2Date') ? $('stForm2Date').value : '', dp = dv.split('-').map(Number);
+  const f2Date = dv ? `วันที่ ${dp[2]} เดือน ${MTH[dp[1] - 1]} พ.ศ. ${dp[0] + 543}` : 'วันที่..........เดือน....................................พ.ศ. .................';
   const html = rooms.map(room => {
     const list = D.students.filter(s => s.room === room && s.status === 'active');
     if (!list.length) return '';
@@ -1749,7 +1752,7 @@ async function printForm2(rooms) {
       </tbody></table>${pi < pages.length - 1 ? '<div class="pbreak"></div>' : ''}`).join('');
     /* ลงชื่อ: เส้นจุดยาวเท่ากันและอยู่กลางหน้าทุกช่อง ชื่อ/ตรวจสอบ/วันที่ จัดกึ่งกลางเส้นจุด */
     const row = (l, c, r, k) => `<div class="sr"><span class="sl">${l}</span><span class="sc${k ? ' ' + k : ''}">${c}</span><span class="sx">${r}</span></div>`;
-    const sig = (role, name) => `<div class="s">${row('ลงชื่อ', dots + dots, role, 'cut')}${row('', name ? '(' + esc(name) + ')' : `<span>(</span><span class="dd">${dots}${dots}</span><span>)</span>`, '')}${row('', 'ตรวจสอบถูกต้อง', '')}${row('', 'วันที่..........เดือน....................................พ.ศ. .................', '')}</div>`;
+    const sig = (role, name) => `<div class="s">${row('ลงชื่อ', dots + dots, role, 'cut')}${row('', name ? '(' + esc(name) + ')' : `<span>(</span><span class="dd">${dots}${dots}</span><span>)</span>`, '')}${row('', 'ตรวจสอบถูกต้อง', '')}${row('', f2Date, '')}</div>`;
     return `<div class="sheet f2doc">
       <div class="docno">เอกสารหมายเลข 2</div>
       <div class="ttl">แบบหลักฐานยืนยันการจัดหา (กรณีไม่มีใบเสร็จรับเงินให้ใช้หลักฐานการจัดหาแทน)</div>

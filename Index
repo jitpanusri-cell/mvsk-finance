@@ -156,6 +156,7 @@
       <div class="cardx mb-grid" id="stF2Card">
         <div class="card-h mb-0"><h3>พิมพ์เอกสารหมายเลข 2 <span class="muted small-x" style="font-family:var(--f-body);font-weight:400">แบบหลักฐานยืนยันการจัดหา</span></h3>
           <div class="d-flex gap-2 flex-wrap align-items-center">
+            <span class="small-x muted">ลงวันที่</span><input class="sel" id="stForm2Date" type="date" aria-label="วันที่ลงในเอกสารหมายเลข 2 (ว่าง = เว้นจุดให้เขียนเอง)" title="วันที่ลงในช่องครูประจำชั้นและผู้อำนวยการ (ว่าง = เว้นจุดให้เขียนเอง)">
             <select class="sel" id="stForm2Room" aria-label="เลือกห้องสำหรับพิมพ์เอกสารหมายเลข 2"></select>
             <button class="btnx sec" id="btnStForm2"></button>
             <button class="btnx sec" id="btnStCid" title="อัปโหลดไฟล์จาก DMC ที่มีเลขประจำตัวประชาชน เพื่อกรอกในเอกสารหมายเลข 2"></button>
