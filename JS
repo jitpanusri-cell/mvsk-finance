@@ -1735,8 +1735,9 @@ async function printForm2(rooms) {
     <tr><th>เครื่องแบบ<br>นักเรียน</th><th>อุปกรณ์<br>การเรียน</th><th>รวม</th></tr></thead>`;
   const dots = '...................................................................';
   /* วันที่ที่พิมพ์ลงระบบ (ว่าง = เว้นจุดให้เขียนเอง) */
-  const dv = $('stForm2Date') ? $('stForm2Date').value : '', dp = dv.split('-').map(Number);
-  const f2Date = dv ? `วันที่ ${dp[2]} เดือน ${MTH[dp[1] - 1]} พ.ศ. ${dp[0] + 543}` : 'วันที่..........เดือน....................................พ.ศ. .................';
+  const f2D = id => { const v = $(id) ? $(id).value : '', p = v.split('-').map(Number);
+    return v ? `วันที่ ${p[2]} เดือน ${MTH[p[1] - 1]} พ.ศ. ${p[0] + 543}` : 'วันที่..........เดือน....................................พ.ศ. .................'; };
+  const f2Date = { t: f2D('stForm2Date'), d: f2D('stForm2DateDir') };
   const html = rooms.map(room => {
     const list = D.students.filter(s => s.room === room && s.status === 'active');
     if (!list.length) return '';
@@ -1752,7 +1753,7 @@ async function printForm2(rooms) {
       </tbody></table>${pi < pages.length - 1 ? '<div class="pbreak"></div>' : ''}`).join('');
     /* ลงชื่อ: เส้นจุดยาวเท่ากันและอยู่กลางหน้าทุกช่อง ชื่อ/ตรวจสอบ/วันที่ จัดกึ่งกลางเส้นจุด */
     const row = (l, c, r, k) => `<div class="sr"><span class="sl">${l}</span><span class="sc${k ? ' ' + k : ''}">${c}</span><span class="sx">${r}</span></div>`;
-    const sig = (role, name) => `<div class="s">${row('ลงชื่อ', dots + dots, role, 'cut')}${row('', name ? '(' + esc(name) + ')' : `<span>(</span><span class="dd">${dots}${dots}</span><span>)</span>`, '')}${row('', 'ตรวจสอบถูกต้อง', '')}${row('', f2Date, '')}</div>`;
+    const sig = (role, name, dt) => `<div class="s">${row('ลงชื่อ', dots + dots, role, 'cut')}${row('', name ? '(' + esc(name) + ')' : `<span>(</span><span class="dd">${dots}${dots}</span><span>)</span>`, '')}${row('', 'ตรวจสอบถูกต้อง', '')}${row('', dt, '')}</div>`;
     return `<div class="sheet f2doc">
       <div class="docno">เอกสารหมายเลข 2</div>
       <div class="ttl">แบบหลักฐานยืนยันการจัดหา (กรณีไม่มีใบเสร็จรับเงินให้ใช้หลักฐานการจัดหาแทน)</div>
@@ -1766,7 +1767,7 @@ async function printForm2(rooms) {
         <div class="para">ระดับอนุบาลจนจบการศึกษาขั้นพื้นฐานจริง</div>
       </div>
       ${tables}
-      <div class="sigs">${sig('ครูประจำชั้น', '')}${sig('ผู้อำนวยการโรงเรียน', B.signers.director)}</div>
+      <div class="sigs">${sig('ครูประจำชั้น', '', f2Date.t)}${sig('ผู้อำนวยการโรงเรียน', B.signers.director, f2Date.d)}</div>
     </div>`;
   }).join('');
   if (!html) return toast('ไม่มีนักเรียนในห้องที่เลือก', true);
