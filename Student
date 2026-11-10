@@ -2,6 +2,8 @@
  * Student.gs — ติดตามการรับเงินค่าอุปกรณ์การเรียน / ค่าเครื่องแบบนักเรียน
  * ----------------------------------------------------------------
  * - Students        : รายชื่อนักเรียนต่อปีการศึกษา (นำเข้าจาก DMC)
+ *   ภาคเรียนที่ 2 อัปรายชื่อใหม่แบบ "รวม": คนใหม่ fromTerm = '2/ปี' (ไม่นับในภาค 1),
+ *   คนที่ไม่อยู่ในไฟล์ status = moved + leftTerm = '2/ปี' (ภาค 1 ยังนับว่ากำลังศึกษา)
  * - StudentPayments : นักเรียน 1 คน รับเงิน 1 ครั้ง ต่อ ภาคเรียน+รายการเงิน
  * - ยอดที่จ่ายจริงรวมเป็นรายจ่าย 1 แถวต่อภาคเรียน+รายการเงิน ใน Expenses_Finance (source = studentpay)
  *   และใช้แทนยอดรวมที่นำเข้าจากตารางเดิม (ดู readExpenses_)
@@ -12,6 +14,37 @@ const STUDENT_FUNDS = ['EQUIP', 'UNIFORM'];
 const STUDENT_STATUS = { active: 'กำลังศึกษา', moved: 'ย้าย', left: 'ลาออก' };
 /* เหตุผลที่ต้องโอนให้นักเรียนในครั้งที่ 2 เป็นต้นไป (ไม่มีบันทึก = returned) */
 const RETRY_REASONS = { returned: 'ตีกลับ/โอนไม่สำเร็จ', new: 'นักเรียนเข้าใหม่', wrong: 'โอนผิดบัญชี' };
+/* คอลัมน์เพิ่มของชีต Students (เพิ่มเองตอนนำเข้า ไม่ต้องรัน setup) */
+const STU_EXTRA_COLS = ['parentName', 'phone', 'accountName', 'fromTerm', 'leftTerm'];
+
+/** ภาคเรียน '2/2569' → 2 */
+function semOf_(term) { return Number(String(term || '').charAt(0)) || 0; }
+/** นักเรียนอยู่ในรายชื่อของภาคเรียนนี้แล้วหรือยัง (คนเข้าใหม่ภาค 2 ไม่นับในภาค 1) */
+function stuJoined_(s, term) { const f = String(s.fromTerm || ''); return !f || semOf_(term) >= semOf_(f); }
+/** สถานะของนักเรียน ณ ภาคเรียนนั้น (ย้ายออกตั้งแต่ภาค 2 → ภาค 1 ยังเป็นกำลังศึกษา) */
+function stuStatusIn_(s, term) {
+  const st = s.status || 'active';
+  if (st === 'active') return 'active';
+  const l = String(s.leftTerm || '');
+  return (l && semOf_(term) < semOf_(l)) ? 'active' : st;
+}
+/** กำลังศึกษาในภาคเรียนนั้น */
+function stuActiveIn_(s, term) { return stuJoined_(s, term) && stuStatusIn_(s, term) === 'active'; }
+/** เติมคอลัมน์ใหม่ในชีต Students ถ้ายังไม่มี */
+function ensureStudentCols_() {
+  const sh = sh_('Students');
+  const cur = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getValues()[0].map(String);
+  const miss = STU_EXTRA_COLS.filter(h => cur.indexOf(h) < 0);
+  if (miss.length) { sh.getRange(1, cur.length + 1, 1, miss.length).setValues([miss]); _clearRowCache_('Students'); }
+}
+/** เก็บเป็นข้อความ (กัน Sheets แปลง '2/2569' เป็นวันที่ / ตัด 0 หน้าเบอร์โทร) */
+function txt_(v) { const s = String(v == null ? '' : v).replace(/^'/, '').trim(); return s ? "'" + s : ''; }
+/** เบอร์โทร → ตัวเลขล้วน (812345678 → 0812345678) */
+function normPhone_(v) {
+  let d = String(v == null ? '' : v).replace(/\.0+$/, '').replace(/[^\d]/g, '');
+  if (d.length === 9 && /^[689]/.test(d)) d = '0' + d;
+  return d;
+}
 
 /** เหตุผลรายคนของภาคเรียน: { studentId: 'new' | 'wrong' } */
 function retryMap_(term) {
@@ -51,18 +84,28 @@ function getPaymentTracking(term, fund) {
   const rate = rateOf_(fund);
   const onlyTerm1 = fund === 'UNIFORM' && String(term).charAt(0) === '2';
 
-  let students = readObjects_('Students').filter(s => num_(s.acadYear) === acadYear);
-  const hasStudents = students.length > 0;
-  if (u.role === 'teacher' && u.rooms.length) students = students.filter(s => u.rooms.indexOf(roomLabel_(s)) >= 0);
   const pays = {};
   readObjects_('StudentPayments').filter(p => p.term === term && p.fund === fund).forEach(p => pays[p.studentId] = p);
+  const allYear = readObjects_('Students').filter(s => num_(s.acadYear) === acadYear);
+  const hasStudents = allYear.length > 0;
+  // จำนวนนักเรียนกำลังศึกษา ภาค 1 / ภาค 2 ของปีการศึกษานี้
+  const t1 = '1/' + acadYear, t2 = '2/' + acadYear;
+  const termCounts = hasStudents ? {
+    t1: allYear.filter(s => stuActiveIn_(s, t1)).length,
+    t2: allYear.filter(s => stuActiveIn_(s, t2)).length,
+    added: allYear.filter(s => String(s.fromTerm || '') === t2).length,
+    removed: allYear.filter(s => String(s.leftTerm || '') === t2).length
+  } : null;
+  // ไม่แสดงคนที่ยังไม่เข้าเรียนในภาคนี้ (ยกเว้นมีการรับเงินแล้ว)
+  let students = allYear.filter(s => stuJoined_(s, term) || pays[String(s.studentId)]);
+  if (u.role === 'teacher' && u.rooms.length) students = students.filter(s => u.rooms.indexOf(roomLabel_(s)) >= 0);
   const retry = retryMap_(term);
 
   const list = students.map(s => {
     const lv = levelOf_(s.grade), p = pays[String(s.studentId)];
     return {
       id: String(s.studentId), no: num_(s.no), name: [s.prefix, s.firstName].join('') + ' ' + (s.lastName || ''),
-      grade: String(s.grade), room: roomLabel_(s), level: lv, status: s.status || 'active',
+      grade: String(s.grade), room: roomLabel_(s), level: lv, status: stuStatusIn_(s, term),
       due: onlyTerm1 ? 0 : rate[lv], paid: p ? round2_(num_(p.amount)) : 0, paidDate: p ? p.paidDate : '', payId: p ? p.id : '', batch: p ? num_(p.batch) || 1 : 0, cid: normCid_(s.citizenId),
       retry: retry[String(s.studentId)] || 'returned'
     };
@@ -90,7 +133,7 @@ function getPaymentTracking(term, fund) {
   const refunds = readObjects_('Refunds').filter(r => r.source === 'studentpay:' + term + ':' + fund);
 
   return {
-    term: term, fund: fund, fy: fy, acadYear: acadYear, onlyTerm1: onlyTerm1, hasStudents: hasStudents,
+    term: term, fund: fund, fy: fy, acadYear: acadYear, onlyTerm1: onlyTerm1, hasStudents: hasStudents, termCounts: termCounts,
     rate: rate, deadline: deadline, pastDeadline: !!deadline && todayIso_() > deadline,
     summary: Object.assign(agg(list), {
       paidAmount: round2_(paidAmount), unpaidAmount: round2_(unpaidAmount), leftAmount: round2_(leftAmount),
@@ -163,7 +206,7 @@ function savePayment(term, fund, studentIds, paidDate, note, batch) {
 }
 
 /**
- * บันทึกรับเงินทั้งห้อง (เฉพาะคนที่ยังไม่รับและกำลังศึกษา)
+ * บันทึกรับเงินทั้งห้อง (เฉพาะคนที่ยังไม่รับและกำลังศึกษาในภาคนั้น)
  * @param {string|string[]} room ชื่อห้องเดียว หรือหลายห้องพร้อมกัน เช่น ['ม.1/1','ม.2/3']
  */
 function savePaymentByRoom(room, term, fund, paidDate, batch) {
@@ -175,7 +218,7 @@ function savePaymentByRoom(room, term, fund, paidDate, batch) {
   funds.forEach(f => { paid[f] = {}; });
   readObjects_('StudentPayments').filter(p => p.term === term && paid[p.fund]).forEach(p => paid[p.fund][String(p.studentId)] = 1);
   const ids = readObjects_('Students')
-    .filter(s => num_(s.acadYear) === acadYear && rooms.indexOf(roomLabel_(s)) >= 0 && (s.status || 'active') === 'active' &&
+    .filter(s => num_(s.acadYear) === acadYear && rooms.indexOf(roomLabel_(s)) >= 0 && stuActiveIn_(s, term) &&
       funds.some(f => !paid[f][String(s.studentId)]))
     .map(s => String(s.studentId));
   if (!ids.length) return { saved: 0, skipped: 0 };
@@ -207,7 +250,7 @@ function getDisbursement(term) {
 
   // ---- ขออนุมัติ: ยังไม่ได้รับ ----
   const req = blank();
-  stu.filter(s => (s.status || 'active') === 'active').forEach(s => {
+  stu.filter(s => stuActiveIn_(s, term)).forEach(s => {
     const g = String(s.grade); if (!req[g]) return;
     let any = false;
     funds.forEach(f => {
@@ -288,9 +331,9 @@ function getDisbMemoData(term) {
   });
 
   const retry = retryMap_(term);
-  // นักเรียนที่นับ: กำลังศึกษา หรือเคยได้รับเงินในภาคนี้แล้ว (กันยอดหายเมื่อย้ายออกหลังรับเงิน)
+  // นักเรียนที่นับ: กำลังศึกษาในภาคนี้ หรือเคยได้รับเงินในภาคนี้แล้ว (กันยอดหายเมื่อย้ายออกหลังรับเงิน)
   const stu = readObjects_('Students').filter(s => num_(s.acadYear) === acadYear)
-    .filter(s => (s.status || 'active') === 'active' || payBy[String(s.studentId)])
+    .filter(s => stuActiveIn_(s, term) || payBy[String(s.studentId)])
     .map(s => {
       const g = String(s.grade), lv = levelOf_(g), id = String(s.studentId), p = payBy[id];
       const due = {};
@@ -434,6 +477,7 @@ function setStudentStatus(studentId, acadYear, status) {
       if (String(data[i][ci]) === String(studentId) && num_(data[i][ay]) === num_(acadYear)) {
         sh.getRange(i + 1, st + 1).setValue(status);
         sh.getRange(i + 1, up + 1).setValue(new Date());
+        _clearRowCache_('Students');
         audit_('status', 'Students', studentId, status);
         return true;
       }
@@ -444,20 +488,29 @@ function setStudentStatus(studentId, acadYear, status) {
 
 /**
  * นำเข้ารายชื่อนักเรียน (จาก DMC — หน้าเว็บแปลงไฟล์เป็นแถวให้แล้ว)
+ * คอลัมน์ DMC: # | ชั้น | เลขที่ | เลขประจำตัว | เลขบัตรประจำตัวประชาชน | ชื่อนักเรียน | ชื่อผู้ปกครอง |
+ *             เบอร์โทรศัพท์ | ชื่อธนาคาร | ชื่อบัญชีเงินฝากธนาคาร | เลขที่บัญชีธนาคาร
  * @param {number} acadYear ปีการศึกษา เช่น 2569
- * @param {Array<Object>} rows [{studentId, citizenId, prefix, firstName, lastName, grade, room, no}]
- * แทนที่รายชื่อเดิมของปีการศึกษานั้น (การรับเงินที่บันทึกแล้วยังอยู่ ผูกด้วยรหัสนักเรียน)
- * เลขบัตรประชาชน / เลขบัญชี / ธนาคาร: ถ้าแถวใหม่ไม่มี ใช้ค่าเดิมของรหัสนักเรียนนั้น (ไม่หายเมื่อนำเข้าซ้ำ)
+ * @param {Array<Object>} rows [{studentId, citizenId, prefix, firstName, lastName, grade, room, no,
+ *                               parentName, phone, bank, accountName, bankAccount}]
+ * @param {string=} term ภาคเรียนที่ 2 ('2/2569') → นำเข้าแบบรวมกับรายชื่อเดิม:
+ *   คนใหม่ fromTerm = term, คนที่ไม่อยู่ในไฟล์ status = moved + leftTerm = term (ข้อมูลภาค 1 ยังอยู่ครบ)
+ *   ไม่ระบุ / ภาค 1 → แทนที่รายชื่อเดิมของปีการศึกษานั้น (การรับเงินที่บันทึกแล้วยังอยู่ ผูกด้วยรหัสนักเรียน)
+ * ข้อมูลที่ไฟล์ใหม่ไม่มี (เลขบัตร / บัญชี / ผู้ปกครอง / โทร) ใช้ค่าเดิมของรหัสนักเรียนนั้น
  */
-function importStudents(acadYear, rows) {
+function importStudents(acadYear, rows, term) {
   requireWrite_('finance');
   acadYear = num_(acadYear);
   if (acadYear < 2500) throw new Error('ปีการศึกษาไม่ถูกต้อง');
   if (!rows || !rows.length) throw new Error('ไม่มีข้อมูลนักเรียน');
+  ensureStudentCols_();
+  term = String(term || '');
   const seen = {}, out = [], errs = [];
   const old = {};
   readObjects_('Students').filter(s => num_(s.acadYear) === acadYear).forEach(s => old[String(s.studentId)] = s);
-  let cidNew = 0, cidBad = 0;
+  const merge = semOf_(term) === 2 && Number(term.split('/')[1]) === acadYear && Object.keys(old).length > 0;
+  let cidNew = 0, cidBad = 0, added = 0;
+  const keep = (a, b) => String(a == null ? '' : a).trim() || String(b == null ? '' : b).trim();
   rows.forEach((r, i) => {
     const g = normGrade_(r.grade), room = String(r.room || '').replace(/[^\d]/g, '');
     // ไม่มีเลขประจำตัว (เช่น รายชื่อสำหรับโอนธนาคาร) → ใช้ ชั้น/ห้อง-เลขที่ เป็นรหัส
@@ -467,63 +520,93 @@ function importStudents(acadYear, rows) {
     if (seen[id]) return;
     seen[id] = 1;
     const o = old[id] || {};
+    if (!old[id]) added++;
     let cid = normCid_(r.citizenId);
     if (cid) cidNew++;
     else { if (String(r.citizenId || '').trim()) cidBad++; cid = normCid_(o.citizenId); }
     out.push({ studentId: id, prefix: String(r.prefix || '').trim(), firstName: String(r.firstName || '').trim(),
       lastName: String(r.lastName || '').trim(), grade: g, room: room || '1', level: levelOf_(g),
-      status: o.status || 'active', updatedAt: new Date(), acadYear: acadYear, no: num_(r.no) || '',
+      status: merge ? 'active' : (o.status || 'active'), updatedAt: new Date(), acadYear: acadYear, no: num_(r.no) || '',
       citizenId: cid, bankAccount: normAccount_(r.bankAccount) || normAccount_(o.bankAccount),
-      bank: String(r.bank || '').trim() || String(o.bank || '').trim() });
+      bank: keep(r.bank, o.bank), accountName: keep(r.accountName, o.accountName), parentName: keep(r.parentName, o.parentName),
+      phone: txt_(normPhone_(r.phone) || normPhone_(o.phone)),
+      fromTerm: txt_(old[id] ? o.fromTerm : (merge ? term : '')), leftTerm: '' });
   });
   if (!out.length) throw new Error('นำเข้าไม่ได้: ' + errs.slice(0, 5).join(' · '));
+  // ภาค 2: คนที่ไม่อยู่ในไฟล์ → ย้าย/ลาออก ตั้งแต่ภาคนี้ (ยังเก็บไว้ เพื่อให้ยอดภาค 1 ไม่เปลี่ยน)
+  let removed = 0;
+  if (merge) Object.keys(old).filter(id => !seen[id]).forEach(id => {
+    const o = old[id], wasActive = (o.status || 'active') === 'active';
+    if (wasActive) removed++;
+    out.push(Object.assign({}, o, { status: wasActive ? 'moved' : o.status, updatedAt: new Date(),
+      leftTerm: txt_(wasActive ? term : o.leftTerm), fromTerm: txt_(o.fromTerm), phone: txt_(o.phone) }));
+  });
   return withLock_(() => {
     deleteWhere_('Students', o => num_(o.acadYear) === acadYear);
     appendObjects_('Students', out);
     const cidAll = out.filter(s => s.citizenId).length;
-    audit_('import', 'Students', '', { acadYear: acadYear, count: out.length, errors: errs.length, cid: cidAll, cidBad: cidBad });
-    return { imported: out.length, errors: errs.slice(0, 20), errorCount: errs.length, cidCount: cidAll, cidNew: cidNew, cidBad: cidBad };
+    audit_('import', 'Students', '', { acadYear: acadYear, term: merge ? term : '', count: seen ? Object.keys(seen).length : 0,
+      added: merge ? added : '', removed: removed, errors: errs.length, cid: cidAll, cidBad: cidBad });
+    return { imported: Object.keys(seen).length, term: merge ? term : '', added: merge ? added : 0, removed: removed,
+      errors: errs.slice(0, 20), errorCount: errs.length, cidCount: cidAll, cidNew: cidNew, cidBad: cidBad };
   });
 }
 
 /**
- * เติมเลขประจำตัวประชาชนจากไฟล์ DMC ให้รายชื่อที่มีอยู่แล้ว (ไม่แทนที่รายชื่อ / ไม่กระทบการรับเงิน)
- * ใช้พิมพ์ในเอกสารหมายเลข 2 — จับคู่ด้วย ชื่อ+นามสกุล ก่อน ถ้าชื่อซ้ำ/ไม่พบ ใช้ ชั้น/ห้อง/เลขที่
+ * อัปเดตข้อมูลจากไฟล์ DMC ให้รายชื่อที่มีอยู่แล้ว (ไม่แทนที่รายชื่อ / ไม่กระทบการรับเงิน)
+ * เติม: เลขบัตรประชาชน, ชื่อผู้ปกครอง, เบอร์โทร, ธนาคาร, ชื่อบัญชี, เลขที่บัญชี (เฉพาะช่องที่ไฟล์มีค่า)
+ * จับคู่ด้วย เลขประจำตัว ก่อน → ชื่อ+นามสกุล → ชั้น/ห้อง/เลขที่
  * @param {number} acadYear
- * @param {Array<Object>} rows [{citizenId, prefix, firstName, lastName, grade, room, no}]
+ * @param {Array<Object>} rows [{studentId, citizenId, prefix, firstName, lastName, grade, room, no, parentName, phone, bank, accountName, bankAccount}]
  */
 function updateCitizenIds(acadYear, rows) {
   requireWrite_('finance');
   acadYear = num_(acadYear);
+  ensureStudentCols_();
   const PFX = /^(เด็กชาย|เด็กหญิง|ด\.ช\.|ด\.ญ\.|นางสาว|น\.ส\.|นาย|นาง)\s*/;
   const nameKey = (f, l) => (String(f || '').replace(PFX, '') + String(l || '')).replace(/\s+/g, '');
   const posKey = (g, r, n) => normGrade_(g) + '/' + String(r || '').replace(/[^\d]/g, '') + '-' + num_(n);
-  const src = (rows || []).map(r => ({ cid: normCid_(r.citizenId), nk: nameKey(r.firstName, r.lastName),
-    pk: posKey(r.grade, r.room, r.no) })).filter(r => r.cid.length === 13);
-  if (!src.length) throw new Error('ไม่พบเลขประจำตัวประชาชน 13 หลักในไฟล์ (ต้องมีคอลัมน์ เลขประจำตัวประชาชน)');
-  const byName = {}, byPos = {};
-  src.forEach(r => { (byName[r.nk] = byName[r.nk] || []).push(r); byPos[r.pk] = r; });
+  const t = v => String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+  const src = (rows || []).map(r => ({
+    id: t(r.studentId), nk: nameKey(r.firstName, r.lastName), pk: posKey(r.grade, r.room, r.no),
+    v: { citizenId: normCid_(r.citizenId), parentName: t(r.parentName), phone: normPhone_(r.phone), bank: t(r.bank),
+      accountName: t(r.accountName), bankAccount: normAccount_(r.bankAccount) }
+  })).filter(r => Object.keys(r.v).some(k => r.v[k]));
+  if (!src.length) throw new Error('ไม่พบข้อมูลในไฟล์ (ต้องมีอย่างน้อย 1 คอลัมน์: เลขบัตรประชาชน / ผู้ปกครอง / เบอร์โทร / ธนาคาร / เลขที่บัญชี)');
+  const byId = {}, byName = {}, byPos = {};
+  src.forEach(r => { if (r.id) byId[r.id] = r; (byName[r.nk] = byName[r.nk] || []).push(r); byPos[r.pk] = r; });
+  const FIELDS = ['citizenId', 'parentName', 'phone', 'bank', 'accountName', 'bankAccount'];
+  const TXT = { citizenId: 1, phone: 1, bankAccount: 1 };
   return withLock_(() => {
     const sh = sh_('Students');
     const data = sh.getDataRange().getValues(), head = data[0].map(String);
     const c = k => head.indexOf(k);
-    const ci = c('citizenId'), ay = c('acadYear');
-    if (ci < 0) throw new Error('ชีต Students ไม่มีคอลัมน์ citizenId');
-    let matched = 0, byNo = 0;
-    const col = data.slice(1).map(row => {
-      if (num_(row[ay]) !== acadYear) return [row[ci]];
-      const nm = byName[nameKey(row[c('firstName')], row[c('lastName')])];
-      let hit = nm && nm.length === 1 ? nm[0] : null;
+    const ay = c('acadYear');
+    const cols = {};
+    // ค่าเดิมของคอลัมน์ตัวเลขยาว เขียนกลับเป็นข้อความ (กัน Sheets แปลงเลขบัตร/บัญชีเป็นตัวเลขแล้วตัด 0 หน้า)
+    FIELDS.forEach(f => { if (c(f) >= 0) cols[f] = data.slice(1).map(row => { const v = row[c(f)];
+      return [TXT[f] && v !== '' && v != null ? "'" + (typeof v === 'number' ? v.toFixed(0) : String(v).replace(/^'/, '')) : v]; }); });
+    const cnt = { citizenId: 0, parentName: 0, phone: 0, bank: 0, accountName: 0, bankAccount: 0 };
+    let matched = 0, byNo = 0, total = 0;
+    data.slice(1).forEach((row, i) => {
+      if (num_(row[ay]) !== acadYear) return;
+      total++;
+      let hit = byId[String(row[c('studentId')]).replace(/^'/, '').trim()] || null;
+      if (!hit) { const nm = byName[nameKey(row[c('firstName')], row[c('lastName')])]; hit = nm && nm.length === 1 ? nm[0] : null; }
       if (!hit) { hit = byPos[posKey(row[c('grade')], row[c('room')], row[c('no')])] || null; if (hit) byNo++; }
-      if (!hit) return [row[ci]];
+      if (!hit) return;
       matched++;
-      return ["'" + hit.cid];
+      FIELDS.forEach(f => {
+        if (!cols[f] || !hit.v[f]) return;
+        cols[f][i] = [TXT[f] ? "'" + hit.v[f] : hit.v[f]];
+        cnt[f]++;
+      });
     });
-    const total = data.slice(1).filter(row => num_(row[ay]) === acadYear).length;
-    if (col.length) sh.getRange(2, ci + 1, col.length, 1).setValues(col);
+    Object.keys(cols).forEach(f => { if (cols[f].length) sh.getRange(2, c(f) + 1, cols[f].length, 1).setValues(cols[f]); });
     _clearRowCache_('Students');
-    audit_('citizenIds', 'Students', '', { acadYear: acadYear, matched: matched, byNo: byNo, total: total });
-    return { matched: matched, byNo: byNo, total: total, missing: total - matched, fileRows: src.length };
+    audit_('dmcUpdate', 'Students', '', { acadYear: acadYear, matched: matched, byNo: byNo, total: total, fields: cnt });
+    return { matched: matched, byNo: byNo, total: total, missing: total - matched, fileRows: src.length,
+      cid: cnt.citizenId, acct: cnt.bankAccount, parent: cnt.parentName, phone: cnt.phone };
   });
 }
 
@@ -590,9 +673,9 @@ function normGrade_(g) {
 
 /**
  * นำเข้ารายชื่อจาก Google Sheet อื่น (เช่น ไฟล์ "แบบลงชื่อค่าอุปกรณ์การเรียน" ที่มีชีต รายชื่อ ม.1 … รายชื่อ ม.6)
- * อ่านทุกชีตที่มีหัวตาราง ชื่อ-สกุล + ระดับชั้น
+ * อ่านทุกชีตที่มีหัวตาราง ชื่อ-สกุล (หรือ ชื่อนักเรียน) + ชั้น
  */
-function importStudentsFromSheet(urlOrId, acadYear) {
+function importStudentsFromSheet(urlOrId, acadYear, term) {
   requireWrite_('finance');
   const src = /^https?:/.test(String(urlOrId)) ? SpreadsheetApp.openByUrl(urlOrId) : SpreadsheetApp.openById(String(urlOrId).trim());
   const rows = [], used = [];
@@ -601,16 +684,15 @@ function importStudentsFromSheet(urlOrId, acadYear) {
     const got = parseRosterRows_(V, rg.getValues());
     if (got.length) { used.push(sh.getName() + ' (' + got.length + ')'); got.forEach(r => rows.push(r)); }
   });
-  if (!rows.length) throw new Error('ไม่พบตารางรายชื่อ (ต้องมีหัวคอลัมน์ ชื่อ-สกุล และ ระดับชั้น)');
-  const r = importStudents(acadYear, rows);
+  if (!rows.length) throw new Error('ไม่พบตารางรายชื่อ (ต้องมีหัวคอลัมน์ ชื่อนักเรียน หรือ ชื่อ-สกุล และ ชั้น)');
+  const r = importStudents(acadYear, rows, term);
   r.sheets = used;
   return r;
 }
 
-/** อ่านตารางรายชื่อ 1 ชีต (2 มิติ) → แถวนักเรียน */
+/** อ่านตารางรายชื่อ 1 ชีต (2 มิติ) → แถวนักเรียน (หัวคอลัมน์เดียวกับไฟล์ DMC) */
 function parseRosterRows_(V, RAW) {
   const t = v => String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
-  const other = h => /ผู้ปกครอง|บิดา|มารดา|บัญชี|ธนาคาร|ครู/.test(h);
   let hi = -1, c = {};
   for (let r = 0; r < Math.min(V.length, 15) && hi < 0; r++) {
     const m = {};
@@ -618,40 +700,43 @@ function parseRosterRows_(V, RAW) {
       const h = t(h0);
       if (m.id == null && /เลขประจำตัวนักเรียน|รหัสนักเรียน|^เลขประจำตัว$/.test(h)) m.id = i;
       else if (m.cid == null && /ประชาชน|เลขบัตร/.test(h)) m.cid = i;
+      else if (m.acct == null && /เลขบัญชี|เลขที่บัญชี/.test(h)) m.acct = i;
+      else if (m.accName == null && /ชื่อบัญชี/.test(h)) m.accName = i;
+      else if (m.bank == null && /^(ชื่อ)?ธนาคาร/.test(h)) m.bank = i;
+      else if (m.parent == null && /ผู้ปกครอง/.test(h)) m.parent = i;
+      else if (m.phone == null && /เบอร์|โทร/.test(h)) m.phone = i;
       else if (m.prefix == null && /คำนำหน้า/.test(h)) m.prefix = i;
-      else if (other(h)) { if (m.acct == null && /เลขบัญชี|เลขที่บัญชี|บัญชีเลขที่/.test(h)) m.acct = i; else if (m.bank == null && /^(ชื่อ)?ธนาคาร/.test(h)) m.bank = i; }
-      else if (m.full == null && /ชื่อ\s*[-–]?\s*(นาม)?สกุล/.test(h)) m.full = i;
+      else if (m.full == null && /ชื่อ\s*[-–]?\s*(นาม)?สกุล|^ชื่อนักเรียน$/.test(h)) m.full = i;
       else if (m.last == null && /^(นาม)?สกุล/.test(h)) m.last = i;
       else if (m.first == null && /^ชื่อ/.test(h)) m.first = i;
       else if (m.grade == null && /^(ระดับ)?ชั้น/.test(h)) m.grade = i;
       else if (m.room == null && /^ห้อง/.test(h)) m.room = i;
       else if (m.no == null && /^(เลขที่|ที่)$/.test(h)) m.no = i;
-      else if (m.acct == null && /เลขบัญชี|เลขที่บัญชี/.test(h)) m.acct = i;
-      else if (m.bank == null && /^ธนาคาร/.test(h)) m.bank = i;
     });
     if ((m.first != null || m.full != null) && m.grade != null) { hi = r; c = m; }
   }
   if (hi < 0) return [];
   if (c.full != null && c.first != null && c.last != null) delete c.full;
-  /* เลขประชาชน/บัญชีที่เก็บเป็นตัวเลข → ใช้ค่าจริง (กัน 1.23E+12 / 0 นำหน้าหาย) */
-  const num = (r, k) => { const v = RAW && RAW[r] ? RAW[r][c[k]] : null; return typeof v === 'number' ? v.toFixed(0) : t(V[r][c[k]]); };
+  /* เลขประชาชน/บัญชี/โทร ที่เก็บเป็นตัวเลข → ใช้ค่าจริง (กัน 1.23E+12 / 0 นำหน้าหาย) */
+  const num = (r, k) => { if (c[k] == null) return ''; const v = RAW && RAW[r] ? RAW[r][c[k]] : null; return typeof v === 'number' ? v.toFixed(0) : t(V[r][c[k]]); };
   const PFX = /^(เด็กชาย|เด็กหญิง|ด\.ช\.|ด\.ญ\.|นางสาว|น\.ส\.|นาย|นาง)\s*/;
+  const g = (row, k) => c[k] != null ? t(row[c[k]]) : '';
   const out = [];
   for (let r = hi + 1; r < V.length; r++) {
-    const row = V[r], g0 = t(row[c.grade]);
-    let first = c.first != null ? t(row[c.first]) : '', last = c.last != null ? t(row[c.last]) : '', prefix = c.prefix != null ? t(row[c.prefix]) : '';
+    const row = V[r], g0 = g(row, 'grade');
+    let first = g(row, 'first'), last = g(row, 'last'), prefix = g(row, 'prefix');
     if (c.full != null) {
-      let f = t(row[c.full]); const m = f.match(PFX);
+      let f = g(row, 'full'); const m = f.match(PFX);
       if (m && !prefix) prefix = m[1];
-      f = f.replace(PFX, ''); const p = f.split(' '); first = p.shift() || ''; last = p.join(' ');
+      f = f.replace(PFX, ''); const p = f.split(' '); first = p.shift() || ''; last = p.join(' ') || last;
     }
     if (!first || !g0) continue;
-    let grade = g0, room = c.room != null ? t(row[c.room]) : '';
+    let grade = g0, room = g(row, 'room');
     const gm = g0.match(/([1-6])\s*\/\s*(\d+)/);
     if (gm) { grade = 'ม.' + gm[1]; if (!room) room = gm[2]; }
-    out.push({ studentId: c.id != null ? t(row[c.id]) : '', prefix: prefix, firstName: first, lastName: last, grade: grade, room: room,
-      no: c.no != null ? t(row[c.no]) : '', citizenId: c.cid != null ? num(r, 'cid') : '',
-      bankAccount: c.acct != null ? num(r, 'acct') : '', bank: c.bank != null ? t(row[c.bank]) : '' });
+    out.push({ studentId: g(row, 'id'), prefix: prefix, firstName: first, lastName: last, grade: grade, room: room,
+      no: g(row, 'no'), citizenId: num(r, 'cid'), bankAccount: num(r, 'acct'), bank: g(row, 'bank'),
+      accountName: g(row, 'accName'), parentName: g(row, 'parent'), phone: num(r, 'phone') });
   }
   return out;
 }

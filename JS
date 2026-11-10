@@ -903,7 +903,7 @@ function initStudentsPage() {
   $('btnDisbPrint').onclick = openStMemo;
   $('btnStForm2').innerHTML = ic('print', 'sm') + '<span>พิมพ์เอกสารหมายเลข 2</span>';
   $('btnStForm2').onclick = printForm2Sel;
-  $('btnStCid').innerHTML = ic('upload', 'sm') + '<span>อัปโหลดเลขประชาชน (DMC)</span>';
+  $('btnStCid').innerHTML = ic('upload', 'sm') + '<span>อัปเดตข้อมูลจาก DMC</span>';
   $('btnStCid').onclick = () => { $('stCidFile').value = ''; $('stCidFile').click(); };
   $('stCidFile').onchange = stUploadCid;
   window.addEventListener('afterprint', () => { document.body.classList.remove('doc-mode'); const st = $('docPageStyle'); if (st) st.textContent = ''; });
@@ -952,6 +952,10 @@ function renderStudents() {
       <div class="muted small-x">นำเข้าไฟล์รายชื่อจากระบบ DMC (Excel หรือ CSV) เพื่อเริ่มติดตามการรับเงินรายคน</div></div>
       ${D.canManage ? `<button class="btnx pri" onclick="openStImport()">${ic('upload')}นำเข้ารายชื่อ</button>` : ''}</div>`;
   else {
+    const TC = D.termCounts;
+    if (TC) n += `<div class="banner small-x"><div class="grow">จำนวนนักเรียน (กำลังศึกษา) ปีการศึกษา ${D.acadYear}:
+      ภาคเรียนที่ 1 <b>${TC.t1.toLocaleString('th-TH')}</b> คน · ภาคเรียนที่ 2 <b>${TC.t2.toLocaleString('th-TH')}</b> คน` +
+      (TC.added || TC.removed ? ` <span class="muted">(ภาค 2 เข้าใหม่ ${TC.added.toLocaleString('th-TH')} คน · ย้าย/ลาออก ${TC.removed.toLocaleString('th-TH')} คน)</span>` : '') + `</div></div>`;
     if (T.legacy && !T.paidAmount) n += `<div class="banner small-x"><div class="grow">ตารางเดิมบันทึกว่า <b>${fundTxt(D.fund)} ภาค ${D.term}</b> โอนให้นักเรียนแล้ว <b>${money(T.legacy)}</b> บาท
       เมื่อเริ่มบันทึกรับเงินรายคน ระบบจะใช้ยอดจากรายชื่อแทนยอดนี้</div></div>`;
     if (D.pastDeadline && (T.unpaid || T.left) && D.canManage) n += `<div class="banner" style="background:var(--bad-bg);border-color:#F3CFCB">
@@ -1417,7 +1421,7 @@ function renderForm2Opts() {
   const D = ST.data, sel = $('stForm2Room'); if (!sel || !D) return;
   const act = D.students.filter(s => s.status === 'active'), hasCid = act.filter(s => /^\d{13}$/.test(s.cid)).length;
   if ($('stCidInfo')) $('stCidInfo').innerHTML = `เลขประจำตัวประชาชนในเอกสารหมายเลข 2: มีแล้ว <b>${hasCid.toLocaleString('th-TH')}</b> / ${act.length.toLocaleString('th-TH')} คน` +
-    (hasCid < act.length ? ' — กด "อัปโหลดเลขประชาชน (DMC)" เพื่อเติมให้ครบ (ไม่แทนที่รายชื่อเดิม)' : '');
+    (hasCid < act.length ? ' — กด "อัปเดตข้อมูลจาก DMC" เพื่อเติมให้ครบ (ไม่แทนที่รายชื่อเดิม)' : '');
   if ($('btnStCid')) $('btnStCid').style.display = D.canManage ? '' : 'none';
   const prev = sel.value, rooms = stForm2Rooms();
   const grades = D.grades.filter(g => g.total).map(g => g.grade);
@@ -1779,10 +1783,12 @@ async function stUploadCid() {
       const t = String(await f.text()).replace(/^\uFEFF/, ''), delim = t.includes('\t') ? '\t' : ',';
       rows = mapImpRows(t.split(/\r?\n/).map(l => l.split(delim).map(c => c.replace(/^"|"$/g, ''))), true) || [];
     }
-    rows = rows.filter(r => String(r.citizenId || '').replace(/[^\d]/g, '').length === 13);
-    if (!rows.length) throw new Error('ไม่พบเลขประจำตัวประชาชน 13 หลักในไฟล์ — ต้องมีคอลัมน์ ชื่อ, นามสกุล, ชั้น และ เลขประจำตัวประชาชน');
+    rows = rows.filter(r => String(r.citizenId || '').replace(/[^\d]/g, '').length === 13 || r.bankAccount || r.bank || r.accountName || r.parentName || r.phone);
+    if (!rows.length) throw new Error('ไม่พบข้อมูลในไฟล์ — ต้องมีคอลัมน์ ชั้น, ชื่อนักเรียน และอย่างน้อย 1 คอลัมน์: เลขบัตรประชาชน / ผู้ปกครอง / เบอร์โทร / ธนาคาร / เลขที่บัญชี');
     const r = await api('updateCitizenIds', ST.data.acadYear, rows);
-    toast(`เติมเลขประชาชนแล้ว ${r.matched.toLocaleString('th-TH')} / ${r.total.toLocaleString('th-TH')} คน` + (r.missing ? ` · ไม่พบในไฟล์ ${r.missing.toLocaleString('th-TH')} คน` : ''));
+    toast(`อัปเดตข้อมูลจาก DMC แล้ว ${r.matched.toLocaleString('th-TH')} / ${r.total.toLocaleString('th-TH')} คน` +
+      ` (เลขบัตร ${r.cid.toLocaleString('th-TH')} · บัญชี ${r.acct.toLocaleString('th-TH')} · ผู้ปกครอง ${r.parent.toLocaleString('th-TH')} · โทร ${r.phone.toLocaleString('th-TH')})` +
+      (r.missing ? ` · ไม่พบในไฟล์ ${r.missing.toLocaleString('th-TH')} คน` : ''));
     await loadStudents();
   } catch (e) { fail(e); }
   loading(false);
@@ -1831,23 +1837,26 @@ function parseImpText(t) {
 function mapImpRows(rows, quiet, raw) {
   const test = (h, re) => re.test(String(h).replace(/\s+/g, ' ').trim());
   /* หัวคอลัมน์ชื่อของคนอื่น (ผู้ปกครอง/เจ้าของบัญชี) ไม่ใช่ชื่อนักเรียน */
-  const other = h => test(h, /ผู้ปกครอง|บิดา|มารดา|บัญชี|ธนาคาร|ครู/);
+  const other = h => test(h, /บิดา|มารดา|ครู/);
   let hi = -1, col = {};
   for (let r = 0; r < Math.min(rows.length, 15) && hi < 0; r++) {
     const c = {};
     rows[r].forEach((h, i) => {
       if (c.id == null && test(h, /เลขประจำตัวนักเรียน|รหัสนักเรียน|^เลขประจำตัว$|student\s*id/i)) c.id = i;
       else if (c.cid == null && test(h, /ประชาชน/)) c.cid = i;
+      else if (c.acct == null && test(h, /เลขบัญชี|เลขที่บัญชี|บัญชีเลขที่/)) c.acct = i;
+      else if (c.accName == null && test(h, /ชื่อบัญชี/)) c.accName = i;
+      else if (c.bank == null && test(h, /^(ชื่อ)?ธนาคาร/)) c.bank = i;
+      else if (c.parent == null && test(h, /ผู้ปกครอง/)) c.parent = i;
+      else if (c.phone == null && test(h, /เบอร์|โทร/)) c.phone = i;
       else if (c.prefix == null && test(h, /คำนำหน้า/)) c.prefix = i;
-      else if (other(h)) { if (c.acct == null && test(h, /เลขบัญชี|เลขที่บัญชี|บัญชีเลขที่/)) c.acct = i; else if (c.bank == null && test(h, /^(ชื่อ)?ธนาคาร/)) c.bank = i; }
-      else if (c.full == null && test(h, /ชื่อ\s*[-–]?\s*(นาม)?สกุล/)) c.full = i;
+      else if (other(h)) { }
+      else if (c.full == null && test(h, /ชื่อ\s*[-–]?\s*(นาม)?สกุล|^ชื่อนักเรียน$/)) c.full = i;
       else if (c.last == null && test(h, /^(นาม)?สกุล/)) c.last = i;
       else if (c.first == null && test(h, /^ชื่อ/)) c.first = i;
       else if (c.grade == null && test(h, /^(ระดับ)?ชั้น/)) c.grade = i;
       else if (c.room == null && test(h, /^ห้อง/)) c.room = i;
       else if (c.no == null && test(h, /^(เลขที่|ที่|no\.?)$/i)) c.no = i;
-      else if (c.acct == null && test(h, /เลขบัญชี|เลขที่บัญชี/)) c.acct = i;
-      else if (c.bank == null && test(h, /^ธนาคาร/)) c.bank = i;
     });
     if ((c.first != null || c.full != null) && c.grade != null) { hi = r; col = c; }
   }
@@ -1862,15 +1871,22 @@ function mapImpRows(rows, quiet, raw) {
   const gn = (r, i, k) => { const v = raw && raw[i] ? raw[i][col[k]] : null; return typeof v === 'number' && col[k] != null ? v.toFixed(0) : g(r, k); };
   const out = rows.slice(hi + 1).map((r, j) => { const ri = hi + 1 + j;
     let prefix = g(r, 'prefix'), first = g(r, 'first'), last = g(r, 'last');
-    if (col.full != null) { let f = g(r, 'full').replace(/\s+/g, ' '); const m = f.match(PFX); if (m && !prefix) prefix = m[1]; f = f.replace(PFX, ''); const p = f.split(' '); first = p.shift() || ''; last = p.join(' '); }
+    if (col.full != null) { let f = g(r, 'full').replace(/\s+/g, ' '); const m = f.match(PFX); if (m && !prefix) prefix = m[1]; f = f.replace(PFX, ''); const p = f.split(' '); first = p.shift() || ''; last = p.join(' ') || last; }
     let grade = g(r, 'grade'), room = g(r, 'room');
     const gm = grade.match(/([1-6])\s*\/\s*(\d+)/); if (gm) { grade = 'ม.' + gm[1]; if (!room) room = gm[2]; }
     return { studentId: g(r, 'id'), prefix: prefix, firstName: first, lastName: last, grade: grade, room: room, no: g(r, 'no'),
-      citizenId: gn(r, ri, 'cid'), bankAccount: gn(r, ri, 'acct'), bank: g(r, 'bank') };
+      citizenId: gn(r, ri, 'cid'), bankAccount: gn(r, ri, 'acct'), bank: g(r, 'bank'),
+      accountName: g(r, 'accName').replace(/\s+/g, ' '), parentName: g(r, 'parent').replace(/\s+/g, ' '), phone: impPhone(gn(r, ri, 'phone')) };
   }).filter(s => s.firstName && s.grade);
   if (quiet) return out;
   showImpPreview(out);
   return out;
+}
+/* เบอร์โทร → ตัวเลขล้วน (Excel ตัด 0 หน้า เช่น 812345678 → 0812345678) */
+function impPhone(v) {
+  let d = String(v == null ? '' : v).replace(/\.0+$/, '').replace(/[^\d]/g, '');
+  if (d.length === 9 && /^[689]/.test(d)) d = '0' + d;
+  return d;
 }
 function showImpPreview(out) {
   ST.imp = out;
@@ -1878,21 +1894,29 @@ function showImpPreview(out) {
   const g = {}; out.forEach(s => { const k = (String(s.grade).match(/[1-6]/) || ['?'])[0]; g[k] = (g[k] || 0) + 1; });
   const noId = out.filter(s => !s.studentId).length;
   $('impPreview').innerHTML = `<div class="warnbox small-x" style="background:var(--info-bg);color:var(--info)">พบนักเรียน <b>${out.length.toLocaleString('th-TH')}</b> คน · ${Object.keys(g).sort().map(k => 'ม.' + k + ' ' + g[k]).join(' · ')}
-      · มีเลขประชาชน ${out.filter(s => String(s.citizenId).replace(/[^\d]/g, '').length === 13).length.toLocaleString('th-TH')} · มีเลขบัญชี ${out.filter(s => String(s.bankAccount).replace(/[^\d]/g, '')).length.toLocaleString('th-TH')} คน
+      · มีเลขประชาชน ${out.filter(s => String(s.citizenId).replace(/[^\d]/g, '').length === 13).length.toLocaleString('th-TH')} · มีเลขบัญชี ${out.filter(s => String(s.bankAccount).replace(/[^\d]/g, '')).length.toLocaleString('th-TH')} · มีผู้ปกครอง ${out.filter(s => s.parentName).length.toLocaleString('th-TH')} · มีเบอร์โทร ${out.filter(s => s.phone).length.toLocaleString('th-TH')} คน
       ${noId ? `<br>ไม่มีเลขประจำตัว ${noId.toLocaleString('th-TH')} คน — ระบบจะใช้ ชั้น/ห้อง-เลขที่ เป็นรหัส` : ''}</div>
     <div class="table-responsive mt-2"><table class="tbl small-x"><thead><tr><th>รหัส</th><th>ชื่อ – สกุล</th><th>ชั้น</th><th>ห้อง</th><th>เลขที่</th><th>เลขประชาชน</th><th>บัญชี</th></tr></thead><tbody>
     ${out.slice(0, 5).map(s => `<tr><td>${esc(s.studentId || s.grade + '/' + s.room + '-' + s.no)}</td><td>${esc(s.prefix + s.firstName + ' ' + s.lastName)}</td><td>${esc(s.grade)}</td><td>${esc(s.room)}</td><td>${esc(s.no)}</td><td>${String(s.citizenId).replace(/[^\d]/g, '').length === 13 ? '✓' : ''}</td><td>${esc(s.bankAccount)}</td></tr>`).join('')}</tbody></table></div>
-    <div class="small-x muted">แสดง 5 แถวแรก · รายชื่อเดิมของปีการศึกษานี้จะถูกแทนที่ การรับเงินที่บันทึกแล้วยังอยู่ครบ</div>`;
+    <div class="small-x muted">แสดง 5 แถวแรก · ${stImpTerm() ? `<b>นำเข้ารายชื่อภาค ${stImpTerm()}</b>: คนใหม่เริ่มนับตั้งแต่ภาค ${stImpTerm()} (ไม่ไปค้างในภาค 1) · คนที่ไม่อยู่ในไฟล์เปลี่ยนเป็น ย้าย/ลาออก ตั้งแต่ภาค ${stImpTerm()} (ข้อมูลภาค 1 ยังอยู่ครบ)` : 'รายชื่อเดิมของปีการศึกษานี้จะถูกแทนที่'} การรับเงินที่บันทึกแล้วยังอยู่ครบ</div>`;
   $('btnStDoImport').disabled = false;
+}
+/* ภาคเรียนที่ 2 ของปีการศึกษาเดียวกัน → นำเข้าแบบรวม (คนที่ไม่อยู่ในไฟล์ = ย้าย/ลาออกตั้งแต่ภาค 2, คนใหม่เริ่มนับภาค 2) */
+function stImpTerm() {
+  const t = ST.data ? String(ST.data.term || '') : '';
+  return (t.charAt(0) === '2' && +t.split('/')[1] === +$('impYear').value) ? t : '';
+}
+function stImpMsg(r) {
+  return `นำเข้า ${r.imported.toLocaleString('th-TH')} คน` + (r.term ? ` (ภาค ${r.term}: เพิ่มใหม่ ${r.added.toLocaleString('th-TH')} คน · ไม่อยู่ในรายชื่อแล้ว ${r.removed.toLocaleString('th-TH')} คน → ย้าย/ลาออก)` : '');
 }
 async function doStImportUrl() {
   const url = $('impUrl').value.trim();
   if (!url) return toast('กรุณาวางลิงก์ Google Sheet', true);
   const btn = $('btnImpUrl'); btn.disabled = true;
   try {
-    const r = await api('importStudentsFromSheet', url, +$('impYear').value);
+    const r = await api('importStudentsFromSheet', url, +$('impYear').value, stImpTerm());
     modal('stImportModal').hide();
-    toast(`นำเข้า ${r.imported.toLocaleString('th-TH')} คน จาก ${r.sheets.length} ชีต` + (r.errorCount ? ` · ข้าม ${r.errorCount} แถว` : ''));
+    toast(stImpMsg(r) + ` จาก ${r.sheets.length} ชีต` + (r.errorCount ? ` · ข้าม ${r.errorCount} แถว` : ''));
     await loadStudents();
   } catch (e) { fail(e); }
   btn.disabled = false;
@@ -1901,9 +1925,9 @@ async function doStImport() {
   if (!ST.imp || !ST.imp.length) return;
   const btn = $('btnStDoImport'); btn.disabled = true;
   try {
-    const r = await api('importStudents', +$('impYear').value, ST.imp);
+    const r = await api('importStudents', +$('impYear').value, ST.imp, stImpTerm());
     modal('stImportModal').hide();
-    toast(`นำเข้า ${r.imported.toLocaleString('th-TH')} คน` + (r.errorCount ? ` · ข้าม ${r.errorCount} แถว` : ''));
+    toast(stImpMsg(r) + (r.errorCount ? ` · ข้าม ${r.errorCount} แถว` : ''));
     await loadStudents();
   } catch (e) { fail(e); }
   btn.disabled = false;
