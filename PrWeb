@@ -402,8 +402,12 @@ function pwOrderFin(ids, kind) {
 
 function pwAuthDrive() {
   const f = DriveApp.getRootFolder().createFile('pw-auth-test.txt', 'ok');
+  let r = 'create OK';
+  try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); r += ', public OK'; }
+  catch (e) { r += ', public FAIL: ' + e.message; }
   f.setTrashed(true);
-  return 'Drive OK';
+  Logger.log(r);
+  return r;
 }
 
 function pwUpload(dataUrl, fileName) {
@@ -415,6 +419,7 @@ function pwUpload(dataUrl, fileName) {
   let folder;
   try { folder = DriveApp.getFolderById(PW_IMG_FOLDER); } catch (e) { folder = DriveApp.getRootFolder(); }
   const f = folder.createFile(blob);
-  f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }
+  catch (e) { try { f.setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.VIEW); } catch (e2) {} }
   return { url: 'https://drive.google.com/thumbnail?id=' + f.getId() + '&sz=w2000' };
 }
