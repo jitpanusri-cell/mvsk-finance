@@ -401,8 +401,11 @@ function pwOrderFin(ids, kind) {
 }
 
 function pwAuthDrive() {
+  let r = '';
+  try { DriveApp.getFolderById(PW_IMG_FOLDER).createFile('pw-auth-test.txt', 'ok').setTrashed(true); r = 'folder OK'; }
+  catch (e) { r = 'folder FAIL: ' + e.message; }
   const f = DriveApp.getRootFolder().createFile('pw-auth-test.txt', 'ok');
-  let r = 'create OK';
+  r += ', root OK';
   try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); r += ', public OK'; }
   catch (e) { r += ', public FAIL: ' + e.message; }
   f.setTrashed(true);
@@ -416,9 +419,9 @@ function pwUpload(dataUrl, fileName) {
   const type = (parts[0].match(/:(.*?);/) || [])[1] || '';
   if (type.indexOf('image') !== 0) throw new Error('รองรับเฉพาะไฟล์รูปภาพ');
   const blob = Utilities.newBlob(Utilities.base64Decode(parts[1]), type, fileName || 'image.jpg');
-  let folder;
-  try { folder = DriveApp.getFolderById(PW_IMG_FOLDER); } catch (e) { folder = DriveApp.getRootFolder(); }
-  const f = folder.createFile(blob);
+  let f;
+  try { f = DriveApp.getFolderById(PW_IMG_FOLDER).createFile(blob); }
+  catch (e) { f = DriveApp.getRootFolder().createFile(blob); }
   try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }
   catch (e) { try { f.setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.VIEW); } catch (e2) {} }
   return { url: 'https://drive.google.com/thumbnail?id=' + f.getId() + '&sz=w2000' };
