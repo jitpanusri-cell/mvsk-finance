@@ -400,6 +400,12 @@ function pwOrderFin(ids, kind) {
   return withLock_(() => { pwReorder_(pwFinSheet_(ss, kind), ids || [], 10, false); return true; });
 }
 
+function pwAuthDrive() {
+  const f = DriveApp.getRootFolder().createFile('pw-auth-test.txt', 'ok');
+  f.setTrashed(true);
+  return 'Drive OK';
+}
+
 function pwUpload(dataUrl, fileName) {
   pwUser_();
   const parts = String(dataUrl).split(',');
